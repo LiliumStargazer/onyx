@@ -345,6 +345,10 @@ def try_creating_prune_generator_task(
     is used to trigger prunes immediately, e.g. via the web ui.
     """
 
+    # A Wiki.js snapshot cannot prove absence from an incomplete inventory.
+    if cc_pair.connector.source == DocumentSource.WIKIJS:
+        return None
+
     logger.info("try_creating_prune_generator_task: cc_pair=%s", cc_pair.id)
 
     redis_connector = RedisConnector(tenant_id, cc_pair.id)

@@ -175,6 +175,11 @@ export const SOURCE_METADATA_MAP: SourceMap = {
     category: SourceCategory.Wiki,
     docs: `${DOCS_ADMINS_PATH}/connectors/official/guru`,
   },
+  wikijs: {
+    icon: SvgFileText,
+    displayName: "Wiki.js",
+    category: SourceCategory.Wiki,
+  },
   mediawiki: {
     icon: SvgMediawiki,
     displayName: "MediaWiki",

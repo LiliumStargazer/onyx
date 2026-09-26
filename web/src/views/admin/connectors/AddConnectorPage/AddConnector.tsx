@@ -450,8 +450,14 @@ export default function AddConnector({
                   name: name,
                   source: connector,
                   access_type: access_type,
-                  refresh_freq: advancedConfiguration.refreshFreq || null,
-                  prune_freq: advancedConfiguration.pruneFreq || null,
+                  refresh_freq:
+                    connector === "wikijs"
+                      ? null
+                      : advancedConfiguration.refreshFreq || null,
+                  prune_freq:
+                    connector === "wikijs"
+                      ? null
+                      : advancedConfiguration.pruneFreq || null,
                   indexing_start: advancedConfiguration.indexingStart || null,
                   groups: groups,
                 },
@@ -753,7 +759,7 @@ export default function AddConnector({
                   </Card>
                 </Disabled>
 
-                {connector !== "file" && (
+                {connector !== "file" && connector !== "wikijs" && (
                   <Disabled
                     disabled={!canCreate}
                     tooltip={t("credentialRequired.tooltip")}

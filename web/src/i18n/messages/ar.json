@@ -930,6 +930,7 @@
         "wikipedia": {
           "description": "قاعدة معرفة عامة"
         },
+        "wikijs": { "description": "صفحات Wiki.js Markdown (للاختبار فقط)" },
         "mediawiki": {
           "description": "ويكي بنمط ويكيبيديا"
         },

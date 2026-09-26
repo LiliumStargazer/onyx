@@ -930,6 +930,7 @@
         "wikipedia": {
           "description": "公開ナレッジベース"
         },
+        "wikijs": { "description": "Wiki.js Markdown ページ（テストのみ）" },
         "mediawiki": {
           "description": "Wikipedia 型の Wiki"
         },

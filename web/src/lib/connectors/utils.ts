@@ -31,7 +31,7 @@ import type {
 
 export function isLoadState(connector_name: string): boolean {
   // TODO: centralize connector metadata like this somewhere instead of hardcoding it here
-  const loadStateConnectors = ["web", "xenforo", "file", "airtable"];
+  const loadStateConnectors = ["web", "xenforo", "file", "airtable", "wikijs"];
   if (loadStateConnectors.includes(connector_name)) {
     return true;
   }
@@ -69,7 +69,7 @@ export function createConnectorInitialValues(
   return {
     name: "",
     groups: [],
-    access_type: "public",
+    access_type: connector === "wikijs" ? "private" : "public",
     restrict_access_to_groups: false,
     restriction_group_ids: [],
     ...buildInitialValuesForFields(configuration.values),

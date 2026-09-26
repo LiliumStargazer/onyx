@@ -930,6 +930,7 @@
         "wikipedia": {
           "description": "公开知识库"
         },
+        "wikijs": { "description": "Wiki.js Markdown 页面（仅供测试）" },
         "mediawiki": {
           "description": "维基百科式维基"
         },

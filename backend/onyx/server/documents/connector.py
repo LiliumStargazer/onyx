@@ -60,6 +60,7 @@ from onyx.connectors.google_utils.shared_constants import (
     DB_CREDENTIALS_DICT_TOKEN_KEY,
     GoogleOAuthAuthenticationMethod,
 )
+from onyx.connectors.models import InputType
 from onyx.db.connector import (
     create_connector,
     delete_connector,
@@ -1506,6 +1507,20 @@ def _validate_indexing_start(connector_data: ConnectorBase) -> None:
         )
 
 
+def _validate_wikijs_snapshot(connector_data: ConnectorBase) -> None:
+    if connector_data.source != DocumentSource.WIKIJS:
+        return
+    if (
+        connector_data.input_type != InputType.LOAD_STATE
+        or connector_data.refresh_freq is not None
+        or connector_data.prune_freq is not None
+    ):
+        raise OnyxError(
+            OnyxErrorCode.INVALID_INPUT,
+            "Wiki.js supports only a one-time snapshot without refresh or pruning.",
+        )
+
+
 def _validate_connector_allowed(source: DocumentSource) -> None:
     valid_connectors = [
         x for x in ENABLED_CONNECTOR_TYPES.replace("_", "").split(",") if x
@@ -1536,6 +1551,7 @@ def create_connector_from_model(
     try:
         _validate_connector_allowed(connector_data.source)
         _validate_indexing_start(connector_data)
+        _validate_wikijs_snapshot(connector_data)
 
         connector_base = connector_data.to_connector_base()
         connector_response = create_connector(
@@ -1670,6 +1686,7 @@ def update_connector_from_model(
 ) -> ConnectorSnapshot | StatusResponse[int]:
     try:
         _validate_connector_allowed(connector_data.source)
+        _validate_wikijs_snapshot(connector_data)
         connector_base = connector_data.to_connector_base()
     except ValueError as e:
         raise OnyxError(OnyxErrorCode.INVALID_INPUT, str(e))

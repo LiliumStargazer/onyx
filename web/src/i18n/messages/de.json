@@ -930,6 +930,7 @@
         "wikipedia": {
           "description": "Öffentliche Wissensdatenbank"
         },
+        "wikijs": { "description": "Wiki.js-Markdown-Seiten (nur Test)" },
         "mediawiki": {
           "description": "Wiki im Wikipedia-Stil"
         },

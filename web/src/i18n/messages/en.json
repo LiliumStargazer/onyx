@@ -933,6 +933,9 @@
         "mediawiki": {
           "description": "Wikipedia-style wiki"
         },
+        "wikijs": {
+          "description": "Wiki.js Markdown pages (test snapshot only)"
+        },
         "asana": {
           "description": "Work management"
         },

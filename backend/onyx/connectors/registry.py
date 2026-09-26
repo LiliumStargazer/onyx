@@ -216,6 +216,10 @@ CONNECTOR_CLASS_MAP = {
         module_path="onyx.connectors.drupal_wiki.connector",
         class_name="DrupalWikiConnector",
     ),
+    DocumentSource.WIKIJS: ConnectorMapping(
+        module_path="onyx.connectors.wikijs",
+        class_name="WikiJsConnector",
+    ),
     DocumentSource.IMAP: ConnectorMapping(
         module_path="onyx.connectors.imap.connector",
         class_name="ImapConnector",

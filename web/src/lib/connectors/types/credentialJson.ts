@@ -26,6 +26,10 @@ export interface BitbucketCredentialJson {
   bitbucket_api_token: string;
 }
 
+export interface WikiJsCredentialJson {
+  wikijs_api_token: string;
+}
+
 export interface BookstackCredentialJson {
   bookstack_base_url: string;
   bookstack_api_token_id: string;

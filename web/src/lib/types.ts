@@ -652,6 +652,7 @@ export enum ValidSources {
   Gitbook = "gitbook",
   Highspot = "highspot",
   DrupalWiki = "drupal_wiki",
+  WikiJs = "wikijs",
   Imap = "imap",
   Bitbucket = "bitbucket",
   TestRail = "testrail",

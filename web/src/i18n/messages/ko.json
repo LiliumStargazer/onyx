@@ -930,6 +930,7 @@
         "wikipedia": {
           "description": "공개 지식 베이스"
         },
+        "wikijs": { "description": "Wiki.js Markdown 페이지 (테스트 전용)" },
         "mediawiki": {
           "description": "위키백과 스타일 위키"
         },

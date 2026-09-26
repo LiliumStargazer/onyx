@@ -930,6 +930,9 @@
         "wikipedia": {
           "description": "Base de conocimiento pública"
         },
+        "wikijs": {
+          "description": "Páginas Markdown de Wiki.js (solo prueba)"
+        },
         "mediawiki": {
           "description": "Wiki estilo Wikipedia"
         },

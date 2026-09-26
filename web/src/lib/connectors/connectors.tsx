@@ -1083,6 +1083,32 @@ export const connectorConfigs: Record<
     ],
     advanced_values: [],
   },
+  wikijs: {
+    description:
+      "Initial Wiki.js Markdown snapshot only. Use an isolated test index; visibility metadata does not enforce access. Do not use for live import.",
+    values: [
+      { type: "text", label: "Wiki.js URL", name: "wiki_url", optional: false },
+      {
+        type: "text",
+        label: "Corpus root (absolute path)",
+        name: "corpus_root",
+        optional: false,
+      },
+      {
+        type: "text",
+        label: "Excluded folder names (JSON array; [] is valid)",
+        name: "excluded_folder_names",
+        optional: false,
+      },
+      {
+        type: "text",
+        label: "Visibility folders (JSON map: folder name to visibility)",
+        name: "visibility_folders",
+        optional: false,
+      },
+    ],
+    advanced_values: [],
+  },
   drupal_wiki: {
     description: "Configure Drupal Wiki connector",
     values: [

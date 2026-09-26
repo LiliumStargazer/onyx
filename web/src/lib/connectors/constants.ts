@@ -64,6 +64,7 @@ export const SOURCE_DESCRIPTION_KEYS = {
   [ValidSources.Clickup]: "sources.clickup.description",
   [ValidSources.Wikipedia]: "sources.wikipedia.description",
   [ValidSources.Mediawiki]: "sources.mediawiki.description",
+  [ValidSources.WikiJs]: "sources.wikijs.description",
   [ValidSources.Asana]: "sources.asana.description",
   [ValidSources.S3]: "sources.s3.description",
   [ValidSources.R2]: "sources.r2.description",

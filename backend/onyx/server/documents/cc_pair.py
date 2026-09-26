@@ -22,6 +22,7 @@ from onyx.connectors.exceptions import ValidationError
 from onyx.connectors.factory import identify_connector_class, validate_ccpair_for_user
 from onyx.connectors.interfaces import Resolver
 from onyx.connectors.models import InputType
+from onyx.db.connector import fetch_connector_by_id
 from onyx.db.connector_credential_pair import (
     add_credential_to_connector,
     get_cc_pair_groups_for_ids,
@@ -707,6 +708,11 @@ def prune_cc_pair(
             OnyxErrorCode.INSUFFICIENT_PERMISSIONS,
             "Connection not found for current user's permissions",
         )
+    if cc_pair.connector.source == DocumentSource.WIKIJS:
+        raise OnyxError(
+            OnyxErrorCode.INVALID_INPUT,
+            "Wiki.js snapshot pruning is not supported.",
+        )
 
     r = get_redis_client()
 
@@ -821,6 +827,17 @@ def associate_credential_to_connector(
 
     The intent of this endpoint is to handle connectors that actually need credentials.
     """
+
+    connector = fetch_connector_by_id(connector_id, db_session)
+    if (
+        connector
+        and connector.source == DocumentSource.WIKIJS
+        and (metadata.access_type != AccessType.PRIVATE or metadata.groups)
+    ):
+        raise OnyxError(
+            OnyxErrorCode.INVALID_INPUT,
+            "Wiki.js test snapshots must be private and have no shared groups.",
+        )
 
     if metadata.access_type == AccessType.SYNC_RESTRICTED:
         # Becomes creatable in the same change that enforces its data-access

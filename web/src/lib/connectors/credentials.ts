@@ -17,6 +17,7 @@ import type {
   Document360CredentialJson,
   DropboxCredentialJson,
   DrupalWikiCredentialJson,
+  WikiJsCredentialJson,
   EgnyteCredentialJson,
   FirefliesCredentialJson,
   FreshdeskCredentialJson,
@@ -96,6 +97,7 @@ type CredentialTemplateMap = Record<ValidSources, object | null> & {
   egnyte: EgnyteCredentialJson;
   airtable: AirtableCredentialJson;
   drupal_wiki: DrupalWikiCredentialJson;
+  wikijs: WikiJsCredentialJson;
   discord: DiscordCredentialJson;
   google_drive: Partial<GoogleDriveCredentialJson>;
   gmail: Partial<GmailCredentialJson>;
@@ -354,6 +356,7 @@ export const credentialTemplates: Record<ValidSources, any> = {
   drupal_wiki: {
     drupal_wiki_api_token: "",
   },
+  wikijs: { wikijs_api_token: "" },
   xenforo: null,
   google_sites: null,
   file: null,
@@ -580,6 +583,7 @@ export const credentialDisplayNames: Record<string, string> = {
 
   // Drupal Wiki
   drupal_wiki_api_token: "Drupal Wiki Personal Access Token",
+  wikijs_api_token: "Wiki.js API Token (pages.single may require manage:pages)",
 
   // Bitbucket
   bitbucket_email: "Bitbucket Account Email",
