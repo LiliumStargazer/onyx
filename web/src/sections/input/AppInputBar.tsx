@@ -671,6 +671,7 @@ const AppInputBar = React.memo(
                 key={activeAgent.id}
                 agent={activeAgent}
                 toolConfiguration={toolConfiguration}
+                deepResearchEnabled={deepResearchEnabled}
                 disabled={disabled}
               />
             )}

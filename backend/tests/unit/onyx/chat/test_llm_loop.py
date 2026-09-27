@@ -35,6 +35,51 @@ from onyx.tools.models import ToolCallKickoff
 from onyx.tools.tool_implementations.search.search_tool import SearchTool
 
 
+def test_required_search_rejects_an_answer_without_search() -> None:
+    search_tool = Mock(spec=SearchTool)
+    search_tool.id = 1
+    search_tool.name = SearchTool.NAME
+    llm = Mock()
+    llm.config = LLMConfig(
+        model_provider="openai",
+        model_name="text-only-model",
+        temperature=0,
+        max_input_tokens=8000,
+    )
+    answer = LlmStepResult(answer="Ungrounded answer", tool_calls=None, reasoning=None)
+    with (
+        patch("onyx.chat.llm_loop.trace", return_value=nullcontext()),
+        patch("onyx.llm.litellm_singleton.config.initialize_litellm"),
+        patch(
+            "onyx.chat.llm_loop.get_session_with_current_tenant",
+            return_value=nullcontext(),
+        ),
+        patch("onyx.chat.llm_loop.get_default_base_system_prompt", return_value=""),
+        patch("onyx.chat.llm_loop.select_reminder_text", return_value=""),
+        patch("onyx.chat.llm_loop.compute_all_tool_tokens", return_value=0),
+        patch("onyx.chat.llm_loop.run_llm_step", return_value=(answer, False)) as step,
+        patch(
+            "onyx.chat.llm_loop._try_fallback_tool_extraction",
+            return_value=(answer, False),
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="Internal Search is required"):
+            run_llm_loop(
+                emitter=Mock(),
+                state_container=Mock(),
+                simple_chat_history=[create_message("Question", MessageType.USER)],
+                tools=[search_tool],
+                custom_agent_prompt=None,
+                context_files=create_context_files(),
+                persona=None,
+                user_memory_context=None,
+                llm=llm,
+                token_counter=lambda _: 10,
+                required_search_tool_id=1,
+            )
+    assert step.call_args.kwargs["tool_choice"] == ToolChoiceOptions.REQUIRED
+
+
 def create_message(
     content: str, message_type: MessageType, token_count: int | None = None
 ) -> ChatMessageSimple:

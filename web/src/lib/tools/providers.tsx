@@ -27,6 +27,7 @@ interface ToolsPopoverInputs {
    * `useToolConfiguration` would hold its own state and never reach the send.
    */
   toolConfiguration: ToolConfigurationHandle;
+  deepResearchEnabled: boolean;
   /** Drills the popover into its sources sub-view. */
   openSources: () => void;
   /** Dismisses the popover. */
@@ -70,6 +71,7 @@ export interface ToolsPopoverValue extends ToolsPopoverInputs {
 function useToolsPopoverState({
   agent,
   toolConfiguration,
+  deepResearchEnabled,
   openSources,
   close,
 }: ToolsPopoverInputs): ToolsPopoverValue {
@@ -149,6 +151,7 @@ function useToolsPopoverState({
     () => ({
       agent,
       toolConfiguration,
+      deepResearchEnabled,
       openSources,
       close,
       configuredSources,
@@ -167,6 +170,7 @@ function useToolsPopoverState({
       agent,
       close,
       configuredSources,
+      deepResearchEnabled,
       disableAllSources,
       enableAllSources,
       enabledSourceCount,

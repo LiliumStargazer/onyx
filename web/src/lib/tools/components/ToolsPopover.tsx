@@ -61,12 +61,14 @@ export interface ToolsPopoverProps {
    * popover decides nothing about where it lives or how long it lasts.
    */
   toolConfiguration: ToolConfigurationHandle;
+  deepResearchEnabled: boolean;
   disabled?: boolean;
 }
 
 export default function ToolsPopover({
   agent,
   toolConfiguration,
+  deepResearchEnabled,
   disabled = false,
 }: ToolsPopoverProps) {
   const t = useTranslations("actions");
@@ -505,6 +507,7 @@ export default function ToolsPopover({
     <ToolsPopoverProvider
       agent={agent}
       toolConfiguration={toolConfiguration}
+      deepResearchEnabled={deepResearchEnabled}
       openSources={openSources}
       close={close}
     >

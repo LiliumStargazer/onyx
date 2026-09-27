@@ -1,6 +1,7 @@
 import pytest
 
 from onyx.chat.process_message import (
+    _requires_assistant_internal_search,
     _resolve_query_processing_hook_result,
     remove_answer_citations,
 )
@@ -8,6 +9,24 @@ from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.hooks.executor import HookSkipped, HookSoftFailed
 from onyx.hooks.points.query_processing import QueryProcessingResponse
+
+
+@pytest.mark.parametrize(
+    ("persona_id", "project_id", "deep_research", "required"),
+    [
+        (0, None, False, True),
+        (1, None, False, False),
+        (0, 1, False, False),
+        (0, None, True, False),
+    ],
+)
+def test_internal_search_required_only_for_normal_assistant_chat(
+    persona_id: int, project_id: int | None, deep_research: bool, required: bool
+) -> None:
+    assert (
+        _requires_assistant_internal_search(persona_id, project_id, deep_research)
+        is required
+    )
 
 
 def test_remove_answer_citations_strips_http_markdown_citation() -> None:

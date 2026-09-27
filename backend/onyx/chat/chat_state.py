@@ -230,6 +230,7 @@ class ChatTurnSetup:
     available_files: AvailableFiles
     tool_id_to_name_map: dict[int, str]
     forced_tool_id: int | None
+    required_search_tool_id: int | None
     files: list[ChatLoadedFile]
     chat_files_for_tools: list[ChatFile]
     custom_agent_prompt: str | None

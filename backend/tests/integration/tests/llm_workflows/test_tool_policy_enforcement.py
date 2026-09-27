@@ -40,6 +40,30 @@ def _ensure_llm_provider(admin_user: DATestUser) -> None:
     )
 
 
+def test_default_assistant_searches_even_when_user_disables_search(
+    admin_user: DATestUser,
+) -> None:
+    _assert_integration_mode_enabled()
+    _seed_connector_for_search_tool(admin_user)
+    _ensure_llm_provider(admin_user)
+
+    chat_session = ChatSessionManager.create(
+        persona_id=0, user_performing_action=admin_user
+    )
+    for message in ("first question", "follow-up question"):
+        response = ChatSessionManager.send_message(
+            chat_session_id=chat_session.id,
+            message=message,
+            user_performing_action=admin_user,
+            allowed_tool_ids=[],
+            mock_llm_response='{"name":"internal_search","arguments":{"queries":["test"]}}',
+        )
+        assert response.error is None, f"Unexpected stream error: {response.error}"
+        assert any(
+            tool.tool_name == ToolName.INTERNAL_SEARCH for tool in response.used_tools
+        )
+
+
 def test_forced_tool_executes_when_available(admin_user: DATestUser) -> None:
     _assert_integration_mode_enabled()
     _seed_connector_for_search_tool(admin_user)

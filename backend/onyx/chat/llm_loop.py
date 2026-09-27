@@ -822,6 +822,7 @@ def run_llm_loop(
     llm: LLM,
     token_counter: Callable[[str], int],
     forced_tool_id: int | None = None,
+    required_search_tool_id: int | None = None,
     user_identity: LLMUserIdentity | None = None,
     chat_session_id: str | None = None,
     chat_files: list[ChatFile] | None = None,
@@ -947,7 +948,16 @@ def run_llm_loop(
         for llm_cycle_count in range(MAX_LLM_CYCLES):
             # Handling tool calls based on cycle count and past cycle conditions
             out_of_cycles = llm_cycle_count == MAX_LLM_CYCLES - 1
-            if forced_tool_id:
+            if required_search_tool_id and not has_called_search_tool:
+                final_tools = [
+                    tool for tool in tools if tool.id == required_search_tool_id
+                ]
+                if not final_tools:
+                    raise ValueError("Required Internal Search tool not found")
+                tool_choice = ToolChoiceOptions.REQUIRED
+                if forced_tool_id == required_search_tool_id:
+                    forced_tool_id = None
+            elif forced_tool_id:
                 # Needs to be just the single one because the "required" currently doesn't have a specified tool, just a binary
                 final_tools = [tool for tool in tools if tool.id == forced_tool_id]
                 if not final_tools:
@@ -1161,6 +1171,12 @@ def run_llm_loop(
             # each tool might have custom logic here
             tool_responses: list[ToolResponse] = []
             tool_calls = llm_step_result.tool_calls or []
+            if (
+                required_search_tool_id
+                and not has_called_search_tool
+                and not tool_calls
+            ):
+                raise RuntimeError("Internal Search is required before answering")
 
             if INTEGRATION_TESTS_MODE and tool_calls:
                 for tool_call in tool_calls:

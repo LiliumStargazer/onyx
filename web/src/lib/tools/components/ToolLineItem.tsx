@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo } from "react";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
+import { isAssistant } from "@/lib/agents/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Route } from "next";
@@ -62,6 +63,7 @@ export default function ToolLineItem({ tool }: ToolLineItemProps) {
   const {
     agent,
     toolConfiguration,
+    deepResearchEnabled,
     sourceCounts,
     toggleForced,
     toggleEnabled,
@@ -110,12 +112,14 @@ export default function ToolLineItem({ tool }: ToolLineItemProps) {
   );
 
   const isForced = toolConfiguration.forcedToolId === tool.id;
-  // Switched off for this chat. The row stays interactive: pressing it turns
-  // the tool back on and pins it in one gesture.
-  const isDisabled = toolConfiguration.disabledToolIds.includes(tool.id);
-
   const isSearchTool = tool.in_code_tool_id === SEARCH_TOOL_ID;
   const inProject = currentProjectId != null;
+  const searchIsRequired =
+    isSearchTool && isAssistant(agent) && !inProject && !deepResearchEnabled;
+  // Switched off for this chat. The row stays interactive: pressing it turns
+  // the tool back on and pins it in one gesture.
+  const isDisabled =
+    !searchIsRequired && toolConfiguration.disabledToolIds.includes(tool.id);
   // Inside a project the row searches that project's files, so it neither
   // owns the connector sources nor offers a way into them.
   const ownsSources = isSearchTool && !inProject;
@@ -157,6 +161,7 @@ export default function ToolLineItem({ tool }: ToolLineItemProps) {
     : t("actionLineItem.selectSearchSources.label");
 
   function handleClick() {
+    if (searchIsRequired) return;
     if (isUnavailable) {
       toggleForced(tool.id);
       return;
@@ -191,7 +196,7 @@ export default function ToolLineItem({ tool }: ToolLineItemProps) {
   if (!isUnavailable && tool.oauth_config_id && authStatus) {
     rightActions.push({ kind: "authenticate", authStatus });
   }
-  if (!isUnavailable && !needsConnectors) {
+  if (!isUnavailable && !needsConnectors && !searchIsRequired) {
     rightActions.push({
       kind: "toggle",
       count: sourcesNarrowed ? sourceCounts : null,
@@ -201,7 +206,7 @@ export default function ToolLineItem({ tool }: ToolLineItemProps) {
   // and sources belong to search. The `else` states what was only implied.
   if (adminConfigure) {
     rightActions.push({ kind: "configure", ...adminConfigure });
-  } else if (ownsSources) {
+  } else if (ownsSources && !searchIsRequired) {
     rightActions.push({ kind: "selectSources" });
   }
 
@@ -282,10 +287,10 @@ export default function ToolLineItem({ tool }: ToolLineItemProps) {
         sizePreset="main-ui"
         variant="section"
         rounding={2}
-        state={isForced ? "selected" : "empty"}
+        state={isForced || searchIsRequired ? "selected" : "empty"}
         strikethrough={isDisabled}
         color={(isUnavailable && isForced) || isDisabled ? "muted" : undefined}
-        disabled={needsConnectors || (isUnavailable && !isForced)}
+        disabled={searchIsRequired || needsConnectors || (isUnavailable && !isForced)}
         tooltip={getToolTooltip(
           tool,
           isConfigured,

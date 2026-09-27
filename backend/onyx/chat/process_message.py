@@ -533,6 +533,12 @@ def _build_tool_metadata(user_file: UserFile) -> FileToolMetadata:
     )
 
 
+def _requires_assistant_internal_search(
+    persona_id: int, project_id: int | None, deep_research: bool
+) -> bool:
+    return persona_id == DEFAULT_PERSONA_ID and project_id is None and not deep_research
+
+
 def determine_search_params(
     persona_id: int,
     project_id: int | None,
@@ -917,6 +923,13 @@ def build_chat_turn(
         project_id=chat_session.project_id,
         extracted_context_files=extracted_context_files,
     )
+    search_is_required = _requires_assistant_internal_search(
+        persona.id, chat_session.project_id, new_msg_req.deep_research
+    )
+    if search_is_required:
+        search_params = search_params.model_copy(
+            update={"search_usage": SearchToolUsage.ENABLED}
+        )
 
     # Also grant access to persona-attached user files for FileReaderTool
     if persona.user_files:
@@ -931,6 +944,10 @@ def build_chat_turn(
     search_tool_id = next(
         (tool.id for tool in all_tools if tool.in_code_tool_id == SEARCH_TOOL_ID), None
     )
+    if search_is_required and not any(
+        tool.id == search_tool_id and tool.enabled for tool in all_tools
+    ):
+        raise ValueError("Internal Search must be enabled for the default Assistant")
 
     forced_tool_id = new_msg_req.forced_tool_id
     if (
@@ -1104,6 +1121,7 @@ def build_chat_turn(
         available_files=available_files,
         tool_id_to_name_map=tool_id_to_name_map,
         forced_tool_id=forced_tool_id,
+        required_search_tool_id=search_tool_id if search_is_required else None,
         files=files,
         chat_files_for_tools=chat_files_for_tools,
         custom_agent_prompt=custom_agent_prompt,
@@ -1340,6 +1358,14 @@ def _run_models(
         model_llm = setup.llms[model_idx]
 
         try:
+            search_filters = setup.new_msg_req.internal_search_filters
+            if (
+                setup.required_search_tool_id is not None
+                and search_filters is not None
+                and search_filters.source_type == []
+            ):
+                search_filters = search_filters.model_copy(update={"source_type": None})
+
             # Each function opens short-lived DB sessions on demand.
             # Do NOT pass a long-lived session here — it would hold a
             # connection for the entire LLM loop (minutes), and cloud
@@ -1350,12 +1376,12 @@ def _run_models(
                 user=user,
                 llm=model_llm,
                 search_tool_config=SearchToolConfig(
-                    user_selected_filters=setup.new_msg_req.internal_search_filters,
+                    user_selected_filters=search_filters,
                     project_id_filter=setup.search_params.project_id_filter,
                     persona_id_filter=setup.search_params.persona_id_filter,
                     slack_context=setup.slack_context,
                     enable_slack_search=_should_enable_slack_search(
-                        setup.persona, setup.new_msg_req.internal_search_filters
+                        setup.persona, search_filters
                     ),
                     auto_detect_filters=auto_detect_search_filters,
                 ),
@@ -1415,6 +1441,7 @@ def _run_models(
                     llm=model_llm,
                     token_counter=get_llm_token_counter(model_llm),
                     forced_tool_id=setup.forced_tool_id,
+                    required_search_tool_id=setup.required_search_tool_id,
                     user_identity=setup.user_identity,
                     chat_session_id=str(setup.chat_session_id),
                     chat_files=setup.chat_files_for_tools,
