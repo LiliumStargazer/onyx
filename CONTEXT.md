@@ -1,11 +1,15 @@
-# Assistente Wiki aziendale
+# Wiki Agent Rag
 
-Questo fork di Onyx sostituirà Wiki Copilot. Il nome del nuovo assistente è ancora da decidere.
+Wiki Agent Rag è l'assistente basato sul fork di Onyx che sostituirà Wiki Copilot. Usa la Wiki aziendale come fonte.
 
 ## Linguaggio
 
+**Wiki Agent Rag**:
+Il nuovo assistente che sostituirà Wiki Copilot.
+_Evitare_: AMWiki, Wiki.js, Wiki Copilot
+
 **Wiki Copilot**:
-L'assistente attuale che usa i contenuti della Wiki aziendale. È distinto dal nuovo assistente basato su Onyx.
+L'assistente attuale che usa i contenuti della Wiki aziendale. È distinto da Wiki Agent Rag.
 _Evitare_: nuovo assistente, Wiki.js
 
 **Ruolo**:
@@ -17,5 +21,5 @@ Etichetta di accesso associata ai contenuti della Wiki. Il ruolo dell'utente det
 _Evitare_: ruolo, unità organizzativa
 
 **Parità di accesso**:
-Requisito per cui il nuovo assistente mantiene gli stessi utenti e la regola OU → ruolo → contenuti visibili di Wiki Copilot.
+Requisito per cui Wiki Agent Rag mantiene gli stessi utenti e la regola OU → ruolo → contenuti visibili di Wiki Copilot.
 _Evitare_: stessa schermata di login, ACL native di Wiki.js
