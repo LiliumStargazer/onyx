@@ -1,0 +1,35 @@
+# Portainer Git stack: add this file after docker-compose.yml.
+# Keep the UI on the host loopback; never expose Wiki.js documents publicly.
+services:
+  api_server:
+    image: ${ONYX_BACKEND_IMAGE:?Set ONYX_BACKEND_IMAGE in Portainer}
+    build: !reset null
+    environment:
+      FILE_STORE_BACKEND: postgres
+  background:
+    image: ${ONYX_BACKEND_IMAGE:?Set ONYX_BACKEND_IMAGE in Portainer}
+    build: !reset null
+    environment:
+      FILE_STORE_BACKEND: postgres
+  web_server:
+    image: ${ONYX_WEB_SERVER_IMAGE:?Set ONYX_WEB_SERVER_IMAGE in Portainer}
+    build: !reset null
+  inference_model_server:
+    image: onyxdotapp/onyx-model-server:nightly-latest-20260926
+    build: !reset null
+  indexing_model_server:
+    image: onyxdotapp/onyx-model-server:nightly-latest-20260926
+    build: !reset null
+  relational_db:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
+  opensearch:
+    environment:
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_ADMIN_PASSWORD:?Set OPENSEARCH_ADMIN_PASSWORD in Portainer}
+      # ponytail: 1 GiB heap for the 8 GiB trial host; restore 2 GiB on a larger host.
+      OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
+  nginx:
+    ports: !override
+      - "127.0.0.1:13000:80"
+    volumes:
+      - /opt/onyx/nginx:/nginx-templates:ro
