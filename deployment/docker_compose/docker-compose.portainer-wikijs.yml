@@ -7,6 +7,7 @@ services:
     environment:
       FILE_STORE_BACKEND: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
+      USER_AUTH_SECRET: ${USER_AUTH_SECRET:?Set USER_AUTH_SECRET in Portainer}
       WEB_DOMAIN: http://localhost:13000
   background:
     image: ${ONYX_BACKEND_IMAGE:?Set ONYX_BACKEND_IMAGE in Portainer}
@@ -14,6 +15,7 @@ services:
     environment:
       FILE_STORE_BACKEND: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
+      USER_AUTH_SECRET: ${USER_AUTH_SECRET:?Set USER_AUTH_SECRET in Portainer}
   web_server:
     image: ${ONYX_WEB_SERVER_IMAGE:?Set ONYX_WEB_SERVER_IMAGE in Portainer}
     build: !reset null
@@ -30,6 +32,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
   opensearch:
     environment:
+      # OpenSearch requires upper/lowercase letters, a digit, and a symbol.
       OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_ADMIN_PASSWORD:?Set OPENSEARCH_ADMIN_PASSWORD in Portainer}
       # ponytail: 1 GiB heap for the 8 GiB trial host; restore 2 GiB on a larger host.
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
