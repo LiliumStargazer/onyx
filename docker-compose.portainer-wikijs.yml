@@ -6,12 +6,14 @@ services:
     build: !reset null
     environment:
       FILE_STORE_BACKEND: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
       WEB_DOMAIN: http://localhost:13000
   background:
     image: ${ONYX_BACKEND_IMAGE:?Set ONYX_BACKEND_IMAGE in Portainer}
     build: !reset null
     environment:
       FILE_STORE_BACKEND: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
   web_server:
     image: ${ONYX_WEB_SERVER_IMAGE:?Set ONYX_WEB_SERVER_IMAGE in Portainer}
     build: !reset null
