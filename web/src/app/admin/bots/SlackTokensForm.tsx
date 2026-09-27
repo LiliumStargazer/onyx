@@ -5,9 +5,9 @@ import { useTranslations } from "next-intl";
 import { Form, Formik } from "formik";
 import * as Yup from "yup";
 import { createSlackBot, updateSlackBot } from "./new/lib";
-import { Button, Divider } from "@opal/components";
+import { Button } from "@opal/components";
 import { useEffect } from "react";
-import { DOCS_ADMINS_PATH } from "@/lib/constants";
+
 import { toast } from "@opal/layouts";
 
 export const SlackTokensForm = ({
@@ -96,23 +96,6 @@ export const SlackTokensForm = ({
             </div>
           )}
 
-          {!isUpdate && (
-            <div className="mt-4">
-              <Divider />
-              {t.rich("tokensForm.docsPrompt.text", {
-                link: (chunks) => (
-                  <a
-                    className="text-blue-500 hover:underline"
-                    href={`${DOCS_ADMINS_PATH}/getting_started/slack_bot_setup`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {chunks}
-                  </a>
-                ),
-              })}
-            </div>
-          )}
           <TextFormField
             name="bot_token"
             label={t("tokensForm.botToken.label")}

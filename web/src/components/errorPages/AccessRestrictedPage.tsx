@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import ErrorPageLayout from "@/components/errorPages/ErrorPageLayout";
 import { Button } from "@opal/components";
-import InlineExternalLink from "@/refresh-components/InlineExternalLink";
 import { logout } from "@/lib/users/svc";
 import { loginPath } from "@/lib/auth/paths";
 import { NEXT_PUBLIC_CLOUD_ENABLED } from "@/lib/constants";
@@ -164,11 +163,6 @@ export default function AccessRestricted() {
                   {chunks}
                 </Link>
               ),
-              supportLink: (chunks) => (
-                <a className={linkClassName} href="mailto:support@onyx.app">
-                  {chunks}
-                </a>
-              ),
             })}
           </Text>
 
@@ -180,18 +174,6 @@ export default function AccessRestricted() {
         </>
       )}
 
-      <Text text03>
-        {t.rich("needHelp.text", {
-          discordLink: (chunks) => (
-            <InlineExternalLink
-              className={linkClassName}
-              href="https://discord.gg/4NA5SbzrWb"
-            >
-              {chunks}
-            </InlineExternalLink>
-          ),
-        })}
-      </Text>
     </ErrorPageLayout>
   );
 }

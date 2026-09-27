@@ -329,14 +329,7 @@ function SubscriptionCard({
             <Text secondaryBody text03 className="text-end">
               {t.rich("subscription.managedBySales.text", {
                 br: () => <br />,
-                link: (chunks) => (
-                  <a
-                    href="mailto:support@onyx.app?subject=Billing%20change%20request"
-                    className="underline"
-                  >
-                    {chunks}
-                  </a>
-                ),
+                link: (chunks) => chunks,
               })}
             </Text>
           ) : disabled ? (

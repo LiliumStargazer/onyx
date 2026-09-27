@@ -62,9 +62,18 @@ describe("useSettings enterprise-settings 404 handling", () => {
     const { result } = renderHook(() => useSettings());
     expect(result.current.error).toBeUndefined();
     expect(result.current.enterprise).toBeNull();
-    expect(result.current.appName).toBe("Onyx");
-    expect(result.current.logoUrl).toBeNull();
+    expect(result.current.appName).toBe("Wiki Agent Rag");
     expect(enterpriseRetryPolicy()(missing)).toBe(false);
+  });
+
+  test("an enterprise name cannot override the product name", () => {
+    mockUseSWR.mockImplementation((key) =>
+      key === SWR_KEYS.enterpriseSettings
+        ? { ...swrResult(), data: { application_name: "Other" } }
+        : swrResult()
+    );
+    const { result } = renderHook(() => useSettings());
+    expect(result.current.appName).toBe("Wiki Agent Rag");
   });
 
   test("a 404 off the auth path is not surfaced either", () => {

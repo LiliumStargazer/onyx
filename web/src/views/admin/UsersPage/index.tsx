@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSettings } from "@/lib/settings/hooks";
-import { SvgExternalLink, SvgUser, SvgUserPlus } from "@opal/icons";
+import { SvgUser, SvgUserPlus } from "@opal/icons";
 import { Button, MessageCard } from "@opal/components";
 import { SettingsLayouts } from "@opal/layouts";
 import { useScimToken } from "@/hooks/useScimToken";
@@ -95,20 +95,6 @@ export default function UsersPage() {
           variant="info"
           title={t("permissionsNotice.title")}
           description={t("permissionsNotice.description", { appName })}
-          rightChildren={
-            <Button
-              icon={SvgExternalLink}
-              onClick={() =>
-                window.open(
-                  "https://docs.onyx.app/admins/permissions/whats_changing",
-                  "_blank",
-                  "noopener,noreferrer"
-                )
-              }
-            >
-              {t("permissionsNotice.learnMoreButton.label")}
-            </Button>
-          }
         />
       </SettingsLayouts.Header>
       <SettingsLayouts.Body>

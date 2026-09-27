@@ -19,7 +19,6 @@ import NotificationsPopover from "@/sections/sidebar/NotificationsPopover";
 import {
   SvgBell,
   SvgExternalLink,
-  SvgHelpCircle,
   SvgLogOut,
   SvgSliders,
   SvgUser,
@@ -33,8 +32,6 @@ import { useSettings } from "@/lib/settings/hooks";
 import UserAvatar from "@/refresh-components/avatars/UserAvatar";
 import SidebarTabSkeleton from "@/refresh-components/skeletons/SidebarTabSkeleton";
 import { useNotificationSummary } from "@/hooks/useNotifications";
-import { SvgOnyxLogo } from "@opal/logos";
-import { markdown } from "@opal/utils";
 import { useTranslations } from "next-intl";
 
 interface SettingsPopoverProps {
@@ -50,8 +47,7 @@ function SettingsPopover({
 }: SettingsPopoverProps) {
   const t = useTranslations("accountPopover");
   const { user, userResolution } = useUser();
-  const settings = useSettings();
-  const enterpriseSettings = settings.enterprise;
+  const { enterprise: enterpriseSettings } = useSettings();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -126,16 +122,6 @@ function SettingsPopover({
             ) : undefined
           }
         />,
-        <LineItemButton
-          key="help-faq"
-          sizePreset="main-ui"
-          variant="section"
-          rounding={2}
-          icon={SvgHelpCircle}
-          title={t("helpFaq.label")}
-          href="https://docs.onyx.app"
-          target="_blank"
-        />,
         enterpriseSettings?.custom_help_link_url && (
           <LineItemButton
             key="custom-help-link"
@@ -174,21 +160,6 @@ function SettingsPopover({
             onClick={handleLogout}
           />
         ),
-        null,
-        <div key="version" className="p-2">
-          <Content
-            sizePreset="secondary"
-            variant="body"
-            color="muted"
-            orientation="reverse"
-            icon={SvgOnyxLogo}
-            title={markdown(
-              `[Onyx ${
-                settings.version ?? "dev"
-              }](https://docs.onyx.app/changelog)`
-            )}
-          />
-        </div>,
       ]}
     </PopoverMenu>
   );

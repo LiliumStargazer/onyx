@@ -1,6 +1,5 @@
 "use client";
 
-import { markdown } from "@opal/utils";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Modal } from "@opal/components";
@@ -20,7 +19,7 @@ import {
 } from "@/lib/tools/svc";
 import ToolItem from "@/sections/actions/ToolItem";
 import debounce from "lodash/debounce";
-import { DOCS_ADMINS_PATH } from "@/lib/constants";
+
 import { useModal } from "@opal/components";
 import { Formik, Form, useFormikContext } from "formik";
 import * as Yup from "yup";
@@ -247,11 +246,6 @@ function FormContent({
         <InputVertical
           withLabel="definition"
           title={t("addOpenApiModal.definition.title")}
-          subDescription={markdown(
-            t("addOpenApiModal.definition.subDescription", {
-              docsUrl: `${DOCS_ADMINS_PATH}/actions/openapi`,
-            })
-          )}
         >
           <Hoverable.Root group="definitionField" width="full">
             <div className="relative w-full">

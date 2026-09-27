@@ -1,19 +1,18 @@
 import { getAdminNavId } from "@/lib/admin-sidebar-utils";
 import { getTranslations } from "next-intl/server";
 import { SettingsLayouts } from "@opal/layouts";
-import { CUSTOM_ANALYTICS_ENABLED } from "@/lib/constants";
+import { APP_NAME, CUSTOM_ANALYTICS_ENABLED } from "@/lib/constants";
 import { Callout } from "@/components/ui/callout";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
 import { Text } from "@opal/components";
 import { Spacer } from "@opal/components";
 import CustomAnalyticsUpdateForm from "./CustomAnalyticsUpdateForm";
-import { fetchAppName } from "@/lib/app/svcSS";
 
 const route = ADMIN_ROUTES.CUSTOM_ANALYTICS;
 
 async function Main() {
   const t = await getTranslations("admin.customAnalytics");
-  const appName = await fetchAppName();
+  const appName = APP_NAME;
 
   if (!CUSTOM_ANALYTICS_ENABLED) {
     return (

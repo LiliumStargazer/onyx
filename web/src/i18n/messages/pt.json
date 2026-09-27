@@ -5906,7 +5906,7 @@
         },
         "requestSentBody": "Sua solicitação de entrada foi enviada. Você pode explorar como sua própria equipe enquanto espera que um administrador de {domain} aprove sua solicitação.",
         "tryOnyxButton": {
-          "label": "Testar o Onyx enquanto espera"
+          "label": "Testar o Wiki Agent Rag enquanto espera"
         }
       },
       "newTenant": {
@@ -9027,7 +9027,7 @@
         "label": "Criar nova organização"
       },
       "createTeamOption": {
-        "text": "Criar uma nova equipe do Onyx"
+        "text": "Criar uma nova equipe do Wiki Agent Rag"
       },
       "differentEmailPrompt": {
         "text": "Tem uma conta com outro e-mail?"
@@ -9036,10 +9036,10 @@
         "title": "Conta não encontrada"
       },
       "inviteOption": {
-        "text": "Ser convidado para uma equipe do Onyx existente"
+        "text": "Ser convidado para uma equipe do Wiki Agent Rag existente"
       },
       "notFound": {
-        "description": "Não encontramos sua conta em nossos registros. Para acessar o Onyx, você precisa de uma destas opções:"
+        "description": "Não encontramos sua conta em nossos registros. Para acessar o Wiki Agent Rag, você precisa de uma destas opções:"
       },
       "signInLink": {
         "label": "Entrar"
@@ -9106,9 +9106,6 @@
     "error": {
       "accessRestrictionIssue": {
         "description": "Restrições de acesso ou permissões da conta"
-      },
-      "cloudSupportPrompt": {
-        "text": "Se o problema continuar, entre em contato com a equipe do Onyx em <link>support@onyx.app</link>"
       },
       "code": {
         "accessDenied": "Seu provedor de identidade negou o acesso.",
@@ -11215,7 +11212,7 @@
     "errorPages": {
       "accessRestricted": {
         "billingAdminHint": {
-          "text": "Se você é o administrador, acesse a página de <billingLink>Faturamento do administrador</billingLink> para {hadLicense, select, true {renovar} other {ativar}} sua licença, cadastre-se pelo Stripe ou escreva para <supportLink>support@onyx.app</supportLink> para obter ajuda com o faturamento."
+          "text": "Se você é o administrador, acesse <billingLink>Faturamento do administrador</billingLink> para {hadLicense, select, true {renovar} other {ativar}} sua licença."
         },
         "heading": {
           "title": "Acesso restrito"
@@ -11263,7 +11260,7 @@
       },
       "configError": {
         "adminHint": {
-          "text": "Se você é administrador, consulte nossa <docsLink>documentação</docsLink> para as etapas corretas de configuração. Se você é usuário, entre em contato com seu administrador para obter ajuda."
+          "text": "Se o problema continuar, entre em contato com o administrador."
         },
         "heading": {
           "description": "Parece que houve um problema ao carregar suas configurações do {appName}. Isso pode ser causado por um problema de configuração ou uma instalação incompleta.",

@@ -13,7 +13,6 @@ import {
   EmbeddingProvider,
   EmbeddingProviderName,
 } from "@/lib/searchSettings/types";
-import { DOCS_ADMINS_PATH } from "@/lib/constants";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Embedding
@@ -24,7 +23,6 @@ export const CLOUD_BASED_PROVIDERS: EmbeddingProvider[] = [
     providerName: EmbeddingProviderName.COHERE,
     displayName: "Cohere",
     icon: SvgCohere,
-    docsLink: `${DOCS_ADMINS_PATH}/advanced_configs/search_configs`,
     apiLink: "https://dashboard.cohere.ai/api-keys",
     costslink: "https://cohere.com/pricing",
     embeddingModels: [
@@ -58,7 +56,6 @@ export const CLOUD_BASED_PROVIDERS: EmbeddingProvider[] = [
     providerName: EmbeddingProviderName.OPENAI,
     displayName: "OpenAI",
     icon: SvgOpenai,
-    docsLink: `${DOCS_ADMINS_PATH}/advanced_configs/search_configs`,
     apiLink: "https://platform.openai.com/api-keys",
     costslink: "https://openai.com/pricing",
     embeddingModels: [
@@ -84,7 +81,6 @@ export const CLOUD_BASED_PROVIDERS: EmbeddingProvider[] = [
     providerName: EmbeddingProviderName.GOOGLE,
     displayName: "Google",
     icon: SvgGoogle,
-    docsLink: `${DOCS_ADMINS_PATH}/advanced_configs/search_configs`,
     apiLink: "https://console.cloud.google.com/apis/credentials",
     costslink: "https://cloud.google.com/vertex-ai/pricing",
     embeddingModels: [
@@ -126,7 +122,6 @@ export const CLOUD_BASED_PROVIDERS: EmbeddingProvider[] = [
     providerName: EmbeddingProviderName.VOYAGE,
     displayName: "Voyage",
     icon: SvgVoyage,
-    docsLink: `${DOCS_ADMINS_PATH}/advanced_configs/search_configs`,
     apiLink: "https://www.voyageai.com/dashboard",
     costslink: "https://www.voyageai.com/pricing",
     deprecated: true,

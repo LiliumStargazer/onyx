@@ -539,7 +539,7 @@ export const AppearanceThemeSettings = forwardRef<
                 ref={customHelpLinkUrlInputRef}
                 data-label="custom-help-link-url-input"
                 clearButton
-                placeholder="https://docs.onyx.app"
+                placeholder="https://example.com"
                 variant={
                   !enterpriseTier
                     ? "disabled"

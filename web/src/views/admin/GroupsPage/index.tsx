@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
-import { SvgExternalLink, SvgUsers, SvgSimpleLoader } from "@opal/icons";
+import { SvgUsers, SvgSimpleLoader } from "@opal/icons";
 import { Button, MessageCard } from "@opal/components";
 import { SettingsLayouts } from "@opal/layouts";
 import { errorHandlingFetcher } from "@/lib/fetcher";
@@ -60,20 +60,6 @@ function GroupsPage() {
             variant="info"
             title={t("permissionsChanged.title")}
             description={t("permissionsChanged.description", { appName })}
-            rightChildren={
-              <Button
-                icon={SvgExternalLink}
-                onClick={() =>
-                  window.open(
-                    "https://docs.onyx.app/admins/permissions/whats_changing",
-                    "_blank",
-                    "noopener,noreferrer"
-                  )
-                }
-              >
-                {t("permissionsChanged.learnMore.label")}
-              </Button>
-            }
           />
         </SettingsLayouts.Header>
       </div>

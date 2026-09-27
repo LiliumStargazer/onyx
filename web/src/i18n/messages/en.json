@@ -5906,7 +5906,7 @@
         },
         "requestSentBody": "Your join request has been sent. You can explore as your own team while waiting for an admin of {domain} to approve your request.",
         "tryOnyxButton": {
-          "label": "Try Onyx while waiting"
+          "label": "Try Wiki Agent Rag while waiting"
         }
       },
       "newTenant": {
@@ -9027,7 +9027,7 @@
         "label": "Create New Organization"
       },
       "createTeamOption": {
-        "text": "Create a new Onyx team"
+        "text": "Create a new Wiki Agent Rag team"
       },
       "differentEmailPrompt": {
         "text": "Have an account with a different email?"
@@ -9036,10 +9036,10 @@
         "title": "Account Not Found"
       },
       "inviteOption": {
-        "text": "Be invited to an existing Onyx team"
+        "text": "Be invited to an existing Wiki Agent Rag team"
       },
       "notFound": {
-        "description": "We couldn't find your account in our records. To access Onyx, you need to either:"
+        "description": "We couldn't find your account in our records. To access Wiki Agent Rag, you need to either:"
       },
       "signInLink": {
         "label": "Sign in"
@@ -9106,9 +9106,6 @@
     "error": {
       "accessRestrictionIssue": {
         "description": "Account access restrictions or permissions"
-      },
-      "cloudSupportPrompt": {
-        "text": "If you continue to experience problems, please reach out to the Onyx team at <link>support@onyx.app</link>"
       },
       "code": {
         "accessDenied": "Access was denied by your identity provider.",
@@ -11215,7 +11212,7 @@
     "errorPages": {
       "accessRestricted": {
         "billingAdminHint": {
-          "text": "If you are the administrator, please visit the <billingLink>Admin Billing</billingLink> page to {hadLicense, select, true {renew} other {activate}} your license, sign up through Stripe or reach out to <supportLink>support@onyx.app</supportLink> for billing assistance."
+          "text": "If you are the administrator, visit <billingLink>Admin Billing</billingLink> to {hadLicense, select, true {renew} other {activate}} your license."
         },
         "heading": {
           "title": "Access Restricted"
@@ -11263,7 +11260,7 @@
       },
       "configError": {
         "adminHint": {
-          "text": "If you're an admin, please review our <docsLink>documentation</docsLink> for proper configuration steps. If you're a user, please contact your admin for assistance."
+          "text": "If the problem continues, contact your administrator."
         },
         "heading": {
           "description": "It seems there was a problem loading your {appName} settings. This could be due to a configuration issue or incomplete setup.",

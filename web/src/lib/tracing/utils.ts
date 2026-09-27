@@ -2,6 +2,7 @@ import type { useTranslations } from "next-intl";
 import { SvgBraintrust, SvgLangfuse } from "@opal/logos";
 import type { IconFunctionComponent } from "@opal/types";
 import type { TracingProviderType } from "@/lib/tracing/types";
+import { APP_NAME } from "@/lib/constants";
 
 export type TracingTranslate = ReturnType<
   typeof useTranslations<"admin.tracing">
@@ -47,9 +48,9 @@ export const TRACING_PROVIDER_DETAILS: Record<
       {
         name: "project",
         labelKey: "providers.braintrust.fields.project.label",
-        placeholder: "Onyx",
+        placeholder: APP_NAME,
         optional: true,
-        defaultValue: "Onyx",
+        defaultValue: APP_NAME,
         descriptionKey: "providers.braintrust.fields.project.description",
       },
       {

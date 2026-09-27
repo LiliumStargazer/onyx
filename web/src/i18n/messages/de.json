@@ -5904,7 +5904,7 @@
         },
         "requestSentBody": "Ihre Beitrittsanfrage wurde gesendet. Sie können als eigenes Team weitermachen, während ein Administrator von {domain} Ihre Anfrage genehmigt.",
         "tryOnyxButton": {
-          "label": "Onyx währenddessen ausprobieren"
+          "label": "Wiki Agent Rag währenddessen ausprobieren"
         }
       },
       "newTenant": {
@@ -9025,7 +9025,7 @@
         "label": "Neue Organisation erstellen"
       },
       "createTeamOption": {
-        "text": "Ein neues Onyx-Team erstellen"
+        "text": "Ein neues Wiki Agent Rag-Team erstellen"
       },
       "differentEmailPrompt": {
         "text": "Haben Sie ein Konto mit einer anderen E-Mail-Adresse?"
@@ -9034,10 +9034,10 @@
         "title": "Konto nicht gefunden"
       },
       "inviteOption": {
-        "text": "In ein bestehendes Onyx-Team eingeladen werden"
+        "text": "In ein bestehendes Wiki Agent Rag-Team eingeladen werden"
       },
       "notFound": {
-        "description": "Wir konnten Ihr Konto nicht finden. Um auf Onyx zuzugreifen, haben Sie folgende Möglichkeiten:"
+        "description": "Wir konnten Ihr Konto nicht finden. Um auf Wiki Agent Rag zuzugreifen, haben Sie folgende Möglichkeiten:"
       },
       "signInLink": {
         "label": "Anmelden"
@@ -9104,9 +9104,6 @@
     "error": {
       "accessRestrictionIssue": {
         "description": "Zugriffsbeschränkungen oder Berechtigungen des Kontos"
-      },
-      "cloudSupportPrompt": {
-        "text": "Wenn das Problem weiterhin besteht, wenden Sie sich an das Onyx-Team unter <link>support@onyx.app</link>"
       },
       "code": {
         "accessDenied": "Ihr Identitätsanbieter hat den Zugriff verweigert.",
@@ -11213,7 +11210,7 @@
     "errorPages": {
       "accessRestricted": {
         "billingAdminHint": {
-          "text": "Wenn du der Administrator bist, besuche bitte die Seite <billingLink>Admin-Abrechnung</billingLink>, um deine Lizenz zu {hadLicense, select, true {verlängern} other {aktivieren}}, registriere dich über Stripe oder wende dich an <supportLink>support@onyx.app</supportLink> für Unterstützung bei der Abrechnung."
+          "text": "Wenn du Administrator bist, besuche die Seite <billingLink>Admin-Abrechnung</billingLink>, um deine Lizenz zu {hadLicense, select, true {verlängern} other {aktivieren}}."
         },
         "heading": {
           "title": "Zugriff eingeschränkt"
@@ -11261,7 +11258,7 @@
       },
       "configError": {
         "adminHint": {
-          "text": "Wenn du Administrator bist, findest du in unserer <docsLink>Dokumentation</docsLink> die richtigen Konfigurationsschritte. Wenn du Benutzer bist, wende dich bitte an deinen Administrator."
+          "text": "Wenn das Problem weiterhin besteht, wende dich an deinen Administrator."
         },
         "heading": {
           "description": "Beim Laden deiner {appName}-Einstellungen ist offenbar ein Problem aufgetreten. Das kann an einem Konfigurationsproblem oder einer unvollständigen Einrichtung liegen.",

@@ -8,7 +8,7 @@ import * as Yup from "yup";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { setupGmailOAuth } from "@/lib/gmail";
-import { DOCS_ADMINS_PATH } from "@/lib/constants";
+
 import { CRAFT_OAUTH_COOKIE_NAME } from "@/app/craft/v1/constants";
 import Cookies from "js-cookie";
 import { Form, Formik } from "formik";
@@ -18,7 +18,6 @@ import {
   refreshAllGoogleData,
 } from "@/lib/googleConnector";
 import { ValidSources } from "@/lib/types";
-import { markdown } from "@opal/utils";
 
 interface GmailCredentialSectionProps {
   refreshCredentials: () => void;
@@ -73,13 +72,6 @@ export const GmailAuthSection = ({
       <Section alignItems="start" justifyContent="start" gap={4}>
         <Text as="p" font="main-ui-action">
           {t("gmail.oauthOption.title")}
-        </Text>
-        <Text as="p" font="secondary-body" color="text-03">
-          {markdown(
-            t("gmail.oauthOption.description", {
-              docsUrl: `${DOCS_ADMINS_PATH}/connectors/official/gmail/overview`,
-            })
-          )}
         </Text>
         <InputFile
           accept="application/json"

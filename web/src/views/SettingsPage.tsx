@@ -96,7 +96,7 @@ import { useSmoothStreaming } from "@/hooks/useSmoothStreaming";
 import { hasPermission } from "@/lib/permissions";
 import { findModelConfigId } from "@/lib/languageModels/options";
 import { useLanguageModels } from "@/lib/languageModels/hooks";
-import { DOCS_BASE_URL } from "@/lib/constants";
+
 import SimpleCollapsible from "@/refresh-components/SimpleCollapsible";
 import type { ErrorResponseBody } from "@/lib/fetcher";
 
@@ -1797,16 +1797,6 @@ function GatewayAccessSection({
         variant="section"
         width="full"
         center
-        rightChildren={
-          <Button
-            prominence="tertiary"
-            href={`${DOCS_BASE_URL}/developers/guides/llm_gateway`}
-            target="_blank"
-            size="sm"
-          >
-            {t("gateway.guideButton")}
-          </Button>
-        }
       />
       <Card border="solid" rounding={4} padding={3}>
         <Section alignItems="start" height="fit" gap={3}>

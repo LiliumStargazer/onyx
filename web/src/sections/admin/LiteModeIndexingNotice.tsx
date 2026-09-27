@@ -3,9 +3,6 @@ import { IllustrationContent } from "@opal/layouts";
 import { Section } from "@/layouts/general-layouts";
 import SvgUnPlugged from "@opal/illustrations/un-plugged";
 import { markdown } from "@opal/utils";
-import { DOCS_BASE_URL } from "@/lib/constants";
-
-const DEPLOYMENT_DOCS_URL = `${DOCS_BASE_URL}/deployment/getting_started/quickstart`;
 
 /**
  * Replaces connector/indexing admin pages in Lite mode (no vector DB), where
@@ -20,7 +17,10 @@ export default function LiteModeIndexingNotice() {
         illustration={SvgUnPlugged}
         title={t("liteModeNotice.title")}
         description={markdown(
-          t("liteModeNotice.description", { docsUrl: DEPLOYMENT_DOCS_URL })
+          t("liteModeNotice.description", { docsUrl: "" }).replace(
+            /\[([^\]]+)\]\(\)/g,
+            "$1"
+          )
         )}
       />
     </Section>

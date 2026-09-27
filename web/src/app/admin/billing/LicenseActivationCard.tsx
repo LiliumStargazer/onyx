@@ -13,8 +13,6 @@ import { LicenseStatus } from "@/lib/billing/interfaces";
 import { formatDateShort } from "@/lib/dateUtils";
 import { useSettings } from "@/lib/settings/hooks";
 
-const BILLING_HELP_URL = "https://docs.onyx.app/admins/billing/overview";
-
 interface LicenseActivationCardProps {
   isOpen: boolean;
   onClose: () => void;
@@ -221,19 +219,7 @@ export default function LicenseActivationCard({
                     <SvgXCircle size={12} />
                   </div>
                   <Text secondaryBody text04>
-                    {t.rich("license.error.text", {
-                      error,
-                      link: (chunks) => (
-                        <a
-                          href={BILLING_HELP_URL}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="billing-help-link"
-                        >
-                          {chunks}
-                        </a>
-                      ),
-                    })}
+                    {error}
                   </Text>
                 </Section>
               )}

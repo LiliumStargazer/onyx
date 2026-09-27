@@ -5904,7 +5904,7 @@
         },
         "requestSentBody": "您的加入请求已发送。在等待 {domain} 管理员批准期间，您可以先以自己的团队身份浏览体验。",
         "tryOnyxButton": {
-          "label": "等待期间先试用 Onyx"
+          "label": "等待期间先试用 Wiki Agent Rag"
         }
       },
       "newTenant": {
@@ -9025,7 +9025,7 @@
         "label": "创建新组织"
       },
       "createTeamOption": {
-        "text": "创建新的 Onyx 团队"
+        "text": "创建新的 Wiki Agent Rag 团队"
       },
       "differentEmailPrompt": {
         "text": "拥有使用其他邮箱的账户？"
@@ -9034,10 +9034,10 @@
         "title": "未找到账户"
       },
       "inviteOption": {
-        "text": "受邀加入现有的 Onyx 团队"
+        "text": "受邀加入现有的 Wiki Agent Rag 团队"
       },
       "notFound": {
-        "description": "我们在记录中找不到您的账户。要访问 Onyx，您需要执行以下操作之一："
+        "description": "我们在记录中找不到您的账户。要访问 Wiki Agent Rag，您需要执行以下操作之一："
       },
       "signInLink": {
         "label": "登录"
@@ -9104,9 +9104,6 @@
     "error": {
       "accessRestrictionIssue": {
         "description": "账户访问限制或权限问题"
-      },
-      "cloudSupportPrompt": {
-        "text": "如果问题持续存在，请通过 <link>support@onyx.app</link> 联系 Onyx 团队"
       },
       "code": {
         "accessDenied": "您的身份提供方拒绝了访问。",
@@ -11213,7 +11210,7 @@
     "errorPages": {
       "accessRestricted": {
         "billingAdminHint": {
-          "text": "如果您是管理员，请访问<billingLink>管理员账单</billingLink>页面以{hadLicense, select, true {续订} other {激活}}您的许可证，通过 Stripe 注册，或联系 <supportLink>support@onyx.app</supportLink> 获取账单帮助。"
+          "text": "如果您是管理员，请访问<billingLink>管理员账单</billingLink>页面以{hadLicense, select, true {续订} other {激活}}您的许可证。"
         },
         "heading": {
           "title": "访问受限"
@@ -11261,7 +11258,7 @@
       },
       "configError": {
         "adminHint": {
-          "text": "如果您是管理员，请查看我们的<docsLink>文档</docsLink>了解正确的配置步骤。如果您是普通用户，请联系管理员寻求帮助。"
+          "text": "如果问题持续存在，请联系管理员。"
         },
         "heading": {
           "description": "加载您的 {appName} 设置时似乎出现了问题。这可能是由于配置问题或安装未完成造成的。",

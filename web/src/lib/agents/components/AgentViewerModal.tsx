@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { FullAgent } from "@/lib/agents/types";
+import { APP_NAME } from "@/lib/constants";
 import { Modal } from "@opal/components";
 import { Section } from "@/layouts/general-layouts";
 import { Content, ContentAction, InputHorizontal } from "@opal/layouts";
@@ -283,7 +284,7 @@ export function AgentViewerModal({ agent, onClose }: AgentViewerModalProps) {
             )}
             <Content
               icon={SvgUser}
-              title={agent.owner?.email ?? "Onyx"}
+              title={agent.owner?.email ?? APP_NAME}
               sizePreset="main-ui"
               variant="body"
               color="muted"

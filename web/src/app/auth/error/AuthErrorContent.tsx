@@ -2,10 +2,8 @@
 
 import AuthFlowContainer from "@/components/auth/AuthFlowContainer";
 import { Button, Text } from "@opal/components";
-import { richNodes } from "@opal/utils";
 import { useTranslations } from "next-intl";
 
-import { NEXT_PUBLIC_CLOUD_ENABLED } from "@/lib/constants";
 import { loginPath } from "@/lib/auth/paths";
 
 // Raw IdP/OAuth error codes that map to a friendlier translated message.
@@ -95,20 +93,7 @@ function AuthErrorContent({ message: rawMessage }: AuthErrorContentProps) {
         </Button>
 
         <Text font="main-content-body" color="text-04">
-          {NEXT_PUBLIC_CLOUD_ENABLED
-            ? richNodes(
-                t.rich("error.cloudSupportPrompt.text", {
-                  link: (chunks) => (
-                    <a
-                      href="mailto:support@onyx.app"
-                      className="text-action-selection-05"
-                    >
-                      {chunks}
-                    </a>
-                  ),
-                })
-              )
-            : t("error.selfHostedSupportPrompt.text")}
+          {t("error.selfHostedSupportPrompt.text")}
         </Text>
       </div>
     </AuthFlowContainer>

@@ -5904,7 +5904,7 @@
         },
         "requestSentBody": "أُرسل طلب انضمامك. يمكنك الاستكشاف كفريق خاص بك بينما تنتظر موافقة مسؤول {domain} على طلبك.",
         "tryOnyxButton": {
-          "label": "جرّب Onyx أثناء الانتظار"
+          "label": "جرّب Wiki Agent Rag أثناء الانتظار"
         }
       },
       "newTenant": {
@@ -9025,7 +9025,7 @@
         "label": "إنشاء مؤسسة جديدة"
       },
       "createTeamOption": {
-        "text": "إنشاء فريق Onyx جديد"
+        "text": "إنشاء فريق Wiki Agent Rag جديد"
       },
       "differentEmailPrompt": {
         "text": "هل لديك حساب ببريد إلكتروني مختلف؟"
@@ -9034,10 +9034,10 @@
         "title": "الحساب غير موجود"
       },
       "inviteOption": {
-        "text": "تلقّي دعوة إلى فريق Onyx موجود"
+        "text": "تلقّي دعوة إلى فريق Wiki Agent Rag موجود"
       },
       "notFound": {
-        "description": "لم نتمكن من العثور على حسابك في سجلاتنا. للوصول إلى Onyx، تحتاج إلى أحد الخيارين:"
+        "description": "لم نتمكن من العثور على حسابك في سجلاتنا. للوصول إلى Wiki Agent Rag، تحتاج إلى أحد الخيارين:"
       },
       "signInLink": {
         "label": "تسجيل الدخول"
@@ -9104,9 +9104,6 @@
     "error": {
       "accessRestrictionIssue": {
         "description": "قيود أو أذونات الوصول إلى الحساب"
-      },
-      "cloudSupportPrompt": {
-        "text": "إذا استمرت المشكلة، يرجى التواصل مع فريق Onyx على <link>support@onyx.app</link>"
       },
       "code": {
         "accessDenied": "رفض موفر الهوية الوصول.",
@@ -11213,7 +11210,7 @@
     "errorPages": {
       "accessRestricted": {
         "billingAdminHint": {
-          "text": "إذا كنت المسؤول، فيرجى زيارة صفحة <billingLink>فوترة المسؤول</billingLink> من أجل {hadLicense, select, true {تجديد} other {تفعيل}} ترخيصك، أو التسجيل عبر Stripe، أو التواصل مع <supportLink>support@onyx.app</supportLink> للمساعدة في الفوترة."
+          "text": "إذا كنت المسؤول، فانتقل إلى صفحة <billingLink>فوترة المسؤول</billingLink> من أجل {hadLicense, select, true {تجديد} other {تفعيل}} ترخيصك."
         },
         "heading": {
           "title": "الوصول مقيّد"
@@ -11261,7 +11258,7 @@
       },
       "configError": {
         "adminHint": {
-          "text": "إذا كنت مسؤولًا، فيرجى مراجعة <docsLink>مستنداتنا</docsLink> لمعرفة خطوات الإعداد الصحيحة. إذا كنت مستخدمًا، فيرجى التواصل مع المسؤول لديك للمساعدة."
+          "text": "إذا استمرت المشكلة، تواصل مع المسؤول لديك."
         },
         "heading": {
           "description": "يبدو أنه حدثت مشكلة في تحميل إعدادات {appName}. قد يكون السبب مشكلة في الإعداد أو إعدادًا غير مكتمل.",

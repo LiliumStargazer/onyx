@@ -1,7 +1,6 @@
 "use client";
 
 import useSWR from "swr";
-import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import useCCPairs from "@/hooks/useCCPairs";
 import { errorHandlingFetcher, isNotFoundError } from "@/lib/fetcher";
@@ -14,7 +13,7 @@ import {
   QueryHistoryType,
   Settings,
 } from "@/lib/settings/types";
-import { EE_ENABLED } from "@/lib/constants";
+import { APP_NAME, EE_ENABLED } from "@/lib/constants";
 
 const SETTINGS_ERROR_RETRY_INTERVAL = 5_000;
 
@@ -88,27 +87,13 @@ export function useSettings(): AppSettings {
       dedupingInterval: 30_000,
       errorRetryInterval: SETTINGS_ERROR_RETRY_INTERVAL,
       shouldRetryOnError: (err) => !isEnterpriseSettingsMissing(err),
-      // Referential equality — logo can change without JSON changing, so
-      // mutate() must propagate a new reference for cache-busters.
-      compare: (a, b) => a === b,
     }
   );
-
-  // Cache-buster: the logo endpoint URL never changes, so the browser serves
-  // a cached image even after an admin uploads a new logo. Regenerating this
-  // timestamp whenever the enterprise settings reference changes forces a
-  // re-fetch. We use referential equality on the SWR data (compare: a===b),
-  // so this only fires when SWR actually receives new enterprise data.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const logoBuster = useMemo(() => Date.now(), [enterprise]);
 
   return {
     ...core,
     enterprise: enterprise ?? null,
-    appName: enterprise?.application_name?.trim() || "Onyx",
-    logoUrl: enterprise?.use_custom_logo
-      ? `/api/enterprise-settings/logo?v=${logoBuster}`
-      : null,
+    appName: APP_NAME,
     vectorDbEnabled:
       !settingsLoading && !settingsError && core.vector_db_enabled !== false,
     isLoading:

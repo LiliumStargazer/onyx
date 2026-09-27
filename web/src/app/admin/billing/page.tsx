@@ -22,7 +22,6 @@ import {
 } from "@/lib/billing";
 import { NEXT_PUBLIC_CLOUD_ENABLED } from "@/lib/constants";
 import { SWR_KEYS } from "@/lib/swr-keys";
-import { useUser } from "@/providers/UserProvider";
 import { LinkButton, MessageCard } from "@opal/components";
 
 import PlansView from "./PlansView";
@@ -50,8 +49,6 @@ interface ViewConfig {
 // FooterLinks (inlined)
 // ----------------------------------------------------------------------------
 
-const SUPPORT_EMAIL = "support@onyx.app";
-
 function FooterLinks({
   hasSubscription,
   onActivateLicense,
@@ -62,14 +59,9 @@ function FooterLinks({
   hideLicenseLink?: boolean;
 }) {
   const t = useTranslations("admin.billing");
-  const { user } = useUser();
   const licenseText = hasSubscription
     ? t("footer.updateLicenseKey.label")
     : t("footer.activateLicenseKey.label");
-  const billingHelpHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-    `[Billing] support for ${user?.email ?? "unknown"}`
-  )}`;
-
   return (
     <Section flexDirection="row" justifyContent="center" gap={4} height="auto">
       {onActivateLicense && !hideLicenseLink && (
@@ -82,9 +74,6 @@ function FooterLinks({
           </LinkButton>
         </>
       )}
-      <LinkButton href={billingHelpHref}>
-        {t("footer.billingHelp.label")}
-      </LinkButton>
     </Section>
   );
 }

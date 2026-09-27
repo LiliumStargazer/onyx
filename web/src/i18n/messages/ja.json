@@ -5904,7 +5904,7 @@
         },
         "requestSentBody": "参加リクエストを送信しました。{domain} の管理者が承認するまで、自分のチームで操作を試すことができます。",
         "tryOnyxButton": {
-          "label": "待っている間に Onyx を試す"
+          "label": "待っている間に Wiki Agent Rag を試す"
         }
       },
       "newTenant": {
@@ -9025,7 +9025,7 @@
         "label": "新しい組織を作成"
       },
       "createTeamOption": {
-        "text": "新しい Onyx チームを作成する"
+        "text": "新しい Wiki Agent Rag チームを作成する"
       },
       "differentEmailPrompt": {
         "text": "別のメールアドレスのアカウントをお持ちですか？"
@@ -9034,10 +9034,10 @@
         "title": "アカウントが見つかりません"
       },
       "inviteOption": {
-        "text": "既存の Onyx チームに招待してもらう"
+        "text": "既存の Wiki Agent Rag チームに招待してもらう"
       },
       "notFound": {
-        "description": "お客様のアカウントが記録内に見つかりませんでした。Onyx を利用するには、次のいずれかが必要です："
+        "description": "お客様のアカウントが記録内に見つかりませんでした。Wiki Agent Rag を利用するには、次のいずれかが必要です："
       },
       "signInLink": {
         "label": "サインイン"
@@ -9104,9 +9104,6 @@
     "error": {
       "accessRestrictionIssue": {
         "description": "アカウントのアクセス制限または権限"
-      },
-      "cloudSupportPrompt": {
-        "text": "問題が解決しない場合は、Onyx チーム（<link>support@onyx.app</link>）までご連絡ください"
       },
       "code": {
         "accessDenied": "ID プロバイダーによってアクセスが拒否されました。",
@@ -11213,7 +11210,7 @@
     "errorPages": {
       "accessRestricted": {
         "billingAdminHint": {
-          "text": "管理者の場合は、<billingLink>管理者請求</billingLink>ページでライセンスを{hadLicense, select, true {更新} other {有効化}}するか、Stripe経由で登録するか、請求に関するサポートは<supportLink>support@onyx.app</supportLink>までお問い合わせください。"
+          "text": "管理者の場合は、<billingLink>管理者請求</billingLink>ページでライセンスを{hadLicense, select, true {更新} other {有効化}}してください。"
         },
         "heading": {
           "title": "アクセスが制限されています"
@@ -11261,7 +11258,7 @@
       },
       "configError": {
         "adminHint": {
-          "text": "管理者の方は、正しい設定手順について<docsLink>ドキュメント</docsLink>をご確認ください。ユーザーの方は、管理者にお問い合わせください。"
+          "text": "問題が解決しない場合は、管理者にお問い合わせください。"
         },
         "heading": {
           "description": "{appName}の設定の読み込みに問題が発生したようです。設定の問題またはセットアップが未完了であることが原因の可能性があります。",

@@ -4,7 +4,7 @@ import * as Yup from "yup";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { setupGoogleDriveOAuth } from "@/lib/googleDrive";
-import { DOCS_ADMINS_PATH } from "@/lib/constants";
+
 import { Form, Formik } from "formik";
 import { User } from "@/lib/types";
 import { Button, Text } from "@opal/components";
@@ -16,7 +16,6 @@ import {
   refreshAllGoogleData,
 } from "@/lib/googleConnector";
 import { ValidSources } from "@/lib/types";
-import { markdown } from "@opal/utils";
 
 interface DriveCredentialSectionProps {
   refreshCredentials: () => void;
@@ -67,13 +66,6 @@ export const DriveAuthSection = ({
       <Section alignItems="start" justifyContent="start" gap={4}>
         <Text as="p" font="main-ui-action">
           {t("gdrive.oauthOption.title")}
-        </Text>
-        <Text as="p" font="secondary-body" color="text-03">
-          {markdown(
-            t("gdrive.oauthOption.description", {
-              docsUrl: `${DOCS_ADMINS_PATH}/connectors/official/google_drive/overview`,
-            })
-          )}
         </Text>
         <InputFile
           accept="application/json"

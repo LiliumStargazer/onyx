@@ -3,6 +3,7 @@
 import { useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { MinimalAgent } from "@/lib/agents/types";
+import { APP_NAME } from "@/lib/constants";
 import AgentAvatar from "@/refresh-components/avatars/AgentAvatar";
 import { Button } from "@opal/components";
 import { usePinnedAgents } from "@/lib/agents/hooks";
@@ -141,7 +142,7 @@ export default function AgentCard({ agent, onView }: AgentCardProps) {
               <div className="flex flex-col gap-1 py-1 px-2">
                 <Content
                   icon={SvgUser}
-                  title={agent.owner?.email || "Onyx"}
+                  title={agent.owner?.email || APP_NAME}
                   sizePreset="secondary"
                   variant="body"
                   color="muted"

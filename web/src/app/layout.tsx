@@ -1,8 +1,7 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { GTM_ENABLED, MODAL_ROOT_ID } from "@/lib/constants";
-import { generateFaviconMetadata } from "@/lib/app/svcSS";
+import { APP_NAME, GTM_ENABLED, MODAL_ROOT_ID } from "@/lib/constants";
 import AppProvider from "@/providers/AppProvider";
 import { PHProvider } from "./providers";
 import {
@@ -56,9 +55,10 @@ const dmMono = DM_Mono({
 // time — many child routes use cookies() which requires dynamic rendering.
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-  return { icons: await generateFaviconMetadata() };
-}
+export const metadata: Metadata = {
+  title: APP_NAME,
+  icons: { icon: "/wiki-agent-rag.png" },
+};
 
 interface LayoutProps {
   children: React.ReactNode;

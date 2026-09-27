@@ -528,7 +528,8 @@ export function listSourceMetadata(): SourceMetadata[] {
 }
 
 export function getSourceDocLink(sourceType: ValidSources): string | null {
-  return SOURCE_METADATA_MAP[sourceType].docs || null;
+  const url = SOURCE_METADATA_MAP[sourceType].docs;
+  return url?.startsWith(DOCS_BASE_URL) ? null : url || null;
 }
 
 export function isValidSource(sourceType: string): boolean {
