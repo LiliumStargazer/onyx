@@ -236,9 +236,9 @@ class WikiJsConnector(LoadConnector):
         for item in listing:
             page = _WikiPage.model_validate(item)
             page_path = page.page_path
-            if page_path.casefold() in seen_paths or page.id in seen_ids:
+            if page_path in seen_paths or page.id in seen_ids:
                 raise ValueError("Conflicting Wiki.js page identity")
-            seen_paths.add(page_path.casefold())
+            seen_paths.add(page_path)
             seen_ids.add(page.id)
             if (
                 page.isPublished
