@@ -1,8 +1,10 @@
 from contextlib import nullcontext
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 
+import httpx
 import pytest
 from sqlalchemy.dialects import postgresql
 
@@ -16,7 +18,8 @@ from onyx.db.document import (
     get_wikijs_page_ids_for_cc_pair,
     upsert_document_by_connector_credential_pair,
 )
-from onyx.indexing.indexing_pipeline import index_doc_batch_prepare
+from onyx.db.models import Document as DBDocument
+from onyx.indexing.indexing_pipeline import get_docs_to_update, index_doc_batch_prepare
 
 
 def test_wikijs_page_ids_are_scoped_to_cc_pair_and_legacy_shared_ids_are_ignored() -> (
@@ -122,6 +125,91 @@ def test_confirmed_pages_use_cc_pair_cleanup_before_indexing() -> None:
             "tenant_id": "tenant",
         }
     )
+
+
+def test_rename_removes_old_link_and_updates_existing_new_path() -> None:
+    connector = WikiJsConnector(
+        wiki_url="https://wiki.example.test",
+        corpus_root="/it",
+        excluded_folder_names="[]",
+        visibility_folders='{"Riservato":"interni"}',
+    )
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+
+    def response(pages: dict[str, object]) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"data": {"pages": pages}},
+            request=httpx.Request("POST", "https://wiki.example.test/graphql"),
+        )
+
+    new_page = {
+        "id": 7,
+        "path": "Riservato/New",
+        "locale": "it",
+        "title": "Current title",
+        "isPublished": True,
+    }
+    cleanup = Mock()
+    cleanup.apply.return_value.get.return_value = True
+    with (
+        patch(
+            "httpx.post",
+            side_effect=[
+                response({"list": [new_page]}),
+                response({"single": new_page}),
+                response({"single": new_page}),
+                response({"list": [new_page]}),
+                response(
+                    {
+                        "single": {
+                            "id": 7,
+                            "path": "Riservato/New",
+                            "locale": "it",
+                            "content": "Current content",
+                        }
+                    }
+                ),
+            ],
+        ),
+        patch(
+            "onyx.background.indexing.run_docfetching.get_session_with_current_tenant",
+            return_value=nullcontext(Mock()),
+        ),
+        patch(
+            "onyx.background.indexing.run_docfetching.get_wikijs_page_ids_for_cc_pair",
+            return_value={"/it/Old": 7, "/it/Riservato/New": 7},
+        ),
+        patch(
+            "onyx.background.indexing.run_docfetching.document_by_cc_pair_cleanup_task",
+            cleanup,
+        ),
+    ):
+        remove_confirmed_wikijs_pages(connector, 12, 3, 4, "tenant")
+        documents = [
+            doc
+            for batch in connector.load_from_state()
+            for doc in batch
+            if isinstance(doc, Document)
+        ]
+
+    assert [doc.id for doc in documents] == ["/it/Riservato/New"]
+    new_document = documents[0]
+    assert cleanup.apply.call_count == 1
+    assert cleanup.apply.call_args.kwargs["kwargs"]["document_id"] == "/it/Old"
+    assert new_document.id == "/it/Riservato/New"
+    assert new_document.title == "Current title"
+    assert new_document.get_text_content() == "Current content"
+    assert new_document.doc_metadata == {"wikijs_page_id": 7, "visibility": "interni"}
+    previous = cast(
+        DBDocument,
+        SimpleNamespace(
+            id=new_document.id, doc_updated_at=None, content_hash="old revision"
+        ),
+    )
+    assert get_docs_to_update([new_document], [previous]).updatable_docs == [
+        new_document
+    ]
 
 
 def test_verification_error_never_starts_cleanup() -> None:

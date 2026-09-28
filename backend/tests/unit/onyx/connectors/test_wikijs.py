@@ -230,6 +230,70 @@ def test_verified_move_and_exit_from_scope_remove_old_paths() -> None:
         ) == ["/it/Old", "/it/Bozze/PreviouslyPublic", "/it/Outside"]
 
 
+def test_verified_rename_indexes_new_path_from_stale_inventory() -> None:
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with patch(
+        "httpx.post",
+        side_effect=[
+            _graphql({"list": [_page(7, "Old"), _page(8, "Other")]}),
+            _graphql({"single": {**_page(7, "Riservato/New"), "title": "New title"}}),
+            _graphql({"list": [_page(7, "Old"), _page(8, "Other")]}),
+            _graphql(
+                {
+                    "single": {
+                        "id": 7,
+                        "path": "Riservato/New",
+                        "locale": "it",
+                        "content": "New text",
+                    }
+                }
+            ),
+            _graphql(
+                {
+                    "single": {
+                        "id": 8,
+                        "path": "Other",
+                        "locale": "it",
+                        "content": "Other text",
+                    }
+                }
+            ),
+        ],
+    ):
+        assert connector.confirm_removed_pages({"/it/Old": 7}) == ["/it/Old"]
+        docs = [
+            doc
+            for batch in connector.load_from_state()
+            for doc in batch
+            if isinstance(doc, Document)
+        ]
+
+    assert [doc.id for doc in docs] == ["/it/Riservato/New", "/it/Other"]
+    assert docs[0].title == "New title"
+    assert docs[0].get_text_content() == "New text"
+    assert docs[0].doc_metadata == {"wikijs_page_id": 7, "visibility": "interni"}
+
+
+def test_verified_move_out_of_scope_does_not_reload_old_path() -> None:
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with patch(
+        "httpx.post",
+        side_effect=[
+            _graphql({"list": [_page(7, "Old"), _page(8, "Previous")]}),
+            _graphql({"single": {**_page(7, "Elsewhere"), "locale": "en"}}),
+            _graphql({"single": _page(8, "Bozze/Hidden")}),
+            _graphql({"list": [_page(7, "Old"), _page(8, "Previous")]}),
+        ],
+    ):
+        assert connector.confirm_removed_pages({"/it/Old": 7, "/it/Previous": 8}) == [
+            "/it/Old",
+            "/it/Previous",
+        ]
+        assert list(connector.load_from_state()) == []
+
+
 def test_missing_or_invalid_policy_blocks_snapshot() -> None:
     for override in (
         {"excluded_folder_names": None},

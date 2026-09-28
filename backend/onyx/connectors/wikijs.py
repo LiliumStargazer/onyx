@@ -177,6 +177,8 @@ class WikiJsConnector(LoadConnector):
         self.excluded_folder_names = _folder_names(excluded_folder_names)
         self.visibility_folders = _visibility_folders(visibility_folders)
         self.api_token: str | None = None
+        # Reconcile the later snapshot with per-ID proof, even if the inventory is stale.
+        self._verified_pages: dict[int, _WikiPage | None] = {}
 
     def load_credentials(self, credentials: dict[str, Any]) -> None:
         token = credentials.get("wikijs_api_token")
@@ -261,9 +263,18 @@ class WikiJsConnector(LoadConnector):
         return pages
 
     def _snapshot_pages(self) -> list[tuple[_WikiPage, str]]:
+        pages_by_id = {page.id: page for page in self._list_pages()}
+        for page_id, verified_page in self._verified_pages.items():
+            if verified_page is None:
+                pages_by_id.pop(page_id, None)
+            else:
+                pages_by_id[page_id] = verified_page
+        pages = list(pages_by_id.values())
+        if len({page.page_path for page in pages}) != len(pages):
+            raise ValueError("Conflicting Wiki.js page identity")
         return [
             (page, visibility)
-            for page in self._list_pages()
+            for page in pages
             if page.isPublished
             and (visibility := self._visibility(page.page_path)) is not None
         ]
@@ -274,6 +285,7 @@ class WikiJsConnector(LoadConnector):
             page.id for page in self._list_pages() if not page.isPublished
         }
         removed_paths: list[str] = []
+        verified_pages: dict[int, _WikiPage | None] = dict.fromkeys(unpublished_ids)
         for page_path, page_id in indexed_pages.items():
             if page_id in unpublished_ids:
                 removed_paths.append(page_path)
@@ -283,6 +295,7 @@ class WikiJsConnector(LoadConnector):
                     f"{{ pages {{ single(id: {page_id}) {{ id path locale title isPublished }} }} }}"
                 ).get("single")
             except _WikiPageNotFound:
+                verified_pages[page_id] = None
                 removed_paths.append(page_path)
                 continue
             if details is None:
@@ -292,12 +305,14 @@ class WikiJsConnector(LoadConnector):
             page = _WikiPage.model_validate(details)
             if page.id != page_id:
                 raise ValueError("Mismatched Wiki.js page verification")
+            verified_pages[page_id] = page
             if (
                 not page.isPublished
                 or page.page_path != page_path
                 or self._visibility(page.page_path) is None
             ):
                 removed_paths.append(page_path)
+        self._verified_pages = verified_pages
         return removed_paths
 
     def load_from_state(self) -> GenerateDocumentsOutput:
