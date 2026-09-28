@@ -27,7 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine.util import TransactionalContext
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql.expression import null
 
 from onyx.configs.constants import DEFAULT_BOOST, DocumentSource
@@ -399,6 +399,29 @@ def filter_existing_cc_pair_document_ids(
         DocumentByConnectorCredentialPair.id.in_(document_ids),
     )
     return set(db_session.execute(stmt).scalars().all())
+
+
+def get_wikijs_document_visibility(
+    db_session: Session, document_ids: list[str]
+) -> dict[str, tuple[str | None, int | None]]:
+    """Read the indexed visibility tag and chunk count before an update overwrites them."""
+    if not document_ids:
+        return {}
+    documents = db_session.scalars(
+        select(DbDocument)
+        .where(DbDocument.id.in_(document_ids))
+        .options(selectinload(DbDocument.tags))
+    ).all()
+    return {
+        document.id: (
+            next(
+                (tag.tag_value for tag in document.tags if tag.tag_key == "visibility"),
+                None,
+            ),
+            document.chunk_count,
+        )
+        for document in documents
+    }
 
 
 def get_documents_for_connector_credential_pair_limited_columns(

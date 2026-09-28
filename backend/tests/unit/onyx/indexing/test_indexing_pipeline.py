@@ -36,6 +36,7 @@ from onyx.indexing.indexing_pipeline import (
     get_docs_to_update,
     index_doc_batch,
     process_image_sections,
+    revoke_changed_wikijs_visibility,
     run_indexing_pipeline,
 )
 from onyx.llm.constants import LlmProviderNames
@@ -1136,6 +1137,93 @@ def _doc_with_text(title: str | None, *texts: str) -> Document:
         source=DocumentSource.WEB,
         metadata={},
     )
+
+
+def test_wikijs_visibility_change_revokes_old_chunks_before_indexing() -> None:
+    doc = _doc_with_text("Same", "Same content")
+    doc.source = DocumentSource.WIKIJS
+    doc.id = "/it/Manuale"
+    doc.metadata = {"visibility": "agenti"}
+    doc.doc_metadata = {"wikijs_page_id": 7, "visibility": "agenti"}
+    previous = doc.model_copy(deep=True)
+    previous.metadata = {"visibility": "interni"}
+    previous.doc_metadata = {"wikijs_page_id": 7, "visibility": "interni"}
+    updated_docs, _ = get_docs_to_update(
+        [doc], [_make_db_doc(doc.id, content_hash=previous.content_hash())]
+    )
+    assert updated_docs == [doc]
+    index = MagicMock()
+    with (
+        patch(
+            "onyx.indexing.indexing_pipeline.get_wikijs_document_visibility",
+            return_value={doc.id: ("interni", 3)},
+        ),
+        patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+    ):
+        revoke_changed_wikijs_visibility([doc], [index])
+    index.delete.assert_called_once_with(doc.id, chunk_count=3)
+
+
+def test_wikijs_visibility_change_aborts_when_revocation_fails() -> None:
+    doc = _doc_with_text("Same", "Same content")
+    doc.source = DocumentSource.WIKIJS
+    doc.id = "/it/Manuale"
+    doc.metadata = {"visibility": "tecnici"}
+    index = MagicMock()
+    index.delete.side_effect = RuntimeError("index unavailable")
+    with (
+        patch(
+            "onyx.indexing.indexing_pipeline.get_wikijs_document_visibility",
+            return_value={doc.id: ("agenti", 3)},
+        ),
+        patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+    ):
+        with pytest.raises(RuntimeError, match="index unavailable"):
+            revoke_changed_wikijs_visibility([doc], [index])
+
+
+def test_wikijs_replacement_failure_does_not_leave_old_visibility_indexed() -> None:
+    doc = _doc_with_text("Updated", "Changed content")
+    doc.source = DocumentSource.WIKIJS
+    doc.id = "/it/Manuale"
+    doc.metadata = {"visibility": "interni"}
+    index = MagicMock()
+    adapter = MagicMock()
+    adapter.prepare.side_effect = RuntimeError("embedding preparation failed")
+    with (
+        patch(
+            "onyx.indexing.indexing_pipeline.get_wikijs_document_visibility",
+            return_value={doc.id: ("tecnici", 2)},
+        ),
+        patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+    ):
+        with pytest.raises(RuntimeError, match="embedding preparation failed"):
+            index_doc_batch(
+                document_batch=[doc],
+                chunker=MagicMock(),
+                embedder=MagicMock(),
+                document_indices=[index],
+                request_id=None,
+                tenant_id="test",
+                adapter=adapter,
+            )
+    index.delete.assert_called_once_with(doc.id, chunk_count=2)
+
+
+def test_wikijs_unchanged_visibility_does_not_revoke() -> None:
+    doc = _doc_with_text("Same", "Same content")
+    doc.source = DocumentSource.WIKIJS
+    doc.metadata = {"visibility": "interni"}
+    index = MagicMock()
+    with (
+        patch(
+            "onyx.indexing.indexing_pipeline.get_wikijs_document_visibility",
+            return_value={doc.id: ("interni", 2)},
+        ),
+        patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+    ):
+        revoke_changed_wikijs_visibility([doc], [index])
+    index.delete.assert_not_called()
 
 
 def test_content_hash_is_stable() -> None:

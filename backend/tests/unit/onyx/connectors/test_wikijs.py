@@ -97,10 +97,49 @@ def test_initial_snapshot_preserves_paths_visibility_and_section_links() -> None
         "public",
     ]
     assert docs[1].metadata["page_path"] == "/it/Riservato/Manuale"
+    assert docs[1].doc_metadata == {"wikijs_page_id": 2, "visibility": "interni"}
     assert docs[0].title == "Page 1"
     assert docs[0].source == DocumentSource.WIKIJS
     assert docs[0].sections[0].link == "https://wiki.example.test/it/Help#installazione"
     assert "Testo" in docs[0].get_text_content()
+
+
+def test_next_snapshot_replaces_content_and_visibility_at_same_path() -> None:
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+
+    def snapshot(title: str, content: str, path: str) -> Document:
+        with patch(
+            "httpx.post",
+            side_effect=[
+                _graphql({"list": [{**_page(7, path), "title": title}]}),
+                _graphql(
+                    {
+                        "single": {
+                            "id": 7,
+                            "path": path,
+                            "locale": "it",
+                            "content": content,
+                        }
+                    }
+                ),
+            ],
+        ):
+            return next(
+                doc
+                for batch in connector.load_from_state()
+                for doc in batch
+                if isinstance(doc, Document)
+            )
+
+    old = snapshot("First", "Old text", "Riservato/Manuale")
+    connector.visibility_folders = {"riservato": "agenti"}
+    new = snapshot("Second", "New text", "Riservato/Manuale")
+    assert old.id == new.id == "/it/Riservato/Manuale"
+    assert new.title == "Second"
+    assert new.get_text_content() == "New text"
+    assert new.doc_metadata == {"wikijs_page_id": 7, "visibility": "agenti"}
+    assert old.content_hash() != new.content_hash()
 
 
 def test_missing_or_invalid_policy_blocks_snapshot() -> None:

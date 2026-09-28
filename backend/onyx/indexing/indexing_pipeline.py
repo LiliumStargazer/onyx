@@ -17,6 +17,7 @@ from onyx.configs.app_configs import (
     USE_DOCUMENT_SUMMARY,
 )
 from onyx.configs.chat_configs import CONTEXTUAL_RAG_LLM_TIMEOUT
+from onyx.configs.constants import DocumentSource
 from onyx.configs.llm_configs import get_image_extraction_and_analysis_enabled
 from onyx.connectors.cross_connector_utils.miscellaneous_utils import (
     get_experts_stores_representations,
@@ -36,6 +37,7 @@ from onyx.connectors.models import (
 from onyx.db.connector_credential_pair import get_connector_credential_pair
 from onyx.db.document import (
     get_documents_by_ids,
+    get_wikijs_document_visibility,
     update_docs_content_hash__no_commit,
     upsert_document_by_connector_credential_pair,
     upsert_documents,
@@ -1354,6 +1356,24 @@ def _maybe_push_documents(
                 )
 
 
+def revoke_changed_wikijs_visibility(
+    documents: list[Document], document_indices: list[DocumentIndex]
+) -> None:
+    wiki_documents = [doc for doc in documents if doc.source == DocumentSource.WIKIJS]
+    if not wiki_documents:
+        return
+    with get_session_with_current_tenant() as db_session:
+        previous_visibility = get_wikijs_document_visibility(
+            db_session, [doc.id for doc in wiki_documents]
+        )
+    for doc in wiki_documents:
+        previous = previous_visibility.get(doc.id)
+        if previous is not None and previous[0] != doc.metadata["visibility"]:
+            # Revoke before embedding: a failed replacement must not expose old chunks.
+            for document_index in document_indices:
+                document_index.delete(doc.id, chunk_count=previous[1])
+
+
 @log_function_time(debug_only=True)
 def index_doc_batch(
     *,
@@ -1406,6 +1426,7 @@ def index_doc_batch(
         _attempt_metadata.attempt_id if _attempt_metadata is not None else None
     )
 
+    revoke_changed_wikijs_visibility(document_batch, document_indices)
     filtered_documents, filter_failures = filter_fnc(document_batch)
     filtered_documents = _apply_document_ingestion_hook(filtered_documents)
     with time_stage_if_set(IndexAttemptStage.DOC_DB_PREPARE, attempt_id):

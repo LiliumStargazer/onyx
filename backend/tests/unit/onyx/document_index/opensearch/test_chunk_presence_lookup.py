@@ -36,6 +36,12 @@ def _first_chunk_id(document_id: str) -> str:
     )
 
 
+def test_delete_is_visible_to_search_before_it_returns() -> None:
+    index, client = _make_index(set())
+    index.delete("/it/Manuale")
+    assert client.delete_by_query.call_args.kwargs == {"refresh": True}
+
+
 def test_no_documents_skips_the_lookup() -> None:
     index, client = _make_index(set())
     assert index.get_documents_missing_chunks([]) == []

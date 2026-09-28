@@ -567,7 +567,7 @@ class OpenSearchDocumentIndex(DocumentIndex):
             tenant_state=self._tenant_state,
         )
 
-        return self._client.delete_by_query(query_body)
+        return self._client.delete_by_query(query_body, refresh=True)
 
     def get_documents_with_any_chunk(self, document_ids: list[str]) -> set[str]:
         """Gets the IDs of the documents that have at least one chunk in this index.

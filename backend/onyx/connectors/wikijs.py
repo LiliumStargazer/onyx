@@ -1,4 +1,4 @@
-"""Initial Wiki.js Markdown snapshot; no polling, permission sync or pruning."""
+"""Wiki.js Markdown snapshots; no permission sync or inventory-based pruning."""
 
 import json
 import re
@@ -136,7 +136,7 @@ def _sections(markdown: str, url: str) -> list[TextSection]:
 
 
 class WikiJsConnector(LoadConnector):
-    """Read a one-time snapshot. Visibility metadata does not enforce Onyx access."""
+    """Read a Wiki.js snapshot. Visibility metadata does not enforce Onyx access."""
 
     def __init__(
         self,
@@ -269,6 +269,7 @@ class WikiJsConnector(LoadConnector):
                     title=page.title,
                     sections=_sections(details["content"], url),
                     metadata={"page_path": page.page_path, "visibility": visibility},
+                    doc_metadata={"wikijs_page_id": page.id, "visibility": visibility},
                 )
             )
             if len(batch) >= INDEX_BATCH_SIZE:
