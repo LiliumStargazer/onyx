@@ -104,7 +104,7 @@ def test_initial_snapshot_preserves_paths_visibility_and_section_links() -> None
     assert "Testo" in docs[0].get_text_content()
 
 
-def test_next_snapshot_replaces_content_and_visibility_at_same_path() -> None:
+def test_next_snapshot_emits_changed_content_and_visibility_at_same_path() -> None:
     connector = WikiJsConnector(**CONFIG)
     connector.load_credentials({"wikijs_api_token": "fixture-token"})
 

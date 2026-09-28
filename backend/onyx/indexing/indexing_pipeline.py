@@ -56,6 +56,7 @@ from onyx.db.search_settings import get_active_search_settings
 from onyx.db.tag import upsert_document_tags
 from onyx.document_index.document_index_utils import get_multipass_config
 from onyx.document_index.document_metadata import DocumentMetadata
+from onyx.document_index.factory import get_all_document_indices
 from onyx.document_index.interfaces_new import (
     DocumentIndex,
     DocumentInsertionRecord,
@@ -73,6 +74,7 @@ from onyx.hooks.points.document_ingestion import (
     DocumentIngestionResponse,
     DocumentIngestionSection,
 )
+from onyx.httpx.httpx_pool import HttpxPool
 from onyx.indexing.chunk_batch_store import ChunkBatchStore
 from onyx.indexing.chunker import Chunker
 from onyx.indexing.document_push import (
@@ -1366,12 +1368,29 @@ def revoke_changed_wikijs_visibility(
         previous_visibility = get_wikijs_document_visibility(
             db_session, [doc.id for doc in wiki_documents]
         )
-    for doc in wiki_documents:
-        previous = previous_visibility.get(doc.id)
-        if previous is not None and previous[0] != doc.metadata["visibility"]:
-            # Revoke before embedding: a failed replacement must not expose old chunks.
-            for document_index in document_indices:
-                document_index.delete(doc.id, chunk_count=previous[1])
+        changed_documents = [
+            (doc, previous_visibility[doc.id][1])
+            for doc in wiki_documents
+            if doc.id in previous_visibility
+            and previous_visibility[doc.id][0] != doc.metadata["visibility"]
+        ]
+        if not changed_documents:
+            return
+        active_search_settings = get_active_search_settings(db_session)
+
+    indices_to_revoke = (
+        get_all_document_indices(
+            active_search_settings.primary,
+            active_search_settings.secondary,
+            httpx_client=HttpxPool.get("vespa"),
+        )
+        if active_search_settings.secondary is not None
+        else document_indices
+    )
+    # Revoke from both PRESENT and FUTURE before a failed replacement can expose old chunks.
+    for doc, chunk_count in changed_documents:
+        for document_index in indices_to_revoke:
+            document_index.delete(doc.id, chunk_count=chunk_count)
 
 
 @log_function_time(debug_only=True)

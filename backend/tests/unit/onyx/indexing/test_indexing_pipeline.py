@@ -16,6 +16,7 @@ from onyx.connectors.models import (
     TabularSection,
     TextSection,
 )
+from onyx.document_index.interfaces_new import DocumentInsertionRecord
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.hooks.executor import HookSkipped, HookSoftFailed
@@ -39,6 +40,7 @@ from onyx.indexing.indexing_pipeline import (
     revoke_changed_wikijs_visibility,
     run_indexing_pipeline,
 )
+from onyx.indexing.models import DocAwareChunk, IndexChunk
 from onyx.llm.constants import LlmProviderNames
 from onyx.llm.model_capabilities import get_max_input_tokens
 from onyx.llm.model_response import Choice, Message, ModelResponse
@@ -1159,6 +1161,10 @@ def test_wikijs_visibility_change_revokes_old_chunks_before_indexing() -> None:
             return_value={doc.id: ("interni", 3)},
         ),
         patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+        patch(
+            "onyx.indexing.indexing_pipeline.get_active_search_settings",
+            return_value=SimpleNamespace(secondary=None),
+        ),
     ):
         revoke_changed_wikijs_visibility([doc], [index])
     index.delete.assert_called_once_with(doc.id, chunk_count=3)
@@ -1177,6 +1183,10 @@ def test_wikijs_visibility_change_aborts_when_revocation_fails() -> None:
             return_value={doc.id: ("agenti", 3)},
         ),
         patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+        patch(
+            "onyx.indexing.indexing_pipeline.get_active_search_settings",
+            return_value=SimpleNamespace(secondary=None),
+        ),
     ):
         with pytest.raises(RuntimeError, match="index unavailable"):
             revoke_changed_wikijs_visibility([doc], [index])
@@ -1196,6 +1206,10 @@ def test_wikijs_replacement_failure_does_not_leave_old_visibility_indexed() -> N
             return_value={doc.id: ("tecnici", 2)},
         ),
         patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+        patch(
+            "onyx.indexing.indexing_pipeline.get_active_search_settings",
+            return_value=SimpleNamespace(secondary=None),
+        ),
     ):
         with pytest.raises(RuntimeError, match="embedding preparation failed"):
             index_doc_batch(
@@ -1208,6 +1222,57 @@ def test_wikijs_replacement_failure_does_not_leave_old_visibility_indexed() -> N
                 adapter=adapter,
             )
     index.delete.assert_called_once_with(doc.id, chunk_count=2)
+
+
+def test_wikijs_visibility_change_revokes_present_and_future_before_failed_index() -> (
+    None
+):
+    from onyx.document_index.opensearch.opensearch_document_index import (
+        OpenSearchIndexPair,
+    )
+
+    doc = _doc_with_text("Updated", "Changed content")
+    doc.source = DocumentSource.WIKIJS
+    doc.id = "/it/Manuale"
+    doc.metadata = {"visibility": "agenti"}
+    present_index = MagicMock()
+    future_index = MagicMock()
+    present_index.delete.return_value = 1
+    future_index.delete.return_value = 1
+    index_pair = OpenSearchIndexPair.__new__(OpenSearchIndexPair)
+    index_pair._primary = present_index
+    index_pair._secondary = future_index
+    settings = SimpleNamespace(primary=MagicMock(), secondary=MagicMock())
+    adapter = MagicMock()
+    adapter.index_attempt_metadata = None
+    adapter.prepare.side_effect = RuntimeError("new version failed")
+    with (
+        patch(
+            "onyx.indexing.indexing_pipeline.get_wikijs_document_visibility",
+            return_value={doc.id: ("interni", 1)},
+        ),
+        patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+        patch(
+            "onyx.indexing.indexing_pipeline.get_active_search_settings",
+            return_value=settings,
+        ),
+        patch(
+            "onyx.indexing.indexing_pipeline.get_all_document_indices",
+            return_value=[index_pair],
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="new version failed"):
+            index_doc_batch(
+                document_batch=[doc],
+                chunker=MagicMock(),
+                embedder=MagicMock(),
+                document_indices=[future_index],
+                request_id=None,
+                tenant_id="test",
+                adapter=adapter,
+            )
+    present_index.delete.assert_called_once_with(doc.id, 1)
+    future_index.delete.assert_called_once_with(doc.id, 1)
 
 
 def test_wikijs_unchanged_visibility_does_not_revoke() -> None:
@@ -1352,6 +1417,129 @@ def _make_db_doc(
     db_doc.content_hash = content_hash
     db_doc.doc_updated_at = doc_updated_at
     return db_doc
+
+
+def test_wikijs_successful_reindex_replaces_indexed_page_at_same_path() -> None:
+    document_id = "/it/Manuale"
+    first = Document(
+        id=document_id,
+        source=DocumentSource.WIKIJS,
+        title="First",
+        semantic_identifier="First",
+        sections=[TextSection(text="Old text", link="https://wiki.test/it/Manuale")],
+        metadata={"visibility": "interni"},
+        doc_metadata={"wikijs_page_id": 7, "visibility": "interni"},
+    )
+    second = first.model_copy(deep=True)
+    second.title = second.semantic_identifier = "Second"
+    second.sections = [
+        TextSection(text="New text", link="https://wiki.test/it/Manuale")
+    ]
+    second.metadata = {"visibility": "agenti"}
+    second.doc_metadata = {"wikijs_page_id": 7, "visibility": "agenti"}
+    indexed_pages: dict[str, tuple[str | None, str, str | list[str]]] = {}
+    stored_hashes: dict[str, str] = {}
+
+    def prepare(
+        documents: list[Document], _ignore_time_skip: bool, _secondary: bool
+    ) -> DocumentBatchPrepareContext | None:
+        previous = (
+            [_make_db_doc(document_id, content_hash=stored_hashes[document_id])]
+            if document_id in stored_hashes
+            else []
+        )
+        updatable, hashes = get_docs_to_update(documents, previous)
+        return (
+            DocumentBatchPrepareContext(
+                updatable_docs=updatable,
+                id_to_boost_map={},
+                doc_id_to_content_hash=hashes,
+            )
+            if updatable
+            else None
+        )
+
+    def write_chunks(
+        *,
+        chunks: Any,
+        indexing_metadata: Any,  # noqa: ARG001
+    ) -> list[DocumentInsertionRecord]:
+        indexed_chunk = next(iter(chunks))
+        page = indexed_chunk.source_document
+        existed = page.id in indexed_pages
+        indexed_pages[page.id] = (
+            page.title,
+            page.get_text_content(),
+            page.metadata["visibility"],
+        )
+        return [DocumentInsertionRecord(document_id=page.id, already_existed=existed)]
+
+    adapter = MagicMock()
+    adapter.index_attempt_metadata = None
+    adapter.prepare.side_effect = prepare
+    enricher = adapter.prepare_enrichment.return_value
+    enricher.doc_id_to_previous_chunk_cnt = {document_id: 1}
+    enricher.doc_id_to_new_chunk_cnt = {document_id: 1}
+    enricher.enrich_chunk.side_effect = lambda chunk, _boost: chunk
+    chunker = MagicMock()
+    chunker.chunk.side_effect = lambda documents: [
+        DocAwareChunk.model_construct(chunk_id=0, source_document=documents[0])
+    ]
+    document_index = MagicMock()
+    document_index.index.side_effect = write_chunks
+
+    def embed_chunks(
+        *, chunks: list[DocAwareChunk], **_kwargs: Any
+    ) -> tuple[list[IndexChunk], list[Any]]:
+        return [
+            IndexChunk.model_construct(
+                chunk_id=0, source_document=chunks[0].source_document
+            )
+        ], []
+
+    with (
+        patch("onyx.indexing.indexing_pipeline.get_session_with_current_tenant"),
+        patch(
+            "onyx.indexing.indexing_pipeline.get_wikijs_document_visibility",
+            side_effect=[{}, {document_id: ("interni", 1)}],
+        ),
+        patch(
+            "onyx.indexing.indexing_pipeline.get_active_search_settings",
+            return_value=SimpleNamespace(secondary=None),
+        ),
+        patch(
+            "onyx.indexing.indexing_pipeline._apply_document_ingestion_hook",
+            side_effect=lambda documents: documents,
+        ),
+        patch(
+            "onyx.indexing.indexing_pipeline.embed_chunks_with_failure_handling",
+            side_effect=embed_chunks,
+        ),
+        patch(
+            "onyx.indexing.indexing_pipeline.update_docs_content_hash__no_commit",
+            side_effect=lambda ids_to_new_hash, **_kwargs: stored_hashes.update(
+                ids_to_new_hash
+            ),
+        ),
+    ):
+        results = [
+            index_doc_batch(
+                document_batch=[page],
+                chunker=chunker,
+                embedder=MagicMock(),
+                document_indices=[document_index],
+                request_id=None,
+                tenant_id="test",
+                adapter=adapter,
+                from_beginning=True,
+            )
+            for page in (first, second)
+        ]
+
+    assert [result.new_docs for result in results] == [1, 0]
+    assert all(not result.failures for result in results)
+    assert indexed_pages == {document_id: ("Second", "New text", "agenti")}
+    document_index.delete.assert_called_once_with(document_id, chunk_count=1)
 
 
 def test_get_docs_to_update_new_doc_always_included() -> None:
