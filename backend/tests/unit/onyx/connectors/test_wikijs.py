@@ -142,6 +142,94 @@ def test_next_snapshot_emits_changed_content_and_visibility_at_same_path() -> No
     assert old.content_hash() != new.content_hash()
 
 
+def test_confirmed_removals_require_per_id_proof_even_with_partial_inventory() -> None:
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with patch(
+        "httpx.post",
+        side_effect=[
+            _graphql({"list": [_page(1, "Help"), _page(2, "Old", False)]}),
+            _graphql({"single": {**_page(1, "Help"), "content": "still here"}}),
+            _graphql({"single": None}),
+            httpx.Response(
+                200,
+                json={
+                    "errors": [
+                        {
+                            "message": "Missing",
+                            "path": ["pages", "single"],
+                            "extensions": {"code": "PageNotFound"},
+                        }
+                    ]
+                },
+                request=httpx.Request("POST", "https://wiki.example.test/graphql"),
+            ),
+        ],
+    ):
+        assert connector.confirm_removed_pages(
+            {"/it/Help": 1, "/it/Old": 2, "/it/Unknown": 3, "/it/Deleted": 4}
+        ) == ["/it/Old", "/it/Deleted"]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        httpx.TimeoutException("timed out"),
+        _graphql({"single": None}),
+        httpx.Response(
+            200,
+            json={
+                "errors": [{"message": "Denied", "extensions": {"code": "Forbidden"}}]
+            },
+            request=httpx.Request("POST", "https://wiki.example.test/graphql"),
+        ),
+    ],
+)
+def test_unproven_removal_is_not_confirmed(failure: object) -> None:
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with patch("httpx.post", side_effect=[_graphql({"list": []}), failure]):
+        if (
+            isinstance(failure, httpx.TimeoutException)
+            or isinstance(failure, httpx.Response)
+            and failure.json().get("errors")
+        ):
+            with pytest.raises((httpx.TimeoutException, ValueError)):
+                connector.confirm_removed_pages({"/it/Missing": 8})
+        else:
+            assert connector.confirm_removed_pages({"/it/Missing": 8}) == []
+
+
+def test_unpublished_single_confirms_removal_from_partial_inventory() -> None:
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with patch(
+        "httpx.post",
+        side_effect=[
+            _graphql({"list": []}),
+            _graphql({"single": _page(7, "Old", False)}),
+        ],
+    ):
+        assert connector.confirm_removed_pages({"/it/Old": 7}) == ["/it/Old"]
+
+
+def test_verified_move_and_exit_from_scope_remove_old_paths() -> None:
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with patch(
+        "httpx.post",
+        side_effect=[
+            _graphql({"list": []}),
+            _graphql({"single": _page(7, "Moved")}),
+            _graphql({"single": _page(8, "Bozze/Hidden")}),
+            _graphql({"single": {**_page(9, "Outside"), "locale": "en"}}),
+        ],
+    ):
+        assert connector.confirm_removed_pages(
+            {"/it/Old": 7, "/it/Bozze/PreviouslyPublic": 8, "/it/Outside": 9}
+        ) == ["/it/Old", "/it/Bozze/PreviouslyPublic", "/it/Outside"]
+
+
 def test_missing_or_invalid_policy_blocks_snapshot() -> None:
     for override in (
         {"excluded_folder_names": None},

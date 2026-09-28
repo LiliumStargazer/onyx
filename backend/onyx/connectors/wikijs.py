@@ -27,6 +27,10 @@ _MAX_INVENTORY_PAGES = 100_000
 _MAX_PAGE_BYTES = 10 * 1024 * 1024
 
 
+class _WikiPageNotFound(ValueError):
+    pass
+
+
 class _WikiPage(BaseModel):
     model_config = ConfigDict(strict=True)
 
@@ -196,7 +200,20 @@ class WikiJsConnector(LoadConnector):
         if len(response.content) > _MAX_PAGE_BYTES:
             raise ValueError("Wiki.js response exceeds snapshot limit")
         payload = response.json()
-        if not isinstance(payload, dict) or payload.get("errors"):
+        if not isinstance(payload, dict):
+            raise ValueError("Wiki.js GraphQL query failed")
+        errors = payload.get("errors")
+        if errors:
+            if (
+                "single(id:" in query
+                and isinstance(errors, list)
+                and len(errors) == 1
+                and isinstance(errors[0], dict)
+                and errors[0].get("path") == ["pages", "single"]
+                and isinstance(errors[0].get("extensions"), dict)
+                and errors[0]["extensions"].get("code") == "PageNotFound"
+            ):
+                raise _WikiPageNotFound("Wiki.js page not found")
             raise ValueError("Wiki.js GraphQL query failed")
         data = payload.get("data")
         if not isinstance(data, dict) or not isinstance(data.get("pages"), dict):
@@ -225,14 +242,14 @@ class WikiJsConnector(LoadConnector):
             raise ValueError(f"Conflicting Wiki.js visibility for {page_path}")
         return next(iter(matched)) if matched else "public"
 
-    def _snapshot_pages(self) -> list[tuple[_WikiPage, str]]:
-        # Wiki.js pages.list returns the full inventory; it has no page/offset argument.
+    def _list_pages(self) -> list[_WikiPage]:
+        # Wiki.js pages.list has no page/offset argument.
         listing = self._query(_LIST_PAGES).get("list")
         if not isinstance(listing, list) or len(listing) > _MAX_INVENTORY_PAGES:
             raise ValueError("Incomplete or oversized Wiki.js inventory")
         seen_paths: set[str] = set()
         seen_ids: set[int] = set()
-        pages: list[tuple[_WikiPage, str]] = []
+        pages: list[_WikiPage] = []
         for item in listing:
             page = _WikiPage.model_validate(item)
             page_path = page.page_path
@@ -240,12 +257,48 @@ class WikiJsConnector(LoadConnector):
                 raise ValueError("Conflicting Wiki.js page identity")
             seen_paths.add(page_path)
             seen_ids.add(page.id)
-            if (
-                page.isPublished
-                and (visibility := self._visibility(page_path)) is not None
-            ):
-                pages.append((page, visibility))
+            pages.append(page)
         return pages
+
+    def _snapshot_pages(self) -> list[tuple[_WikiPage, str]]:
+        return [
+            (page, visibility)
+            for page in self._list_pages()
+            if page.isPublished
+            and (visibility := self._visibility(page.page_path)) is not None
+        ]
+
+    def confirm_removed_pages(self, indexed_pages: dict[str, int]) -> list[str]:
+        """Confirm each indexed ID against Wiki.js; inventory absence is never proof."""
+        unpublished_ids = {
+            page.id for page in self._list_pages() if not page.isPublished
+        }
+        removed_paths: list[str] = []
+        for page_path, page_id in indexed_pages.items():
+            if page_id in unpublished_ids:
+                removed_paths.append(page_path)
+                continue
+            try:
+                details = self._query(
+                    f"{{ pages {{ single(id: {page_id}) {{ id path locale title isPublished }} }} }}"
+                ).get("single")
+            except _WikiPageNotFound:
+                removed_paths.append(page_path)
+                continue
+            if details is None:
+                continue  # A null response is not structured PageNotFound proof.
+            if not isinstance(details, dict):
+                raise ValueError("Incomplete Wiki.js page verification")
+            page = _WikiPage.model_validate(details)
+            if page.id != page_id:
+                raise ValueError("Mismatched Wiki.js page verification")
+            if (
+                not page.isPublished
+                or page.page_path != page_path
+                or self._visibility(page.page_path) is None
+            ):
+                removed_paths.append(page_path)
+        return removed_paths
 
     def load_from_state(self) -> GenerateDocumentsOutput:
         batch: list[Document | HierarchyNode] = []

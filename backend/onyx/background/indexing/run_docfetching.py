@@ -10,6 +10,9 @@ from celery import Celery
 from sqlalchemy.orm import Session
 
 from onyx.access.access import source_should_fetch_permissions_during_indexing
+from onyx.background.celery.tasks.shared.tasks import (
+    document_by_cc_pair_cleanup_task,
+)
 from onyx.background.indexing.checkpointing_utils import (
     check_checkpoint_size,
     get_latest_valid_checkpoint,
@@ -50,6 +53,7 @@ from onyx.connectors.models import (
     HierarchyNode,
     TextSection,
 )
+from onyx.connectors.wikijs import WikiJsConnector
 from onyx.db.connector import mark_ccpair_with_indexing_trigger
 from onyx.db.connector_alerts import notify_admins_of_connector_alert
 from onyx.db.connector_credential_pair import (
@@ -58,6 +62,7 @@ from onyx.db.connector_credential_pair import (
     update_connector_credential_pair,
 )
 from onyx.db.constants import CONNECTOR_VALIDATION_ERROR_MESSAGE_PREFIX
+from onyx.db.document import get_documents_for_cc_pair
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.enums import (
     AccessType,
@@ -439,6 +444,37 @@ def run_docfetching_entrypoint(
     INDEX_ATTEMPT_INFO_CONTEXTVAR.reset(token)
 
 
+def remove_confirmed_wikijs_pages(
+    connector: WikiJsConnector,
+    cc_pair_id: int,
+    connector_id: int,
+    credential_id: int,
+    tenant_id: str,
+) -> None:
+    with get_session_with_current_tenant() as db_session:
+        indexed_pages = {
+            document.id: page_id
+            for document in get_documents_for_cc_pair(db_session, cc_pair_id)
+            if document.doc_metadata is not None
+            and type(page_id := document.doc_metadata.get("wikijs_page_id")) is int
+        }
+    # Finish every verification before any deletion. An error must not cause partial pruning.
+    removed_paths = connector.confirm_removed_pages(indexed_pages)
+    for page_path in removed_paths:
+        if page_path not in indexed_pages:
+            raise ValueError("Unverified Wiki.js document removal")
+        result = document_by_cc_pair_cleanup_task.apply(
+            kwargs={
+                "document_id": page_path,
+                "connector_id": connector_id,
+                "credential_id": credential_id,
+                "tenant_id": tenant_id,
+            }
+        )
+        if not result.get():
+            raise RuntimeError(f"Wiki.js document cleanup failed: {page_path}")
+
+
 def connector_document_extraction(
     app: Celery,
     index_attempt_id: int,
@@ -665,6 +701,15 @@ def connector_document_extraction(
             db_session=db_session,
             index_attempt_id=index_attempt_id,
             checkpoint=checkpoint,
+        )
+
+    if isinstance(connector_runner.connector, WikiJsConnector):
+        remove_confirmed_wikijs_pages(
+            connector_runner.connector,
+            cc_pair_id,
+            db_connector.id,
+            db_credential.id,
+            tenant_id,
         )
 
     batch_num = last_batch_num  # starts at 0 if no last batch
