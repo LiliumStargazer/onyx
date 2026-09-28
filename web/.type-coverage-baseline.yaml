@@ -22,14 +22,14 @@ packages:
   src/app/config: 100
   src/app/connector: 100
   src/app/craft: 99.2
-  src/app/ee: 95.8
+  src/app/ee: 96.1
   src/app/federated: 97
   src/app/mcp: 99.5
   src/app/nrf: 99.3
   src/app/oauth-config: 100
   src/components: 97.7
   src/components/admin: 96
-  src/components/auth: 89.3
+  src/components/auth: 100
   src/components/chat: 97.2
   src/components/context: 100
   src/components/dateRangeSelectors: 100
@@ -84,7 +84,7 @@ packages:
   src/lib/search: 99.1
   src/lib/searchFilters: 98.1
   src/lib/searchSettings: 99.4
-  src/lib/settings: 96.6
+  src/lib/settings: 99.1
   src/lib/sidebar: 100
   src/lib/skills: 97.4
   src/lib/sso: 99.3
@@ -115,6 +115,7 @@ packages:
   src/sections/banners: 98.5
   src/sections/cards: 100
   src/sections/chat: 99.7
+  src/sections/connectors: 100
   src/sections/document-sidebar: 99.5
   src/sections/input: 99.8
   src/sections/knowledge: 99.7

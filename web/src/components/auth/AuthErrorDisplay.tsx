@@ -7,7 +7,7 @@ import { toast } from "@opal/layouts";
 export default function AuthErrorDisplay({
   searchParams,
 }: {
-  searchParams: any;
+  searchParams?: { error?: string | string[] };
 }) {
   const t = useTranslations("auth.errorDisplay");
   const error = searchParams?.error;

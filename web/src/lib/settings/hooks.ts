@@ -53,7 +53,7 @@ export function useSettings(): AppSettings {
     data: rawSettings,
     error: settingsError,
     isLoading: settingsLoading,
-  } = useSWR<Settings>(
+  } = useSWR<Settings, Error>(
     onAuthPath ? null : SWR_KEYS.settings,
     errorHandlingFetcher,
     {
@@ -77,7 +77,7 @@ export function useSettings(): AppSettings {
     data: enterprise,
     error: enterpriseError,
     isLoading: enterpriseLoading,
-  } = useSWR<EnterpriseSettings>(
+  } = useSWR<EnterpriseSettings, Error>(
     shouldFetchEnterprise ? SWR_KEYS.enterpriseSettings : null,
     errorHandlingFetcher,
     {
