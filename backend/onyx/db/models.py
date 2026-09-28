@@ -3150,6 +3150,7 @@ class DocumentByConnectorCredentialPair(Base):
     # not be counted as part of the connector's document count until
     # the actual indexing is complete
     has_been_indexed: Mapped[bool] = mapped_column(Boolean)
+    wikijs_page_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     connector: Mapped[Connector] = relationship(
         "Connector", back_populates="documents_by_connector", passive_deletes=True

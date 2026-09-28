@@ -27,7 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine.util import TransactionalContext
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, aliased, selectinload
 from sqlalchemy.sql.expression import null
 
 from onyx.configs.constants import DEFAULT_BOOST, DocumentSource
@@ -258,6 +258,53 @@ def get_documents_for_cc_pair(
         connector_id=cc_pair.connector_id, credential_id=cc_pair.credential_id
     )
     return list(db_session.scalars(stmt).all())
+
+
+def get_wikijs_page_ids_for_cc_pair(
+    db_session: Session, cc_pair_id: int
+) -> dict[str, int]:
+    cc_pair = get_connector_credential_pair_from_id(db_session, cc_pair_id)
+    if cc_pair is None:
+        raise ValueError(f"No CC pair found with ID: {cc_pair_id}")
+
+    link = aliased(DocumentByConnectorCredentialPair)
+    other_link = aliased(DocumentByConnectorCredentialPair)
+    has_other_links = exists(
+        select(other_link.id).where(
+            other_link.id == link.id,
+            or_(
+                other_link.connector_id != link.connector_id,
+                other_link.credential_id != link.credential_id,
+            ),
+        )
+    ).correlate(link)
+    stmt = (
+        select(link.id, link.wikijs_page_id, DbDocument.doc_metadata, has_other_links)
+        .join(DbDocument, DbDocument.id == link.id)
+        .where(
+            link.connector_id == cc_pair.connector_id,
+            link.credential_id == cc_pair.credential_id,
+        )
+    )
+    page_ids: dict[str, int] = {}
+    ambiguous_links = 0
+    for document_id, stored_id, metadata, shared in db_session.execute(stmt):
+        if stored_id is None and shared:
+            ambiguous_links += 1
+            continue
+        page_id = (
+            stored_id
+            if stored_id is not None
+            else (metadata or {}).get("wikijs_page_id")
+        )
+        if type(page_id) is int:
+            page_ids[document_id] = page_id
+    if ambiguous_links:
+        logger.warning(
+            "Skipped %s shared Wiki.js documents without a per-connector page ID; reindex their connectors to verify removals",
+            ambiguous_links,
+        )
+    return page_ids
 
 
 def get_document_ids_for_connector_credential_pair(
@@ -1016,7 +1063,11 @@ def upsert_documents(
 
 
 def upsert_document_by_connector_credential_pair(
-    db_session: Session, connector_id: int, credential_id: int, document_ids: list[str]
+    db_session: Session,
+    connector_id: int,
+    credential_id: int,
+    document_ids: list[str],
+    wikijs_page_ids: dict[str, int] | None = None,
 ) -> None:
     """NOTE: this function is Postgres specific. Not all DBs support the ON CONFLICT clause."""
     if not document_ids:
@@ -1031,15 +1082,23 @@ def upsert_document_by_connector_credential_pair(
                     connector_id=connector_id,
                     credential_id=credential_id,
                     has_been_indexed=False,
+                    wikijs_page_id=(
+                        wikijs_page_ids[doc_id] if wikijs_page_ids is not None else None
+                    ),
                 )
             )
             for doc_id in document_ids
         ]
     )
-    # this must be `on_conflict_do_nothing` rather than `on_conflict_do_update`
-    # since we don't want to update the `has_been_indexed` field for documents
-    # that already exist
-    on_conflict_stmt = insert_stmt.on_conflict_do_nothing()
+    # Keep has_been_indexed unchanged on existing links.
+    on_conflict_stmt = (
+        insert_stmt.on_conflict_do_update(
+            index_elements=["id", "connector_id", "credential_id"],
+            set_={"wikijs_page_id": insert_stmt.excluded.wikijs_page_id},
+        )
+        if wikijs_page_ids is not None
+        else insert_stmt.on_conflict_do_nothing()
+    )
     db_session.execute(on_conflict_stmt)
     db_session.commit()
 

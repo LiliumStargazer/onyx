@@ -62,7 +62,7 @@ from onyx.db.connector_credential_pair import (
     update_connector_credential_pair,
 )
 from onyx.db.constants import CONNECTOR_VALIDATION_ERROR_MESSAGE_PREFIX
-from onyx.db.document import get_documents_for_cc_pair
+from onyx.db.document import get_wikijs_page_ids_for_cc_pair
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.enums import (
     AccessType,
@@ -452,12 +452,7 @@ def remove_confirmed_wikijs_pages(
     tenant_id: str,
 ) -> None:
     with get_session_with_current_tenant() as db_session:
-        indexed_pages = {
-            document.id: page_id
-            for document in get_documents_for_cc_pair(db_session, cc_pair_id)
-            if document.doc_metadata is not None
-            and type(page_id := document.doc_metadata.get("wikijs_page_id")) is int
-        }
+        indexed_pages = get_wikijs_page_ids_for_cc_pair(db_session, cc_pair_id)
     # Finish every verification before any deletion. An error must not cause partial pruning.
     removed_paths = connector.confirm_removed_pages(indexed_pages)
     for page_path in removed_paths:

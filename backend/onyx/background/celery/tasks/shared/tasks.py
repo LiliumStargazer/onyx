@@ -176,13 +176,22 @@ def document_by_cc_pair_cleanup_task(
                 action = DocumentCleanupAction.UPDATE
                 doc_last_modified = doc.last_modified
 
-                # the below functions do not include cc_pairs being deleted.
-                # i.e. they will correctly omit access for the current cc_pair
-                doc_access = get_access_for_document(
-                    document_id=document_id, db_session=db_session
-                )
-
-                doc_sets = fetch_document_sets_for_document(document_id, db_session)
+                # Preview access after unlinking this cc_pair, even when it is ACTIVE.
+                # Roll back the preview before the document-index update below.
+                with db_session.begin_nested() as preview:
+                    delete_document_by_connector_credential_pair__no_commit(
+                        db_session=db_session,
+                        document_id=document_id,
+                        connector_credential_pair_identifier=ConnectorCredentialPairIdentifier(
+                            connector_id=connector_id,
+                            credential_id=credential_id,
+                        ),
+                    )
+                    doc_access = get_access_for_document(
+                        document_id=document_id, db_session=db_session
+                    )
+                    doc_sets = fetch_document_sets_for_document(document_id, db_session)
+                    preview.rollback()
 
                 update_request = MetadataUpdateRequest(
                     document_ids=[document_id],

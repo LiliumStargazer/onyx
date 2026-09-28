@@ -554,6 +554,18 @@ def index_doc_batch_prepare(
     # Create a trimmed list of docs that don't have a newer updated at
     # Shortcuts the time-consuming flow on connector index retries
     document_ids: list[str] = [document.id for document in documents]
+    wikijs_page_ids: dict[str, int] | None = None
+    if documents and documents[0].source == DocumentSource.WIKIJS:
+        wikijs_page_ids = {}
+        for document in documents:
+            page_id = (
+                document.doc_metadata.get("wikijs_page_id")
+                if document.doc_metadata is not None
+                else None
+            )
+            if type(page_id) is not int:
+                raise ValueError("Wiki.js page ID is required for indexing")
+            wikijs_page_ids[document.id] = page_id
     db_docs: list[DBDocument] = get_documents_by_ids(
         db_session=db_session,
         document_ids=document_ids,
@@ -609,12 +621,13 @@ def index_doc_batch_prepare(
         len(documents),
     )
 
-    # for all docs, upsert the document to cc pair relationship
+    # Keep the Wiki.js ID on the cc-pair link, not only on the shared document row.
     upsert_document_by_connector_credential_pair(
         db_session,
         index_attempt_metadata.connector_id,
         index_attempt_metadata.credential_id,
         document_ids,
+        wikijs_page_ids=wikijs_page_ids,
     )
 
     # Link hierarchy nodes to documents for sources where pages can be both

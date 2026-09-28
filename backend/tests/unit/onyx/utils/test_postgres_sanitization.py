@@ -191,7 +191,7 @@ def test_index_doc_batch_prepare_sanitizes_before_db_ops(
         indexing_pipeline, "_upsert_documents_in_db", _capture_upsert_documents_in_db
     )
 
-    def _capture_doc_cc_pair(*args: object) -> None:
+    def _capture_doc_cc_pair(*args: object, **_kwargs: object) -> None:
         captured["cc_pair_doc_ids"] = args[3]
 
     monkeypatch.setattr(
