@@ -13,7 +13,6 @@ import { ADMIN_ROUTES } from "@/lib/admin-routes";
 import { Button } from "@opal/components";
 import { SvgPlusCircle } from "@opal/icons";
 
-
 const route = ADMIN_ROUTES.SLACK_BOTS;
 
 function Main() {

@@ -290,7 +290,9 @@ export default function ToolLineItem({ tool }: ToolLineItemProps) {
         state={isForced || searchIsRequired ? "selected" : "empty"}
         strikethrough={isDisabled}
         color={(isUnavailable && isForced) || isDisabled ? "muted" : undefined}
-        disabled={searchIsRequired || needsConnectors || (isUnavailable && !isForced)}
+        disabled={
+          searchIsRequired || needsConnectors || (isUnavailable && !isForced)
+        }
         tooltip={getToolTooltip(
           tool,
           isConfigured,

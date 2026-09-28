@@ -173,7 +173,6 @@ export default function AccessRestricted() {
           </div>
         </>
       )}
-
     </ErrorPageLayout>
   );
 }

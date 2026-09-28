@@ -11,7 +11,9 @@ import { SEARCH_TOOL_ID, WEB_SEARCH_TOOL_ID } from "@/lib/tools/constants";
 
 export function useCustomFooterContent(): string {
   const settings = useSettings();
-  return settings.enterprise?.custom_lower_disclaimer_content || settings.appName;
+  return (
+    settings.enterprise?.custom_lower_disclaimer_content || settings.appName
+  );
 }
 
 export function useAppDocumentTitle(): void {
