@@ -2,6 +2,7 @@ name: Publish Wiki Agent Rag images
 
 on:
   push:
+    branches: [main]
     tags:
       - "wiki-agent-rag-v*.*.*"
   workflow_dispatch:
@@ -28,6 +29,7 @@ jobs:
 
   publish:
     needs: test-web
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read

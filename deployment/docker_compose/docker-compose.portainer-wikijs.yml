@@ -2,7 +2,7 @@
 # Keep the UI on the host loopback; never expose Wiki.js documents publicly.
 services:
   api_server:
-    image: ${ONYX_BACKEND_IMAGE:?Set ONYX_BACKEND_IMAGE in Portainer}
+    image: ghcr.io/liliumstargazer/onyx-backend:${IMAGE_TAG:?Set IMAGE_TAG in Portainer}
     build: !reset null
     environment:
       FILE_STORE_BACKEND: postgres
@@ -10,14 +10,14 @@ services:
       USER_AUTH_SECRET: ${USER_AUTH_SECRET:?Set USER_AUTH_SECRET in Portainer}
       WEB_DOMAIN: http://localhost:13000
   background:
-    image: ${ONYX_BACKEND_IMAGE:?Set ONYX_BACKEND_IMAGE in Portainer}
+    image: ghcr.io/liliumstargazer/onyx-backend:${IMAGE_TAG:?Set IMAGE_TAG in Portainer}
     build: !reset null
     environment:
       FILE_STORE_BACKEND: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
       USER_AUTH_SECRET: ${USER_AUTH_SECRET:?Set USER_AUTH_SECRET in Portainer}
   web_server:
-    image: ${ONYX_WEB_SERVER_IMAGE:?Set ONYX_WEB_SERVER_IMAGE in Portainer}
+    image: ghcr.io/liliumstargazer/onyx-web-server:${IMAGE_TAG:?Set IMAGE_TAG in Portainer}
     build: !reset null
     environment:
       WEB_DOMAIN: http://localhost:13000
