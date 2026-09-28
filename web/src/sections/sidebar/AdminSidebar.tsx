@@ -34,12 +34,10 @@ import {
   type SidebarItemEntry,
 } from "@/lib/admin-sidebar-utils";
 import { renderSidebarLogo } from "@/lib/sidebar/utils";
-import { useShowLogoWhenFolded } from "@/lib/sidebar/hooks";
 
 export default function AdminSidebar() {
   const t = useTranslations("sidebar");
   const { folded, setFolded } = useSidebarState();
-  const showLogoWhenFolded = useShowLogoWhenFolded();
   const searchRef = useRef<HTMLInputElement>(null);
   const [focusSearch, setFocusSearch] = useState(false);
 
@@ -115,10 +113,7 @@ export default function AdminSidebar() {
 
   return (
     <SidebarLayouts.Root>
-      <SidebarLayouts.Header
-        renderAppLogo={renderSidebarLogo}
-        showLogoWhenFolded={showLogoWhenFolded}
-      >
+      <SidebarLayouts.Header renderAppLogo={renderSidebarLogo}>
         {folded ? (
           <SidebarTab
             icon={SvgSearch}

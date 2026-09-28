@@ -9,7 +9,7 @@ import {
   AppearanceThemeSettings,
   AppearanceThemeSettingsRef,
 } from "./AppearanceThemeSettings";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useSettings } from "@/lib/settings/hooks";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -26,7 +26,6 @@ const route = ADMIN_ROUTES.THEME;
 // updated, please update these ones as well. We duplicate them here to avoid
 // unnecessary API fetches to get max-values.
 const CHAR_LIMITS = {
-  application_name: 50,
   custom_greeting_message: 50,
   custom_login_subtitle: 100,
   custom_header_content: 100,
@@ -43,8 +42,6 @@ export default function ThemePage() {
   const adminRouteTitle = useAdminRouteTitle();
   const settings = useSettings();
   const enterpriseSettings = settings.enterprise;
-  const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
-  const [logoVersion, setLogoVersion] = useState(0);
   const appearanceSettingsRef = useRef<AppearanceThemeSettingsRef>(null);
   // The banner seeds Formik initialValues once, so the form renders only after
   // this fetch settles (a failed fetch counts as "no banner"). Background
@@ -58,7 +55,7 @@ export default function ThemePage() {
   const currentBanner = adminBanner ?? null;
 
   async function updateEnterpriseSettings(
-    newValues: EnterpriseSettings
+    newValues: Partial<EnterpriseSettings>
   ): Promise<boolean> {
     const response = await fetch("/api/admin/enterprise-settings", {
       method: "PUT",
@@ -101,17 +98,6 @@ export default function ThemePage() {
     t("page.validation.maxChars", { count });
 
   const validationSchema = Yup.object().shape({
-    application_name: Yup.string()
-      .trim()
-      .max(
-        CHAR_LIMITS.application_name,
-        maxCharsMessage(CHAR_LIMITS.application_name)
-      )
-      .nullable(),
-    logo_display_style: Yup.string()
-      .oneOf(["logo_and_name", "logo_only", "name_only"])
-      .required(),
-    use_custom_logo: Yup.boolean().required(),
     custom_greeting_message: Yup.string()
       .max(
         CHAR_LIMITS.custom_greeting_message,
@@ -224,10 +210,6 @@ export default function ThemePage() {
   return (
     <Formik
       initialValues={{
-        application_name: enterpriseSettings?.application_name || "",
-        logo_display_style:
-          enterpriseSettings?.logo_display_style || "logo_and_name",
-        use_custom_logo: enterpriseSettings?.use_custom_logo || false,
         custom_greeting_message:
           enterpriseSettings?.custom_greeting_message || "",
         custom_login_subtitle: enterpriseSettings?.custom_login_subtitle || "",
@@ -253,34 +235,8 @@ export default function ThemePage() {
       validationSchema={validationSchema}
       validateOnChange={false}
       onSubmit={async (values, formikHelpers) => {
-        let logoUploaded = false;
-
-        // Handle logo upload if a new logo was selected
-        if (selectedLogo) {
-          const formData = new FormData();
-          formData.append("file", selectedLogo);
-          const response = await fetch("/api/admin/enterprise-settings/logo", {
-            method: "PUT",
-            body: formData,
-          });
-          if (!response.ok) {
-            const errorMsg = (await response.json()).detail;
-            alert(t("page.logoUploadFailed.message", { error: errorMsg }));
-            formikHelpers.setSubmitting(false);
-            return;
-          }
-          // Only clear the selected logo after a successful upload
-          setSelectedLogo(null);
-          logoUploaded = true;
-          values.use_custom_logo = true;
-        }
-
         // Update enterprise settings
         const success = await updateEnterpriseSettings({
-          application_name: values.application_name || null,
-          use_custom_logo: values.use_custom_logo,
-          use_custom_logotype: enterpriseSettings?.use_custom_logotype || false,
-          logo_display_style: values.logo_display_style || null,
           custom_nav_items: enterpriseSettings?.custom_nav_items || [],
           custom_greeting_message: values.custom_greeting_message || null,
           custom_login_subtitle: values.custom_login_subtitle?.trim() || null,
@@ -337,9 +293,6 @@ export default function ThemePage() {
         // reflect the newly-saved values.
         if (success && bannerOk) {
           formikHelpers.resetForm({ values });
-          if (logoUploaded) {
-            setLogoVersion((v) => v + 1);
-          }
           toast.success(t("page.saveSuccess.message"));
         }
 
@@ -355,8 +308,6 @@ export default function ThemePage() {
         setTouched,
         submitForm,
       }) => {
-        const hasLogoChange = !!selectedLogo;
-
         return (
           <Form className="w-full h-full">
             <SettingsLayouts.Root>
@@ -367,7 +318,7 @@ export default function ThemePage() {
                 actions={[
                   <Button
                     key="primary"
-                    disabled={isSubmitting || (!dirty && !hasLogoChange)}
+                    disabled={isSubmitting || !dirty}
                     type="button"
                     onClick={async () => {
                       const errors = await validateForm();
@@ -388,9 +339,6 @@ export default function ThemePage() {
               <SettingsLayouts.Body>
                 <AppearanceThemeSettings
                   ref={appearanceSettingsRef}
-                  selectedLogo={selectedLogo}
-                  setSelectedLogo={setSelectedLogo}
-                  logoVersion={logoVersion}
                   charLimits={CHAR_LIMITS}
                 />
               </SettingsLayouts.Body>

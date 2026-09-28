@@ -1483,9 +1483,6 @@
         "emptyKey": {
           "error": "Digite uma chave de licença"
         },
-        "error": {
-          "text": "{error}. <link>Ajuda com cobrança</link>"
-        },
         "expired": {
           "label": "Chave de licença expirada"
         },
@@ -1634,7 +1631,7 @@
           "label": "Gerenciar plano"
         },
         "managedBySales": {
-          "text": "Seu plano é gerenciado pela equipe de vendas.<br></br><link>Fale com a equipe de cobrança</link> para fazer alterações."
+          "text": "Seu plano é gerenciado pela equipe de vendas.<br></br>Fale com seu administrador para solicitar alterações."
         },
         "nextPayment": {
           "subtitle": "Próximo pagamento em {date}"
@@ -2562,6 +2559,16 @@
       }
     },
     "connectorsList": {
+      "branding": {
+        "sharedDrivesAccessible": "Isso permite que {appName} indexe todo o conteúdo dos drives compartilhados aos quais você tem acesso.",
+        "sharedDrivesOrganization": "Isso permite que {appName} indexe todo o conteúdo dos drives compartilhados da sua organização.",
+        "myDrive": "Isso permite que {appName} indexe todo o conteúdo do seu Meu Drive.",
+        "everyonesDrives": "Isso permite que {appName} indexe todo o conteúdo dos drives pessoais de todos.",
+        "sharedWithMe": "Isso permite que {appName} indexe todos os arquivos compartilhados com você.",
+        "excludeLinkOnly": "Quando ativado, {appName} ignora arquivos amplamente compartilhados que exigem um link para acesso.",
+        "salesforceObjects": "Informe os tipos de objetos do Salesforce para indexar. Se não informar nenhum, {appName} indexa por Account.\n\nDica: Use o nome do objeto no singular, como Opportunity.",
+        "sharingLinksPublic": "Quando ativado, documentos com links de compartilhamento ficam visíveis para todos os usuários de {appName}. Caso contrário, apenas usuários e grupos com funções atribuídas explicitamente podem ver o documento."
+      },
       "add": {
         "authorizeButton": {
           "label": "Autorizar com {source}",
@@ -4864,7 +4871,7 @@
           "title": "Escolha como aplicar este LLM de recuperação contextual"
         },
         "default": {
-          "description": "Alterar as configurações de embedding ou de recuperação exige uma reindexação completa de todos os documentos para entrar em vigor, o que pode levar **horas ou dias** dependendo do tamanho do corpus. [Saiba mais](https://docs.onyx.app/security/architecture/data_flows)",
+          "description": "Alterar as configurações de embedding ou de recuperação exige uma reindexação completa de todos os documentos para entrar em vigor, o que pode levar **horas ou dias** dependendo do tamanho do corpus.",
           "title": "As alterações exigem uma reindexação completa."
         },
         "orSeparator": {
@@ -5529,7 +5536,7 @@
             "addButton": {
               "label": "Adicionar linha"
             },
-            "description": "Adicione propriedades extras conforme o provedor de modelos exigir. Elas são passadas para a chamada `completion()` do LiteLLM como [variáveis de ambiente](https://docs.litellm.ai/docs/set_keys#environment-variables). Consulte a [documentação](https://docs.onyx.app/admins/ai_models/custom_inference_provider) para mais instruções.",
+            "description": "Adicione propriedades extras conforme o provedor de modelos exigir. Elas são passadas para a chamada `completion()` do LiteLLM como [variáveis de ambiente](https://docs.litellm.ai/docs/set_keys#environment-variables).",
             "keyInput": {
               "placeholder": "ex.: OPENAI_ORGANIZATION"
             },
@@ -6723,7 +6730,7 @@
         }
       },
       "liteModeNotice": {
-        "description": "Esta implantação executa o Onyx Lite, que não tem banco de dados vetorial — os conectores e a indexação de documentos estão desativados, e nada é indexado. Para conectar fontes de dados e indexar documentos, implante o Onyx no **modo Standard**. Consulte o [guia de implantação]({docsUrl}) para começar.",
+        "description": "Esta implantação executa o Onyx Lite, que não tem banco de dados vetorial — os conectores e a indexação de documentos estão desativados, e nada é indexado. Para conectar fontes de dados e indexar documentos, implante o Onyx no **modo Standard**.",
         "title": "A indexação não está disponível no modo Lite"
       },
       "providerCard": {

@@ -329,7 +329,6 @@ function SubscriptionCard({
             <Text secondaryBody text03 className="text-end">
               {t.rich("subscription.managedBySales.text", {
                 br: () => <br />,
-                link: (chunks) => chunks,
               })}
             </Text>
           ) : disabled ? (

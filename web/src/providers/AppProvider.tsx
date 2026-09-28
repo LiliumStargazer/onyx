@@ -25,6 +25,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Cookies from "js-cookie";
 import { UserProvider } from "@/providers/UserProvider";
 import { ProviderContextProvider } from "@/components/chat/ProviderContext";
@@ -74,6 +75,7 @@ interface AppProviderProps {
 }
 
 export default function AppProvider({ children }: AppProviderProps) {
+  const t = useTranslations("auth");
   return (
     <SettingsProvider>
       <UserProvider>
@@ -88,7 +90,7 @@ export default function AppProvider({ children }: AppProviderProps) {
                         <ToastProvider
                           errorAppendix={
                             NEXT_PUBLIC_INCLUDE_ERROR_POPUP_SUPPORT_LINK
-                              ? "Need help? Join our community at https://discord.gg/4NA5SbzrWb for support!"
+                              ? t("error.selfHostedSupportPrompt.text")
                               : undefined
                           }
                         >

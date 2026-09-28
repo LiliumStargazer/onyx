@@ -1481,9 +1481,6 @@
         "emptyKey": {
           "error": "Saisissez une clé de licence"
         },
-        "error": {
-          "text": "{error}. <link>Aide à la facturation</link>"
-        },
         "expired": {
           "label": "Clé de licence expirée"
         },
@@ -1632,7 +1629,7 @@
           "label": "Gérer le forfait"
         },
         "managedBySales": {
-          "text": "Votre forfait est géré par le service commercial.<br></br><link>Contactez la facturation</link> pour apporter des modifications."
+          "text": "Votre forfait est géré par le service commercial.<br></br>Contactez votre administrateur pour demander des modifications."
         },
         "nextPayment": {
           "subtitle": "Prochain paiement le {date}"
@@ -2560,6 +2557,16 @@
       }
     },
     "connectorsList": {
+      "branding": {
+        "sharedDrivesAccessible": "Cela permet à {appName} d'indexer tout le contenu des Drive partagés auxquels vous avez accès.",
+        "sharedDrivesOrganization": "Cela permet à {appName} d'indexer tout le contenu des Drive partagés de votre organisation.",
+        "myDrive": "Cela permet à {appName} d'indexer tout le contenu de votre Drive.",
+        "everyonesDrives": "Cela permet à {appName} d'indexer tout le contenu des Drive personnels de chacun.",
+        "sharedWithMe": "Cela permet à {appName} d'indexer tous les fichiers partagés avec vous.",
+        "excludeLinkOnly": "Si cette option est activée, {appName} ignore les fichiers largement partagés qui nécessitent un lien pour y accéder.",
+        "salesforceObjects": "Indiquez les types d'objets Salesforce à indexer. Si aucun n'est indiqué, {appName} indexe par Account.\n\nConseil : utilisez le nom de l'objet au singulier, par exemple Opportunity.",
+        "sharingLinksPublic": "Si cette option est activée, les documents avec des liens de partage sont visibles par tous les utilisateurs de {appName}. Sinon, seuls les utilisateurs et groupes ayant un rôle explicitement attribué peuvent les voir."
+      },
       "add": {
         "authorizeButton": {
           "label": "Autoriser avec {source}",
@@ -4862,7 +4869,7 @@
           "title": "Choisissez comment appliquer ce LLM de récupération contextuelle"
         },
         "default": {
-          "description": "La modification des paramètres d'embedding ou de récupération exige une réindexation complète de tous les documents pour prendre effet. Cela peut prendre **des heures ou des jours** selon la taille du corpus. [En savoir plus](https://docs.onyx.app/security/architecture/data_flows)",
+          "description": "La modification des paramètres d'embedding ou de récupération exige une réindexation complète de tous les documents pour prendre effet. Cela peut prendre **des heures ou des jours** selon la taille du corpus.",
           "title": "Les modifications exigent une réindexation complète."
         },
         "orSeparator": {
@@ -5527,7 +5534,7 @@
             "addButton": {
               "label": "Ajouter une ligne"
             },
-            "description": "Ajoutez les propriétés supplémentaires exigées par le fournisseur de modèles. Elles sont transmises à l'appel `completion()` de LiteLLM comme [variables d'environnement](https://docs.litellm.ai/docs/set_keys#environment-variables). Consultez la [documentation](https://docs.onyx.app/admins/ai_models/custom_inference_provider) pour plus d'instructions.",
+            "description": "Ajoutez les propriétés supplémentaires exigées par le fournisseur de modèles. Elles sont transmises à l'appel `completion()` de LiteLLM comme [variables d'environnement](https://docs.litellm.ai/docs/set_keys#environment-variables).",
             "keyInput": {
               "placeholder": "par ex. OPENAI_ORGANIZATION"
             },
@@ -6721,7 +6728,7 @@
         }
       },
       "liteModeNotice": {
-        "description": "Ce déploiement utilise Onyx Lite, qui n'a pas de base de données vectorielle : les connecteurs et l'indexation des documents sont désactivés, et rien n'est indexé. Pour connecter des sources de données et indexer des documents, déployez Onyx en **mode Standard**. Consultez le [guide de déploiement]({docsUrl}) pour commencer.",
+        "description": "Ce déploiement utilise Onyx Lite, qui n'a pas de base de données vectorielle : les connecteurs et l'indexation des documents sont désactivés, et rien n'est indexé. Pour connecter des sources de données et indexer des documents, déployez Onyx en **mode Standard**.",
         "title": "L'indexation est indisponible en mode Lite"
       },
       "providerCard": {

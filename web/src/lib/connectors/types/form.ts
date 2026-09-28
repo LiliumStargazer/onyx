@@ -16,12 +16,25 @@ export type StringWithDescription = {
   description?: string;
 };
 
+export type ConnectorDescriptionKey =
+  | "branding.sharedDrivesAccessible"
+  | "branding.sharedDrivesOrganization"
+  | "branding.myDrive"
+  | "branding.everyonesDrives"
+  | "branding.sharedWithMe"
+  | "branding.excludeLinkOnly"
+  | "branding.salesforceObjects"
+  | "branding.sharingLinksPublic";
+
 export interface Option {
   label: string | ((currentCredential: Credential<any> | null) => string);
   name: string;
   description?:
     | string
     | ((currentCredential: Credential<any> | null) => string);
+  descriptionKey?:
+    | ConnectorDescriptionKey
+    | ((currentCredential: Credential<any> | null) => ConnectorDescriptionKey);
   query?: string;
   optional?: boolean;
   hidden?: boolean;

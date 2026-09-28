@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
 import type { Components } from "react-markdown";
 import Text from "@/refresh-components/texts/Text";
 import Truncated from "@/refresh-components/texts/Truncated";
@@ -51,39 +50,7 @@ const PreviewMinimalMarkdown = React.memo(function PreviewMinimalMarkdown({
   );
 });
 
-export type PreviewHighlightTarget =
-  | "sidebar"
-  | "greeting"
-  | "chat_header"
-  | "chat_footer";
-
-function PreviewLogo({
-  logoSrc,
-  forceOnyxIcon,
-  size,
-  className,
-}: {
-  logoSrc?: string;
-  forceOnyxIcon?: boolean;
-  size: number;
-  className?: string;
-}) {
-  const t = useTranslations("admin.theme");
-  return logoSrc && !forceOnyxIcon ? (
-    <img
-      src={logoSrc}
-      alt={t("preview.logo.alt")}
-      style={{
-        objectFit: "cover",
-        height: `${size}px`,
-        width: `${size}px`,
-      }}
-      className={cn("shrink-0 rounded-full", className)}
-    />
-  ) : (
-    <Logo size={size} className={cn("shrink-0", className)} />
-  );
-}
+export type PreviewHighlightTarget = "greeting" | "chat_header" | "chat_footer";
 
 function InputPreview() {
   return (
@@ -165,23 +132,17 @@ function PreviewChat({
 }
 
 export interface PreviewProps {
-  logoDisplayStyle: "logo_and_name" | "logo_only" | "name_only";
-  applicationDisplayName: string;
   chat_footer_content: string;
   chat_header_content: string;
   greeting_message: string;
   className?: string;
-  logoSrc?: string;
   highlightTarget?: PreviewHighlightTarget | null;
 }
 
 function PreviewStart({
-  logoDisplayStyle,
-  applicationDisplayName,
   chat_footer_content,
   chat_header_content,
   greeting_message,
-  logoSrc,
   highlightTarget,
 }: PreviewProps) {
   return (
@@ -189,28 +150,11 @@ function PreviewStart({
       {/* Sidebar */}
       <div className="flex w-24 h-full bg-background-tint-02 rounded-s-12 p-1 justify-start">
         <div className="flex flex-col h-fit w-full justify-start">
-          <div
-            className={cn(
-              "inline-flex max-w-full items-center justify-start gap-1 rounded-08 p-0.5 overflow-hidden",
-              highlightTarget === "sidebar" && "bg-highlight-match"
-            )}
-          >
-            {logoDisplayStyle !== "name_only" && (
-              <PreviewLogo
-                logoSrc={logoSrc}
-                size={16}
-                forceOnyxIcon={
-                  logoDisplayStyle === "logo_and_name" &&
-                  !applicationDisplayName
-                }
-              />
-            )}
-            {(logoDisplayStyle === "logo_and_name" ||
-              logoDisplayStyle === "name_only") && (
-              <Truncated mainUiAction text04 nowrap>
-                {applicationDisplayName || APP_NAME}
-              </Truncated>
-            )}
+          <div className="inline-flex max-w-full items-center justify-start gap-1 rounded-08 p-0.5 overflow-hidden">
+            <Logo size={16} />
+            <Truncated mainUiAction text04 nowrap>
+              {APP_NAME}
+            </Truncated>
           </div>
         </div>
       </div>
@@ -225,7 +169,7 @@ function PreviewStart({
                 highlightTarget === "greeting" && "bg-highlight-match"
               )}
             >
-              <PreviewLogo logoSrc={logoSrc} size={18} />
+              <Logo size={18} />
               <Text
                 text04
                 headingH3
@@ -259,24 +203,18 @@ function PreviewStart({
 }
 
 export default function Preview({
-  logoDisplayStyle,
-  applicationDisplayName,
   chat_footer_content,
   chat_header_content,
   greeting_message,
-  logoSrc,
   className,
   highlightTarget,
 }: PreviewProps) {
   return (
     <div className={cn("grid grid-cols-2 gap-2", className)}>
       <PreviewStart
-        logoDisplayStyle={logoDisplayStyle}
-        applicationDisplayName={applicationDisplayName}
         chat_footer_content={chat_footer_content}
         chat_header_content={chat_header_content}
         greeting_message={greeting_message}
-        logoSrc={logoSrc}
         highlightTarget={highlightTarget}
       />
       <PreviewChat

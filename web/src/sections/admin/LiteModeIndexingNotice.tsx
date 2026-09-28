@@ -16,12 +16,7 @@ export default function LiteModeIndexingNotice() {
       <IllustrationContent
         illustration={SvgUnPlugged}
         title={t("liteModeNotice.title")}
-        description={markdown(
-          t("liteModeNotice.description", { docsUrl: "" }).replace(
-            /\[([^\]]+)\]\(\)/g,
-            "$1"
-          )
-        )}
+        description={markdown(t("liteModeNotice.description"))}
       />
     </Section>
   );

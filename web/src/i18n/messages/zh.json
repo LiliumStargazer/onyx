@@ -1481,9 +1481,6 @@
         "emptyKey": {
           "error": "请输入许可证密钥"
         },
-        "error": {
-          "text": "{error}。<link>账单帮助</link>"
-        },
         "expired": {
           "label": "许可证密钥已过期"
         },
@@ -1632,7 +1629,7 @@
           "label": "管理套餐"
         },
         "managedBySales": {
-          "text": "您的套餐由销售团队管理。<br></br>如需变更，请<link>联系账单支持</link>。"
+          "text": "您的套餐由销售团队管理。<br></br>如需变更，请联系管理员。"
         },
         "nextPayment": {
           "subtitle": "下次付款日期：{date}"
@@ -2560,6 +2557,16 @@
       }
     },
     "connectorsList": {
+      "branding": {
+        "sharedDrivesAccessible": "这让 {appName} 可以索引您有权访问的共享云端硬盘中的所有内容。",
+        "sharedDrivesOrganization": "这让 {appName} 可以索引您所在组织的共享云端硬盘中的所有内容。",
+        "myDrive": "这让 {appName} 可以索引您个人云端硬盘中的所有内容。",
+        "everyonesDrives": "这让 {appName} 可以索引所有人的个人云端硬盘中的所有内容。",
+        "sharedWithMe": "这让 {appName} 可以索引与您共享的所有文件。",
+        "excludeLinkOnly": "启用后，{appName} 会跳过虽广泛共享但必须通过链接才能访问的文件。",
+        "salesforceObjects": "指定要索引的 Salesforce 对象类型。如未指定，{appName} 将按 Account 索引。\n\n提示：请使用对象名称的单数形式，例如 Opportunity。",
+        "sharingLinksPublic": "启用后，具有共享链接的文档对所有 {appName} 用户可见。禁用后，只有明确分配角色的用户和群组才能查看文档。"
+      },
       "add": {
         "authorizeButton": {
           "label": "使用 {source} 授权",
@@ -4862,7 +4869,7 @@
           "title": "选择此上下文检索 LLM 的应用方式"
         },
         "default": {
-          "description": "修改 embedding 或检索设置后，需要对所有文档进行完整的重新索引才能生效，这可能需要**数小时或数天**，具体取决于语料库规模。[了解更多](https://docs.onyx.app/security/architecture/data_flows)",
+          "description": "修改 embedding 或检索设置后，需要对所有文档进行完整的重新索引才能生效，这可能需要**数小时或数天**，具体取决于语料库规模。",
           "title": "更改需要完整的重新索引。"
         },
         "orSeparator": {
@@ -5527,7 +5534,7 @@
             "addButton": {
               "label": "添加行"
             },
-            "description": "按模型提供商的要求添加额外属性。这些属性会作为[环境变量](https://docs.litellm.ai/docs/set_keys#environment-variables)传递给 LiteLLM 的 `completion()` 调用。更多说明请参见[文档](https://docs.onyx.app/admins/ai_models/custom_inference_provider)。",
+            "description": "按模型提供商的要求添加额外属性。这些属性会作为[环境变量](https://docs.litellm.ai/docs/set_keys#environment-variables)传递给 LiteLLM 的 `completion()` 调用。",
             "keyInput": {
               "placeholder": "例如 OPENAI_ORGANIZATION"
             },
@@ -6721,7 +6728,7 @@
         }
       },
       "liteModeNotice": {
-        "description": "此部署运行的是 Onyx Lite，它没有向量数据库，因此连接器和文档索引均已禁用，不会索引任何内容。要连接数据源并索引文档，请以**标准模式**部署 Onyx。请查看[部署指南]({docsUrl})开始使用。",
+        "description": "此部署运行的是 Onyx Lite，它没有向量数据库，因此连接器和文档索引均已禁用，不会索引任何内容。要连接数据源并索引文档，请以**标准模式**部署 Onyx。",
         "title": "Lite 模式下无法使用索引功能"
       },
       "providerCard": {

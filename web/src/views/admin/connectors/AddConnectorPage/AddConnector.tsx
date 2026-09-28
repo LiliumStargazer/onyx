@@ -63,7 +63,6 @@ import { useOAuthDetails } from "@/lib/connectors/hooks";
 import { Button, Text as OpalText } from "@opal/components";
 import { Content, Section, SettingsLayouts, toast } from "@opal/layouts";
 import { deleteConnector } from "@/lib/connector";
-import ConnectorDocsLink from "@/components/admin/connectors/ConnectorDocsLink";
 import { SvgArrowExchange, SvgKey, SvgSimpleLoader } from "@opal/icons";
 import { useTranslations } from "next-intl";
 import { toWireAccess } from "@/lib/connectors/accessType";
@@ -753,7 +752,6 @@ export default function AddConnector({
                             null
                           }
                         />
-                        <ConnectorDocsLink sourceType={connector} />
                       </Section>
                     </fieldset>
                   </Card>

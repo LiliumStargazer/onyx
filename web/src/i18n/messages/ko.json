@@ -1481,9 +1481,6 @@
         "emptyKey": {
           "error": "라이선스 키를 입력하세요"
         },
-        "error": {
-          "text": "{error}. <link>결제 도움말</link>"
-        },
         "expired": {
           "label": "라이선스 키가 만료되었습니다"
         },
@@ -1632,7 +1629,7 @@
           "label": "요금제 관리"
         },
         "managedBySales": {
-          "text": "요금제는 영업팀을 통해 관리됩니다.<br></br>변경하려면 <link>결제팀에 문의</link>하세요."
+          "text": "요금제는 영업팀을 통해 관리됩니다.<br></br>변경을 요청하려면 관리자에게 문의하세요."
         },
         "nextPayment": {
           "subtitle": "다음 결제일: {date}"
@@ -2560,6 +2557,16 @@
       }
     },
     "connectorsList": {
+      "branding": {
+        "sharedDrivesAccessible": "{appName}가 접근 가능한 공유 드라이브의 모든 항목을 인덱싱할 수 있습니다.",
+        "sharedDrivesOrganization": "{appName}가 조직의 공유 드라이브에 있는 모든 항목을 인덱싱할 수 있습니다.",
+        "myDrive": "{appName}가 내 드라이브의 모든 항목을 인덱싱할 수 있습니다.",
+        "everyonesDrives": "{appName}가 모든 사용자의 내 드라이브에 있는 항목을 인덱싱할 수 있습니다.",
+        "sharedWithMe": "{appName}가 나와 공유된 모든 파일을 인덱싱할 수 있습니다.",
+        "excludeLinkOnly": "사용하면 {appName}가 널리 공유되었지만 접근하려면 링크가 필요한 파일을 건너뜁니다.",
+        "salesforceObjects": "인덱싱할 Salesforce 개체 유형을 지정하세요. 지정하지 않으면 {appName}가 Account를 기준으로 인덱싱합니다.\n\n힌트: Opportunity처럼 개체 이름의 단수형을 사용하세요.",
+        "sharingLinksPublic": "사용하면 공유 링크가 있는 문서가 모든 {appName} 사용자에게 공개됩니다. 사용하지 않으면 명시적으로 역할을 부여받은 사용자와 그룹만 문서를 볼 수 있습니다."
+      },
       "add": {
         "authorizeButton": {
           "label": "{source}(으)로 인증",
@@ -4862,7 +4869,7 @@
           "title": "이 컨텍스트 검색 LLM을 적용할 방식을 선택하세요"
         },
         "default": {
-          "description": "embedding 또는 검색 설정을 변경하면 적용을 위해 모든 문서를 전체 재인덱싱해야 하며, 문서 규모에 따라 **몇 시간에서 며칠**이 걸릴 수 있습니다. [자세히 알아보기](https://docs.onyx.app/security/architecture/data_flows)",
+          "description": "embedding 또는 검색 설정을 변경하면 적용을 위해 모든 문서를 전체 재인덱싱해야 하며, 문서 규모에 따라 **몇 시간에서 며칠**이 걸릴 수 있습니다.",
           "title": "변경 사항을 적용하려면 전체 재인덱싱이 필요합니다."
         },
         "orSeparator": {
@@ -5527,7 +5534,7 @@
             "addButton": {
               "label": "줄 추가"
             },
-            "description": "모델 제공자가 요구하는 추가 속성을 입력하세요. 이 값은 [환경 변수](https://docs.litellm.ai/docs/set_keys#environment-variables)로서 LiteLLM의 `completion()` 호출에 전달됩니다. 자세한 안내는 [문서](https://docs.onyx.app/admins/ai_models/custom_inference_provider)를 참고하세요.",
+            "description": "모델 제공자가 요구하는 추가 속성을 입력하세요. 이 값은 [환경 변수](https://docs.litellm.ai/docs/set_keys#environment-variables)로서 LiteLLM의 `completion()` 호출에 전달됩니다.",
             "keyInput": {
               "placeholder": "예: OPENAI_ORGANIZATION"
             },
@@ -6721,7 +6728,7 @@
         }
       },
       "liteModeNotice": {
-        "description": "이 배포는 벡터 데이터베이스가 없는 Onyx Lite로 실행됩니다. 커넥터와 문서 인덱싱이 비활성화되어 아무것도 인덱싱되지 않습니다. 데이터 소스를 연결하고 문서를 인덱싱하려면 Onyx를 **Standard 모드**로 배포하세요. 시작하려면 [배포 가이드]({docsUrl})를 참조하세요.",
+        "description": "이 배포는 벡터 데이터베이스가 없는 Onyx Lite로 실행됩니다. 커넥터와 문서 인덱싱이 비활성화되어 아무것도 인덱싱되지 않습니다. 데이터 소스를 연결하고 문서를 인덱싱하려면 Onyx를 **Standard 모드**로 배포하세요.",
         "title": "Lite 모드에서는 인덱싱을 사용할 수 없습니다"
       },
       "providerCard": {

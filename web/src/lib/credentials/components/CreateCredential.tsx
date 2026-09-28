@@ -30,7 +30,6 @@ import { useUser } from "@/providers/UserProvider";
 import CardSection from "@/components/admin/CardSection";
 import { CredentialFieldsRenderer } from "@/lib/credentials/components/CredentialFieldsRenderer";
 import { TypedFile } from "@/lib/connectors/fileTypes";
-import ConnectorDocsLink from "@/components/admin/connectors/ConnectorDocsLink";
 import { usePermissionAuthority } from "@/lib/permissions/hooks";
 import { Permission } from "@/lib/types";
 import { SvgPlusCircle } from "@opal/icons";
@@ -228,7 +227,6 @@ export default function CreateCredential({
 
         return (
           <Form className="w-full flex items-stretch">
-            {!hideSource && <ConnectorDocsLink sourceType={sourceType} />}
             <CardSection className="w-full items-start dark:bg-neutral-900 mt-4 flex flex-col gap-y-6">
               <TextFormField
                 name="name"

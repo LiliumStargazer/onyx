@@ -2,29 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import useSWRInfinite from "swr/infinite";
-import { useSettings } from "@/lib/settings/hooks";
 import useChatSessions from "@/hooks/useChatSessions";
 import { useProjects } from "@/lib/projects/hooks";
 import { errorHandlingFetcher } from "@/lib/fetcher";
 import { ChatSearchResponse } from "@/app/app/interfaces";
 import { UNNAMED_CHAT } from "@/lib/constants";
 import { SWR_KEYS } from "@/lib/swr-keys";
-
-// ---------------------------------------------------------------------------
-// useShowLogoWhenFolded
-// ---------------------------------------------------------------------------
-
-/**
- * Returns whether the app logo should remain visible in the sidebar when it
- * is folded. When an enterprise `logo_display_style` of `"name_only"` is
- * configured, the logo is hidden in the folded state so only the text name
- * would be shown — but since there's no room for text when folded, the logo
- * is suppressed entirely in that case.
- */
-export function useShowLogoWhenFolded(): boolean {
-  const settings = useSettings();
-  return settings.enterprise?.logo_display_style !== "name_only";
-}
 
 // ---------------------------------------------------------------------------
 // useChatSearchOptimistic

@@ -63,6 +63,8 @@ Never import from `web/src/components/`. It is legacy and being deleted. The one
 - `web/src/i18n/messages/en.json` is the source of truth. When you add or change a key, add your
   best translation to every other locale file in that directory. Missing or extra keys fail
   `types:check`. ICU shape must match across locales (`src/i18n/__tests__/catalog.test.ts`).
+- Branding changes keep each locale in its own language. Preserve technical upstream names where
+  they identify real services or editions. Do not translate the entire UI as part of branding.
 - Keys are stable identifiers: `<namespace>.<section>.<element>.<role>` in camelCase, for example
   `settings.appearance.colorMode.title`. Rewording the English never changes the key.
 - Use ICU for arguments and plurals. Never concatenate translated fragments.

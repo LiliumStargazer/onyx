@@ -8,12 +8,10 @@ import {
   InputTextArea,
   InputTypeIn,
   InputSwitch,
-  Tabs,
   Tag,
 } from "@opal/components";
 import Preview from "@/app/ee/admin/theme/Preview";
 import CharacterCount from "@/refresh-components/CharacterCount";
-import { InputImage } from "@opal/components";
 import { Disabled } from "@opal/core";
 import { useFormikContext } from "formik";
 import {
@@ -25,17 +23,12 @@ import {
   useState,
 } from "react";
 import type { PreviewHighlightTarget } from "./Preview";
-import { SvgEdit } from "@opal/icons";
 import { useTierAtLeast } from "@/hooks/useTierAtLeast";
 import { Tier } from "@/lib/settings/types";
 import { planTagProps } from "@/lib/tier-badge";
 
 interface AppearanceThemeSettingsProps {
-  selectedLogo: File | null;
-  setSelectedLogo: (file: File | null) => void;
-  logoVersion: number;
   charLimits: {
-    application_name: number;
     custom_greeting_message: number;
     custom_login_subtitle: number;
     custom_header_content: number;
@@ -55,16 +48,11 @@ export interface AppearanceThemeSettingsRef {
 export const AppearanceThemeSettings = forwardRef<
   AppearanceThemeSettingsRef,
   AppearanceThemeSettingsProps
->(function AppearanceThemeSettings(
-  { selectedLogo, setSelectedLogo, logoVersion, charLimits },
-  ref
-) {
+>(function AppearanceThemeSettings({ charLimits }, ref) {
   const t = useTranslations("admin.theme");
   const tAuth = useTranslations("auth");
   const { values, errors, setFieldValue } = useFormikContext<any>();
   const enterpriseTier = useTierAtLeast(Tier.ENTERPRISE);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const applicationNameInputRef = useRef<HTMLInputElement>(null);
   const greetingMessageInputRef = useRef<HTMLInputElement>(null);
   const loginSubtitleInputRef = useRef<HTMLInputElement>(null);
   const headerContentInputRef = useRef<HTMLInputElement>(null);
@@ -108,7 +96,6 @@ export const AppearanceThemeSettings = forwardRef<
     focusFirstError: (errors: Record<string, any>) => {
       // Focus on the first field with an error, in priority order
       const fieldRefs = [
-        { name: "application_name", ref: applicationNameInputRef },
         { name: "custom_greeting_message", ref: greetingMessageInputRef },
         { name: "custom_header_content", ref: headerContentInputRef },
         {
@@ -185,196 +172,10 @@ export const AppearanceThemeSettings = forwardRef<
     prevSystemAnnouncementEnabledRef.current = next;
   }, [values.system_announcement_enabled]);
 
-  const handleLogoEdit = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedLogo(file);
-      setFieldValue("use_custom_logo", true);
-    }
-  };
-
-  const handleLogoRemove = async () => {
-    setFieldValue("use_custom_logo", false);
-    setSelectedLogo(null);
-  };
-
-  // Memoize the blob URL to prevent creating new URLs on every render
-  const logoObjectUrl = useMemo(() => {
-    if (selectedLogo) {
-      return URL.createObjectURL(selectedLogo);
-    }
-    return null;
-  }, [selectedLogo]);
-
-  // Clean up the blob URL when selectedLogo changes or component unmounts
-  useEffect(() => {
-    return () => {
-      if (logoObjectUrl) {
-        URL.revokeObjectURL(logoObjectUrl);
-      }
-    };
-  }, [logoObjectUrl]);
-
-  const logoSrc = useMemo(() => {
-    if (logoObjectUrl) {
-      return logoObjectUrl;
-    }
-    if (values.use_custom_logo) {
-      return `/api/enterprise-settings/logo?v=${logoVersion}`;
-    }
-    return undefined;
-  }, [logoObjectUrl, values.use_custom_logo, logoVersion]);
-
-  // Determine which tabs should be enabled
-  const hasLogo = Boolean(selectedLogo || values.use_custom_logo);
-  const hasApplicationName = Boolean(values.application_name?.trim());
-
-  // Auto-switch to logo_and_name if current selection becomes invalid
-  useEffect(() => {
-    if (values.logo_display_style === "logo_only" && !hasLogo) {
-      setFieldValue("logo_display_style", "logo_and_name");
-    } else if (
-      values.logo_display_style === "name_only" &&
-      !hasApplicationName
-    ) {
-      setFieldValue("logo_display_style", "logo_and_name");
-    }
-  }, [hasLogo, hasApplicationName, values.logo_display_style, setFieldValue]);
-
   return (
     <div className="flex flex-col gap-4 w-full">
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept="image/png,image/jpeg,image/jpg"
-        style={{ display: "none" }}
-      />
-
-      <div className="flex gap-10 items-center">
-        <div className="flex flex-col gap-4 w-full">
-          <FormField state={errors.application_name ? "error" : "idle"}>
-            <FormField.Label
-              rightAction={
-                <CharacterCount
-                  value={values.application_name}
-                  limit={charLimits.application_name}
-                />
-              }
-            >
-              {t("appName.label")}
-            </FormField.Label>
-            <FormField.Control asChild>
-              <InputTypeIn
-                ref={applicationNameInputRef}
-                data-label="application-name-input"
-                clearButton
-                variant={errors.application_name ? "error" : undefined}
-                value={values.application_name}
-                {...getPreviewHandlers("sidebar")}
-                onChange={(e) =>
-                  setFieldValue("application_name", e.target.value)
-                }
-              />
-            </FormField.Control>
-            <FormField.Description>
-              {t("appName.description")}
-            </FormField.Description>
-            <FormField.Message
-              messages={{ error: errors.application_name as string }}
-            />
-          </FormField>
-
-          <FormField state="idle">
-            <FormField.Label>{t("logoStyle.label")}</FormField.Label>
-            <FormField.Control>
-              <Tabs
-                value={values.logo_display_style}
-                onValueChange={(value) =>
-                  setFieldValue("logo_display_style", value)
-                }
-              >
-                <Tabs.List>
-                  <Tabs.Trigger
-                    value="logo_and_name"
-                    tooltip={t("logoStyle.both.tooltip")}
-                    tooltipSide="top"
-                    {...getPreviewHandlers("sidebar")}
-                  >
-                    {t("logoStyle.both.label")}
-                  </Tabs.Trigger>
-                  <Tabs.Trigger
-                    value="logo_only"
-                    disabled={!hasLogo}
-                    tooltip={
-                      hasLogo
-                        ? t("logoStyle.logoOnly.tooltip")
-                        : t("logoStyle.logoOnly.disabledTooltip")
-                    }
-                    tooltipSide="top"
-                    {...getPreviewHandlers("sidebar")}
-                  >
-                    {t("logoStyle.logoOnly.label")}
-                  </Tabs.Trigger>
-                  <Tabs.Trigger
-                    value="name_only"
-                    disabled={!hasApplicationName}
-                    tooltip={
-                      hasApplicationName
-                        ? t("logoStyle.nameOnly.tooltip")
-                        : t("logoStyle.nameOnly.disabledTooltip")
-                    }
-                    tooltipSide="top"
-                    {...getPreviewHandlers("sidebar")}
-                  >
-                    {t("logoStyle.nameOnly.label")}
-                  </Tabs.Trigger>
-                </Tabs.List>
-              </Tabs>
-            </FormField.Control>
-            <FormField.Description>
-              {t("logoStyle.description")}
-            </FormField.Description>
-          </FormField>
-        </div>
-
-        <FormField state="idle">
-          <FormField.Label>{t("logo.label")}</FormField.Label>
-          <FormField.Control>
-            <InputImage
-              src={logoSrc}
-              onEdit={handleLogoEdit}
-              onDrop={(file) => {
-                setSelectedLogo(file);
-                setFieldValue("use_custom_logo", true);
-              }}
-              onRemove={handleLogoRemove}
-              showEditOverlay={false}
-            />
-          </FormField.Control>
-          <div className="mt-2 w-full justify-center items-center flex">
-            <Button
-              disabled={!hasLogo}
-              prominence="secondary"
-              onClick={handleLogoEdit}
-              icon={SvgEdit}
-            >
-              {t("logo.updateButton.label")}
-            </Button>
-          </div>
-        </FormField>
-      </div>
-
-      <Divider />
-
       <Preview
         className="mb-8"
-        logoDisplayStyle={values.logo_display_style}
-        applicationDisplayName={values.application_name ?? ""}
         chat_footer_content={
           values.custom_lower_disclaimer_content ||
           t("preview.chatFooter.placeholder")
@@ -385,7 +186,6 @@ export const AppearanceThemeSettings = forwardRef<
         greeting_message={
           values.custom_greeting_message || t("preview.greeting.placeholder")
         }
-        logoSrc={logoSrc}
         highlightTarget={highlightTarget}
       />
 

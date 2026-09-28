@@ -1481,9 +1481,6 @@
         "emptyKey": {
           "error": "ライセンスキーを入力してください"
         },
-        "error": {
-          "text": "{error}。<link>請求に関するヘルプ</link>"
-        },
         "expired": {
           "label": "ライセンスキーの有効期限が切れています"
         },
@@ -1632,7 +1629,7 @@
           "label": "プランを管理"
         },
         "managedBySales": {
-          "text": "お客様のプランは営業担当が管理しています。<br></br>変更をご希望の場合は <link>請求担当にお問い合わせ</link> ください。"
+          "text": "お客様のプランは営業担当が管理しています。<br></br>変更をご希望の場合は管理者にお問い合わせください。"
         },
         "nextPayment": {
           "subtitle": "次回のお支払いは {date}"
@@ -2560,6 +2557,16 @@
       }
     },
     "connectorsList": {
+      "branding": {
+        "sharedDrivesAccessible": "これにより、{appName} はアクセスできる共有ドライブ内のすべてをインデックスできます。",
+        "sharedDrivesOrganization": "これにより、{appName} は組織の共有ドライブ内のすべてをインデックスできます。",
+        "myDrive": "これにより、{appName} は自分のマイドライブ内のすべてをインデックスできます。",
+        "everyonesDrives": "これにより、{appName} は全員のマイドライブ内のすべてをインデックスできます。",
+        "sharedWithMe": "これにより、{appName} は自分と共有されたすべてのファイルをインデックスできます。",
+        "excludeLinkOnly": "有効にすると、{appName} は広く共有されていてもアクセスにリンクが必要なファイルを除外します。",
+        "salesforceObjects": "インデックスする Salesforce オブジェクトの種類を指定します。指定しない場合、{appName} は Account を基準にインデックスします。\n\nヒント: Opportunity など、オブジェクト名の単数形を使用してください。",
+        "sharingLinksPublic": "有効にすると、共有リンクのあるドキュメントはすべての {appName} ユーザーに表示されます。無効にすると、明示的にロールを割り当てられたユーザーとグループにのみ表示されます。"
+      },
       "add": {
         "authorizeButton": {
           "label": "{source} で認可",
@@ -4862,7 +4869,7 @@
           "title": "このコンテキスト検索 LLM の適用方法を選択してください"
         },
         "default": {
-          "description": "embedding または検索の設定を変更すると、反映するためにすべてのドキュメントの完全な再インデックスが必要です。コーパスの規模によっては **数時間から数日** かかることがあります。[詳細を見る](https://docs.onyx.app/security/architecture/data_flows)",
+          "description": "embedding または検索の設定を変更すると、反映するためにすべてのドキュメントの完全な再インデックスが必要です。コーパスの規模によっては **数時間から数日** かかることがあります。",
           "title": "変更には完全な再インデックスが必要です。"
         },
         "orSeparator": {
@@ -5527,7 +5534,7 @@
             "addButton": {
               "label": "行を追加"
             },
-            "description": "モデルプロバイダーが必要とする追加のプロパティを指定します。これらは [環境変数](https://docs.litellm.ai/docs/set_keys#environment-variables) として LiteLLM の `completion()` 呼び出しに渡されます。詳しい手順は [ドキュメント](https://docs.onyx.app/admins/ai_models/custom_inference_provider) を参照してください。",
+            "description": "モデルプロバイダーが必要とする追加のプロパティを指定します。これらは [環境変数](https://docs.litellm.ai/docs/set_keys#environment-variables) として LiteLLM の `completion()` 呼び出しに渡されます。",
             "keyInput": {
               "placeholder": "例: OPENAI_ORGANIZATION"
             },
@@ -6721,7 +6728,7 @@
         }
       },
       "liteModeNotice": {
-        "description": "このデプロイでは Onyx Lite が動作しています。ベクトルデータベースがないため、コネクターとドキュメントのインデックス作成は無効で、何もインデックスされません。データソースを接続してドキュメントをインデックスするには、Onyx を **Standard モード** でデプロイしてください。開始するには [デプロイガイド]({docsUrl}) を参照してください。",
+        "description": "このデプロイでは Onyx Lite が動作しています。ベクトルデータベースがないため、コネクターとドキュメントのインデックス作成は無効で、何もインデックスされません。データソースを接続してドキュメントをインデックスするには、Onyx を **Standard モード** でデプロイしてください。",
         "title": "Lite モードではインデックス作成を利用できません"
       },
       "providerCard": {

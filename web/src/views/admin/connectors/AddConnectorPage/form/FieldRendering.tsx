@@ -1,6 +1,9 @@
 import React, { FC, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import type { TabOption } from "@/lib/connectors/types";
+import type {
+  ConnectorDescriptionKey,
+  TabOption,
+} from "@/lib/connectors/types";
 import SelectInput from "./inputs/SelectInput";
 import NumberInput from "./inputs/NumberInput";
 import { TextFormField, MultiSelectField } from "@/components/Field";
@@ -8,6 +11,7 @@ import ListInput from "./inputs/ListInput";
 import StringPairListInput from "./inputs/StringPairListInput";
 import FileInput from "./inputs/FileInput";
 import { ConfigurableSources } from "@/lib/types";
+import { APP_NAME } from "@/lib/constants";
 import type { Credential } from "@/lib/connectors/types";
 import CollapsibleSection from "@/app/admin/agents/CollapsibleSection";
 import { Tabs } from "@opal/components";
@@ -137,8 +141,13 @@ export const RenderField: FC<RenderFieldProps> = ({
     typeof field.label === "function"
       ? field.label(currentCredential)
       : field.label;
-  const description =
-    typeof field.description === "function"
+  const descriptionKey: ConnectorDescriptionKey | undefined =
+    typeof field.descriptionKey === "function"
+      ? field.descriptionKey(currentCredential)
+      : field.descriptionKey;
+  const description = descriptionKey
+    ? t(descriptionKey, { appName: APP_NAME })
+    : typeof field.description === "function"
       ? field.description(currentCredential)
       : field.description;
   const disabled =

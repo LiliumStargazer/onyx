@@ -6,10 +6,6 @@ export const HOST_URL = process.env.WEB_DOMAIN || "http://localhost:3000";
 
 export const INTERNAL_URL = process.env.INTERNAL_URL || "http://localhost:8080";
 
-// Documentation URLs
-export const DOCS_BASE_URL = "https://docs.onyx.app";
-export const DOCS_ADMINS_PATH = `${DOCS_BASE_URL}/admins`;
-
 export const MCP_INTERNAL_URL =
   process.env.MCP_INTERNAL_URL || "http://127.0.0.1:8090";
 

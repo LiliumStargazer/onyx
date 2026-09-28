@@ -1,5 +1,4 @@
 import { ConfigurableSources } from "../types";
-import { APP_NAME } from "@/lib/constants";
 import type { BooleanOption, ConnectionConfiguration } from "./types";
 
 // Shared "Include Attachments" checkbox. Pair with an `include_attachments`
@@ -381,11 +380,10 @@ export const connectorConfigs: Record<
               {
                 type: "checkbox",
                 label: "Include shared drives?",
-                description: (currentCredential) => {
-                  return currentCredential?.credential_json?.google_tokens
-                    ? `This will allow ${APP_NAME} to index everything in the shared drives you have access to.`
-                    : `This will allow ${APP_NAME} to index everything in your Organization's shared drives.`;
-                },
+                descriptionKey: (currentCredential) =>
+                  currentCredential?.credential_json?.google_tokens
+                    ? "branding.sharedDrivesAccessible"
+                    : "branding.sharedDrivesOrganization",
                 name: "include_shared_drives",
                 default: false,
               },
@@ -396,18 +394,16 @@ export const connectorConfigs: Record<
                     ? "Include My Drive?"
                     : "Include Everyone's My Drive?";
                 },
-                description: (currentCredential) => {
-                  return currentCredential?.credential_json?.google_tokens
-                    ? `This will allow ${APP_NAME} to index everything in your My Drive.`
-                    : `This will allow ${APP_NAME} to index everything in everyone's My Drives.`;
-                },
+                descriptionKey: (currentCredential) =>
+                  currentCredential?.credential_json?.google_tokens
+                    ? "branding.myDrive"
+                    : "branding.everyonesDrives",
                 name: "include_my_drives",
                 default: false,
               },
               {
                 type: "checkbox",
-                description:
-                  `This will allow ${APP_NAME} to index all files shared with you.`,
+                descriptionKey: "branding.sharedWithMe",
                 label: "Include All Files Shared With You?",
                 name: "include_files_shared_with_me",
                 visibleCondition: (values, currentCredential) =>
@@ -474,8 +470,7 @@ export const connectorConfigs: Record<
       {
         type: "checkbox",
         label: "Hide domain link-only files?",
-        description:
-          `When enabled, ${APP_NAME} skips files that are shared broadly (domain or public) but require the link to access.`,
+        descriptionKey: "branding.excludeLinkOnly",
         name: "exclude_domain_link_only",
         optional: true,
         default: false,
@@ -726,9 +721,7 @@ export const connectorConfigs: Record<
                 label: "Requested Objects",
                 name: "requested_objects",
                 optional: true,
-                description:
-                  `Specify the Salesforce object types you want us to index. If unsure, don't specify any objects and ${APP_NAME} will default to indexing by 'Account'.` +
-                  "\n\nHint: Use the singular form of the object name (e.g., 'Opportunity' instead of 'Opportunities').",
+                descriptionKey: "branding.salesforceObjects",
               },
             ],
           },
@@ -803,10 +796,7 @@ export const connectorConfigs: Record<
       {
         type: "checkbox",
         label: "Treat sharing links as public?",
-        description:
-          "When enabled, documents with a sharing link (anonymous or organization-wide) " +
-          `are treated as public (visible to all ${APP_NAME} users). ` +
-          "When disabled, only users and groups with explicit role assignments can see the document.",
+        descriptionKey: "branding.sharingLinksPublic",
         name: "treat_sharing_link_as_public",
         optional: true,
         default: false,

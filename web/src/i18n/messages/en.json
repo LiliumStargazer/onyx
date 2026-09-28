@@ -1483,9 +1483,6 @@
         "emptyKey": {
           "error": "Please enter a license key"
         },
-        "error": {
-          "text": "{error}. <link>Billing Help</link>"
-        },
         "expired": {
           "label": "License key expired"
         },
@@ -1634,7 +1631,7 @@
           "label": "Manage Plan"
         },
         "managedBySales": {
-          "text": "Your plan is managed through sales.<br></br><link>Contact billing</link> to make changes."
+          "text": "Your plan is managed through sales.<br></br>Contact your administrator to request changes."
         },
         "nextPayment": {
           "subtitle": "Next payment on {date}"
@@ -2562,6 +2559,16 @@
       }
     },
     "connectorsList": {
+      "branding": {
+        "sharedDrivesAccessible": "This allows {appName} to index everything in the shared drives you can access.",
+        "sharedDrivesOrganization": "This allows {appName} to index everything in your organization's shared drives.",
+        "myDrive": "This allows {appName} to index everything in your My Drive.",
+        "everyonesDrives": "This allows {appName} to index everything in everyone's My Drives.",
+        "sharedWithMe": "This allows {appName} to index all files shared with you.",
+        "excludeLinkOnly": "When enabled, {appName} skips files shared broadly (domain or public) that require a link to access.",
+        "salesforceObjects": "Specify the Salesforce object types to index. If none are specified, {appName} indexes by Account.\n\nHint: Use singular object names (e.g., Opportunity).",
+        "sharingLinksPublic": "When enabled, documents with sharing links (anonymous or organization-wide) are public to all {appName} users. When disabled, only users and groups with explicit role assignments can see the document."
+      },
       "add": {
         "authorizeButton": {
           "label": "Authorize with {source}",
@@ -4864,7 +4871,7 @@
           "title": "Choose how to apply this Contextual Retrieval LLM"
         },
         "default": {
-          "description": "Modifying embedding or retrieval settings requires a full re-index of all documents to take effect, which may take **hours or days** depending on corpus size. [Learn More](https://docs.onyx.app/security/architecture/data_flows)",
+          "description": "Modifying embedding or retrieval settings requires a full re-index of all documents to take effect, which may take **hours or days** depending on corpus size.",
           "title": "Changes require a full re-index."
         },
         "orSeparator": {
@@ -5529,7 +5536,7 @@
             "addButton": {
               "label": "Add Line"
             },
-            "description": "Add extra properties as needed by the model provider. These are passed to LiteLLM's `completion()` call as [environment variables](https://docs.litellm.ai/docs/set_keys#environment-variables). See [documentation](https://docs.onyx.app/admins/ai_models/custom_inference_provider) for more instructions.",
+            "description": "Add extra properties as needed by the model provider. These are passed to LiteLLM's `completion()` call as [environment variables](https://docs.litellm.ai/docs/set_keys#environment-variables).",
             "keyInput": {
               "placeholder": "e.g. OPENAI_ORGANIZATION"
             },
@@ -6723,7 +6730,7 @@
         }
       },
       "liteModeNotice": {
-        "description": "This deployment runs Onyx Lite, which has no vector database — connectors and document indexing are disabled, and nothing is indexed. To connect data sources and index documents, deploy Onyx in **Standard mode**. See the [deployment guide]({docsUrl}) to get started.",
+        "description": "This deployment runs Onyx Lite, which has no vector database — connectors and document indexing are disabled, and nothing is indexed. To connect data sources and index documents, deploy Onyx in **Standard mode**.",
         "title": "Indexing is unavailable in Lite mode"
       },
       "providerCard": {

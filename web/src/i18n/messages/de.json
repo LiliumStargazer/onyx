@@ -1481,9 +1481,6 @@
         "emptyKey": {
           "error": "Bitte geben Sie einen Lizenzschlüssel ein"
         },
-        "error": {
-          "text": "{error}. <link>Hilfe zur Abrechnung</link>"
-        },
         "expired": {
           "label": "Lizenzschlüssel abgelaufen"
         },
@@ -1632,7 +1629,7 @@
           "label": "Tarif verwalten"
         },
         "managedBySales": {
-          "text": "Ihr Tarif wird über den Vertrieb verwaltet.<br></br><link>Kontaktieren Sie die Abrechnung</link>, um Änderungen vorzunehmen."
+          "text": "Ihr Tarif wird über den Vertrieb verwaltet.<br></br>Wenden Sie sich an Ihren Administrator, um Änderungen anzufordern."
         },
         "nextPayment": {
           "subtitle": "Nächste Zahlung am {date}"
@@ -2560,6 +2557,16 @@
       }
     },
     "connectorsList": {
+      "branding": {
+        "sharedDrivesAccessible": "Damit kann {appName} alle Inhalte in den geteilten Ablagen indizieren, auf die Sie Zugriff haben.",
+        "sharedDrivesOrganization": "Damit kann {appName} alle Inhalte in den geteilten Ablagen Ihrer Organisation indizieren.",
+        "myDrive": "Damit kann {appName} alle Inhalte in Ihrer Ablage indizieren.",
+        "everyonesDrives": "Damit kann {appName} alle Inhalte in den persönlichen Ablagen aller Benutzer indizieren.",
+        "sharedWithMe": "Damit kann {appName} alle mit Ihnen geteilten Dateien indizieren.",
+        "excludeLinkOnly": "Wenn diese Option aktiviert ist, überspringt {appName} breit freigegebene Dateien, die nur über einen Link erreichbar sind.",
+        "salesforceObjects": "Geben Sie die zu indizierenden Salesforce-Objekttypen an. Ohne Angabe indiziert {appName} nach Account.\n\nHinweis: Verwenden Sie den Singular des Objektnamens, zum Beispiel Opportunity.",
+        "sharingLinksPublic": "Wenn diese Option aktiviert ist, sind Dokumente mit Freigabelinks für alle {appName}-Benutzer sichtbar. Andernfalls können nur Benutzer und Gruppen mit ausdrücklich zugewiesenen Rollen das Dokument sehen."
+      },
       "add": {
         "authorizeButton": {
           "label": "Mit {source} autorisieren",
@@ -4862,7 +4869,7 @@
           "title": "Wählen Sie, wie dieses LLM für Contextual Retrieval angewendet wird"
         },
         "default": {
-          "description": "Änderungen an den Embedding- oder Retrieval-Einstellungen erfordern eine vollständige Neuindizierung aller Dokumente, damit sie wirksam werden. Das kann je nach Korpusgröße **Stunden oder Tage** dauern. [Mehr erfahren](https://docs.onyx.app/security/architecture/data_flows)",
+          "description": "Änderungen an den Embedding- oder Retrieval-Einstellungen erfordern eine vollständige Neuindizierung aller Dokumente, damit sie wirksam werden. Das kann je nach Korpusgröße **Stunden oder Tage** dauern.",
           "title": "Änderungen erfordern eine vollständige Neuindizierung."
         },
         "orSeparator": {
@@ -5527,7 +5534,7 @@
             "addButton": {
               "label": "Zeile hinzufügen"
             },
-            "description": "Fügen Sie weitere Eigenschaften hinzu, die der Modellanbieter benötigt. Diese werden dem `completion()`-Aufruf von LiteLLM als [Umgebungsvariablen](https://docs.litellm.ai/docs/set_keys#environment-variables) übergeben. Weitere Anweisungen finden Sie in der [Dokumentation](https://docs.onyx.app/admins/ai_models/custom_inference_provider).",
+            "description": "Fügen Sie weitere Eigenschaften hinzu, die der Modellanbieter benötigt. Diese werden dem `completion()`-Aufruf von LiteLLM als [Umgebungsvariablen](https://docs.litellm.ai/docs/set_keys#environment-variables) übergeben.",
             "keyInput": {
               "placeholder": "z. B. OPENAI_ORGANIZATION"
             },
@@ -6721,7 +6728,7 @@
         }
       },
       "liteModeNotice": {
-        "description": "Diese Bereitstellung führt Onyx Lite aus. Onyx Lite hat keine Vektordatenbank — Konnektoren und die Dokumentenindizierung sind deaktiviert, und es wird nichts indiziert. Um Datenquellen zu verbinden und Dokumente zu indizieren, stellen Sie Onyx im **Standardmodus** bereit. Lesen Sie die [Bereitstellungsanleitung]({docsUrl}), um zu beginnen.",
+        "description": "Diese Bereitstellung führt Onyx Lite aus. Onyx Lite hat keine Vektordatenbank — Konnektoren und die Dokumentenindizierung sind deaktiviert, und es wird nichts indiziert. Um Datenquellen zu verbinden und Dokumente zu indizieren, stellen Sie Onyx im **Standardmodus** bereit.",
         "title": "Die Indizierung ist im Lite-Modus nicht verfügbar"
       },
       "providerCard": {

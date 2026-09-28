@@ -92,17 +92,11 @@ const { folded, setFolded } = useSidebarState();
 ```tsx
 import { SidebarLayouts } from "@opal/layouts";
 import { renderAppLogo } from "@/lib/app/utils";
-import { useShowLogoWhenFolded } from "@/lib/sidebar/hooks";
 
 function MySidebar() {
-  const showLogoWhenFolded = useShowLogoWhenFolded();
-
   return (
     <SidebarLayouts.Root foldable>
-      <SidebarLayouts.Header
-        renderAppLogo={renderAppLogo}
-        showLogoWhenFolded={showLogoWhenFolded}
-      >
+      <SidebarLayouts.Header renderAppLogo={renderAppLogo}>
         <SearchInput />
       </SidebarLayouts.Header>
 
