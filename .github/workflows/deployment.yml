@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "*"
+      - "!wiki-agent-rag-v*"
   workflow_dispatch:
 
 # Set restrictive default permissions for all jobs. Jobs that need more permissions
