@@ -1882,19 +1882,31 @@ class TenantAwareRedisStrategy(RedisStrategy[User, uuid.UUID]):
         )
 
     async def refresh_token(self, token: Optional[str], user: User) -> str:
-        """Return the existing token without extending its absolute expiry."""
+        """Extend non-Google sessions; keep Google's absolute expiry."""
         if token is None:
             raise OnyxError(OnyxErrorCode.SESSION_EXPIRED)
         redis = await get_async_redis_connection()
-        result = classify_session_token_value(
-            await redis.get(f"{self.key_prefix}{token}")
-        )
+        token_key = f"{self.key_prefix}{token}"
+        result = classify_session_token_value(await redis.get(token_key))
         if (
             isinstance(result, SessionRejection)
             or result.sub != str(user.id)
             or (user.workspace_role is not None and not result.google_verified)
         ):
             raise OnyxError(OnyxErrorCode.SESSION_EXPIRED)
+        if not result.google_verified:
+            now = datetime.now(timezone.utc)
+            await redis.set(
+                token_key,
+                build_session_token_value(
+                    user_id=result.sub,
+                    tenant_id=result.tenant_id,
+                    issued_at=result.issued_at or now,
+                    expires_at=compute_session_expires_at(now, self.lifetime_seconds),
+                    sso_verified=result.sso_verified,
+                ),
+                ex=physical_session_ttl_seconds(self.lifetime_seconds),
+            )
         return token
 
 
@@ -2974,20 +2986,13 @@ async def complete_login_flow(
     # cannot become Google sessions through linking or refresh.
     verification = GOOGLE_LOGIN_VERIFIED.set(workspace_role is not None)
     sso_verification = SSO_LOGIN_VERIFIED.set(True)
+    mobile_response: RedirectResponse | None = None
+    response: Response | None = None
     try:
         if is_mobile_sso(state_data):
-            redirect_response = await complete_mobile_sso(user, state_data, strategy)
-            if (
-                workspace_role is not None
-                and Permission.FULL_ADMIN_PANEL_ACCESS
-                in get_effective_permissions(cast(User, user))
-            ):
-                await run_in_threadpool(
-                    record_google_admin_verification, oauth_client.name
-                )
-            await user_manager.on_after_login(user, request)
-            return redirect_response
-        response = await backend.login(strategy, user)
+            mobile_response = await complete_mobile_sso(user, state_data, strategy)
+        else:
+            response = await backend.login(strategy, user)
     finally:
         GOOGLE_LOGIN_VERIFIED.reset(verification)
         SSO_LOGIN_VERIFIED.reset(sso_verification)
@@ -2997,6 +3002,10 @@ async def complete_login_flow(
         in get_effective_permissions(cast(User, user))
     ):
         await run_in_threadpool(record_google_admin_verification, oauth_client.name)
+    if mobile_response is not None:
+        await user_manager.on_after_login(user, request)
+        return mobile_response
+    assert response is not None
     await user_manager.on_after_login(user, request, response)
 
     if tenant_id is None:

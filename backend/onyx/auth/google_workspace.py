@@ -19,6 +19,7 @@ from onyx.db.sso_provider import (
     fetch_sso_provider_by_name_async,
     parse_ou_role_map,
 )
+from onyx.db.users import persist_user_workspace_role
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.redis.redis_pool import get_async_redis_connection
@@ -254,7 +255,7 @@ async def recheck_google_workspace_user(user: User, db_session: AsyncSession) ->
             raise OnyxError(
                 OnyxErrorCode.BAD_GATEWAY, "Workspace Directory is unavailable"
             ) from exc
-        user.workspace_role = role
+        await persist_user_workspace_role(db_session, user, role)
         return
     if user.workspace_role is not None:
         raise OnyxError(OnyxErrorCode.UNAUTHORIZED, "Workspace identity is not linked")

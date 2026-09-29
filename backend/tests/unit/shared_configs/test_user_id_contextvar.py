@@ -47,6 +47,8 @@ def test_reset_restores_previous_value() -> None:
 def _authenticated_app(user_id: Any | None) -> FastAPI:
     class _FakeUser:
         id = user_id
+        oauth_accounts: list[Any] = []
+        workspace_role: str | None = None
 
     async def fake_auth() -> _FakeUser | None:
         return _FakeUser() if user_id is not None else None

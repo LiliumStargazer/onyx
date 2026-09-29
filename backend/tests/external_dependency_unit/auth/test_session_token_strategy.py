@@ -16,7 +16,10 @@ from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.orm import Session
 
 from onyx.auth.session_tokens import (
+    GOOGLE_LOGIN_VERIFIED,
+    GOOGLE_SESSION_LIFETIME_SECONDS,
     SESSION_TOKEN_GRACE_PERIOD_SECONDS,
+    SSO_LOGIN_VERIFIED,
     SessionRejection,
     SessionRejectionReason,
     SessionTokenValue,
@@ -282,13 +285,19 @@ async def test_api_key_shaped_token_miss_not_classified() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("tenant_context")
-async def test_refresh_preserves_absolute_expiry_and_issue_time(
-    db_session: Session,
+@pytest.mark.parametrize("google_verified", [False, True])
+async def test_refresh_extends_only_non_google_sessions(
+    db_session: Session, google_verified: bool
 ) -> None:
-    # Precondition.
     user = create_test_user(db_session, "session_refresh")
     strategy = TenantAwareRedisStrategy()
-    token = await strategy.write_token(user)
+    verification = GOOGLE_LOGIN_VERIFIED.set(google_verified)
+    sso_verification = SSO_LOGIN_VERIFIED.set(True)
+    try:
+        token = await strategy.write_token(user)
+    finally:
+        GOOGLE_LOGIN_VERIFIED.reset(verification)
+        SSO_LOGIN_VERIFIED.reset(sso_verification)
     try:
         raw_value = _get_raw_value(token)
         assert raw_value is not None
@@ -296,18 +305,23 @@ async def test_refresh_preserves_absolute_expiry_and_issue_time(
         assert original.issued_at is not None
         assert original.expires_at is not None
 
-        # Under test.
         refreshed_token = await strategy.refresh_token(token, user)
-
-        # Postcondition.
         assert refreshed_token == token
 
         raw_value = _get_raw_value(token)
         assert raw_value is not None
         refreshed = SessionTokenValue.model_validate_json(raw_value)
         assert refreshed.issued_at == original.issued_at
+        assert refreshed.google_verified is google_verified
+        assert refreshed.sso_verified is True
         assert refreshed.expires_at is not None
-        assert refreshed.expires_at == original.expires_at
+        if google_verified:
+            assert refreshed.expires_at == original.expires_at
+            assert refreshed.expires_at == original.issued_at + timedelta(
+                seconds=GOOGLE_SESSION_LIFETIME_SECONDS
+            )
+        else:
+            assert refreshed.expires_at > original.expires_at
     finally:
         _delete_key(token)
 

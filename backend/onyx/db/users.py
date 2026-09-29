@@ -9,6 +9,7 @@ from fastapi_users.password import PasswordHelper
 from sqlalchemy import Select, case, delete, func, literal, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, lazyload, selectinload
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.elements import ColumnElement, KeyedColumnElement
@@ -57,6 +58,14 @@ _MAX_LISTED_STRANDED_EMAILS = 3
 # tenant-hashed so tenants don't block each other and the id can't collide with
 # the other advisory locks in the codebase
 _MEMBERSHIP_LOCK_NAMESPACE = "onyx_membership_lock"
+
+
+async def persist_user_workspace_role(
+    db_session: AsyncSession, user: User, workspace_role: str
+) -> None:
+    if user.workspace_role != workspace_role:
+        user.workspace_role = workspace_role
+        await db_session.commit()
 
 
 def is_limited_user(user: User) -> bool:
