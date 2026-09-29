@@ -1074,7 +1074,7 @@ export const connectorConfigs: Record<
   },
   wikijs: {
     description:
-      "Initial Wiki.js Markdown snapshot. After it succeeds, enable a 10-minute refresh in connection settings. Use an isolated test index; visibility metadata does not enforce access. Do not use for live import.",
+      "Initial Wiki.js Markdown snapshot. Use an isolated test index; visibility metadata does not enforce access. Do not use for live import.",
     values: [
       { type: "text", label: "Wiki.js URL", name: "wiki_url", optional: false },
       {

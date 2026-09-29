@@ -1,11 +1,18 @@
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from onyx.background.celery.tasks.docprocessing.utils import should_index
 from onyx.configs.constants import DocumentSource
 from onyx.connectors.models import InputType
 from onyx.db.connector import update_connector
-from onyx.db.enums import AccessType
+from onyx.db.enums import (
+    AccessType,
+    ConnectorCredentialPairStatus,
+    IndexingMode,
+    IndexModelStatus,
+)
 from onyx.error_handling.exceptions import OnyxError
 from onyx.server.documents.cc_pair import update_cc_pair_property
 from onyx.server.documents.connector import (
@@ -72,6 +79,52 @@ def test_wikijs_refresh_requires_successful_first_run(
             db_session.commit.assert_called_once()
 
 
+def test_wikijs_shared_refresh_waits_for_each_connection_first_success() -> None:
+    connector = MagicMock(id=1, source=DocumentSource.WIKIJS, refresh_freq=600)
+    first_connection = MagicMock(
+        id=1,
+        connector=connector,
+        status=ConnectorCredentialPairStatus.ACTIVE,
+        indexing_trigger=None,
+        last_successful_index_time=datetime.now(timezone.utc),
+    )
+    second_connection = MagicMock(
+        id=2,
+        connector=connector,
+        status=ConnectorCredentialPairStatus.ACTIVE,
+        indexing_trigger=None,
+        last_successful_index_time=None,
+    )
+    search_settings = MagicMock(id=1, status=IndexModelStatus.PRESENT)
+    previous_attempt = MagicMock(
+        time_updated=datetime.now(timezone.utc) - timedelta(minutes=20)
+    )
+    with (
+        patch(
+            "onyx.background.celery.tasks.docprocessing.utils.get_last_attempt_for_cc_pair",
+            return_value=previous_attempt,
+        ) as get_last_attempt,
+        patch(
+            "onyx.background.celery.tasks.docprocessing.utils.is_in_repeated_error_state",
+            return_value=False,
+        ),
+        patch(
+            "onyx.background.celery.tasks.docprocessing.utils.get_db_current_time",
+            return_value=datetime.now(timezone.utc),
+        ),
+    ):
+        assert should_index(first_connection, search_settings, False, MagicMock())
+        assert not should_index(second_connection, search_settings, False, MagicMock())
+        get_last_attempt.return_value = None
+        assert should_index(second_connection, search_settings, False, MagicMock())
+        get_last_attempt.return_value = previous_attempt
+        second_connection.indexing_trigger = IndexingMode.REINDEX
+        assert should_index(second_connection, search_settings, False, MagicMock())
+        second_connection.indexing_trigger = None
+        second_connection.last_successful_index_time = datetime.now(timezone.utc)
+        assert should_index(second_connection, search_settings, False, MagicMock())
+
+
 def test_wikijs_connector_update_cannot_enable_refresh_early() -> None:
     connector = MagicMock()
     connector.refresh_freq = None
@@ -94,7 +147,20 @@ def test_wikijs_connector_update_cannot_enable_refresh_early() -> None:
         update_connector_from_model(1, request, MagicMock(), MagicMock())
     update.assert_not_called()
 
+    connector.source = DocumentSource.WEB
     connector.refresh_freq = 600
+    with (
+        patch(
+            "onyx.server.documents.connector.fetch_connector_by_id",
+            return_value=connector,
+        ),
+        patch("onyx.server.documents.connector.update_connector") as update,
+        pytest.raises(OnyxError),
+    ):
+        update_connector_from_model(1, request, MagicMock(), MagicMock())
+    update.assert_not_called()
+
+    connector.source = DocumentSource.WIKIJS
     with (
         patch(
             "onyx.server.documents.connector.fetch_connector_by_id",

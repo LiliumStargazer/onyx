@@ -1696,6 +1696,7 @@ def update_connector_from_model(
             existing_connector = fetch_connector_by_id(connector_id, db_session)
             if (
                 existing_connector is None
+                or existing_connector.source != DocumentSource.WIKIJS
                 or existing_connector.refresh_freq != connector_data.refresh_freq
             ):
                 raise OnyxError(

@@ -284,6 +284,12 @@ def should_index(
     if not last_index_attempt:
         return True
 
+    if (
+        connector.source == DocumentSource.WIKIJS
+        and cc_pair.last_successful_index_time is None
+    ):
+        return False
+
     if connector.refresh_freq is None:
         # print(f"Not indexing cc_pair={cc_pair.id}: refresh_freq is None")
         return False
