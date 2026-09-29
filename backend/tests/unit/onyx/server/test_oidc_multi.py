@@ -3,11 +3,17 @@ resolution, the per-provider client cache (keying, config-rotation bust),
 per-provider client construction, and OAuth state/CSRF validation. No DB, no
 network, no live IdP."""
 
+import json
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from sqlalchemy.orm import Session
+from starlette.requests import Request
 
 from onyx.auth.users import (
     CSRF_TOKEN_COOKIE_NAME,
@@ -16,7 +22,7 @@ from onyx.auth.users import (
     generate_csrf_token,
     generate_state_token,
 )
-from onyx.db.enums import SSOProviderType
+from onyx.db.enums import Permission, SSOProviderType
 from onyx.db.models import SSOProvider
 from onyx.error_handling.exceptions import OnyxError
 from onyx.server import oidc_multi
@@ -71,6 +77,130 @@ def test_resolve_oidc_returns_config(monkeypatch: pytest.MonkeyPatch) -> None:
     }
 
 
+def test_google_provider_validates_role_map_and_masks_directory_credentials() -> None:
+    from onyx.db.sso_provider import mask_secret_config_values, validate_sso_config
+
+    config = validate_sso_config(
+        SSOProviderType.GOOGLE_OAUTH,
+        {
+            **_GOOGLE_CONFIG,
+            "ou_role_map": '{"/Staff":"interni"}',
+            "directory_auth_mode": "service_account",
+            "directory_service_account_json": '{"type":"service_account","client_email":"sa@corp.test","private_key":"secret","token_uri":"https://oauth2.googleapis.com/token"}',
+        },
+    )
+    assert config["ou_role_map"] == '{"/Staff":"interni"}'
+    masked = mask_secret_config_values(SSOProviderType.GOOGLE_OAUTH, config)
+    assert "private_key" not in masked["directory_service_account_json"]
+
+    for role_map in ({"/Staff": "unknown"}, {"Staff": "interni"}):
+        with pytest.raises(ValueError):
+            validate_sso_config(
+                SSOProviderType.GOOGLE_OAUTH,
+                {**_GOOGLE_CONFIG, "ou_role_map": json.dumps(role_map)},
+            )
+    with pytest.raises(ValueError) as exc:
+        validate_sso_config(
+            SSOProviderType.GOOGLE_OAUTH,
+            {**_GOOGLE_CONFIG, "directory_service_account_json": "private-secret"},
+        )
+    assert "private-secret" not in str(exc.value)
+
+
+def test_google_directory_json_is_encrypted_before_storage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from onyx.db import sso_provider
+
+    monkeypatch.setattr(sso_provider, "USER_AUTH_SECRET", "x" * 32)
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    plaintext = json.dumps(
+        {
+            "type": "service_account",
+            "client_email": "sa@corp.test",
+            "private_key": private_key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            ).decode(),
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+    )
+    db_session = MagicMock()
+    provider = sso_provider.create_sso_provider(
+        db_session,
+        name="workspace",
+        display_name="Workspace",
+        provider_type=SSOProviderType.GOOGLE_OAUTH,
+        config={**_GOOGLE_CONFIG, "directory_service_account_json": plaintext},
+        allowed_email_domains=["corp.test"],
+    )
+    assert provider.config is not None
+    stored = provider.config.get_value(apply_mask=False)
+    assert plaintext not in str(stored)
+    assert (
+        sso_provider.decrypt_directory_service_account_json(
+            stored["directory_service_account_json"]
+        )
+        == plaintext
+    )
+    assert (
+        sso_provider.protect_google_config_for_storage(stored)[
+            "directory_service_account_json"
+        ]
+        == stored["directory_service_account_json"]
+    )
+
+    from onyx.server.manage.sso.api import update_sso_provider_endpoint
+    from onyx.server.manage.sso.models import SSOProviderUpdateRequest
+
+    provider.id = 17
+    provider.enabled = True
+    db_session.get.return_value = provider
+    with (
+        patch("onyx.server.manage.sso.api._sync_login_domain_routing"),
+        patch("onyx.server.manage.sso.api.invalidate_sso_provider_options_cache"),
+    ):
+        response = update_sso_provider_endpoint(
+            17,
+            SSOProviderUpdateRequest(
+                config={
+                    "directory_service_account_json": sso_provider.DIRECTORY_JSON_MASK
+                }
+            ),
+            MagicMock(),
+            db_session,
+        )
+    assert (
+        response.config["directory_service_account_json"]
+        == sso_provider.DIRECTORY_JSON_MASK
+    )
+    assert provider.config is not None
+    assert (
+        provider.config.get_value(apply_mask=False)["directory_service_account_json"]
+        == stored["directory_service_account_json"]
+    )
+    with pytest.raises(ValueError, match="Invalid Directory private key"):
+        sso_provider.create_sso_provider(
+            db_session,
+            name="bad-credentials",
+            display_name="Invalid credentials",
+            provider_type=SSOProviderType.GOOGLE_OAUTH,
+            config={
+                **_GOOGLE_CONFIG,
+                "directory_service_account_json": json.dumps(
+                    {
+                        "type": "service_account",
+                        "client_email": "sa@corp.test",
+                        "private_key": "invalid",
+                        "token_uri": "https://oauth2.googleapis.com/token",
+                    }
+                ),
+            },
+            allowed_email_domains=["corp.test"],
+        )
+
+
 def test_resolve_google_returns_config(monkeypatch: pytest.MonkeyPatch) -> None:
     provider = _provider(
         name="google",
@@ -86,7 +216,61 @@ def test_resolve_google_returns_config(monkeypatch: pytest.MonkeyPatch) -> None:
         "legacy_callback": False,
         "pkce_enabled": False,
         "scopes": [],
+        "ou_role_map": "",
+        "directory_auth_mode": "service_account",
+        "directory_service_account_json": "",
     }
+
+
+@pytest.mark.asyncio
+async def test_google_link_authorize_requires_admin_session_and_signs_user_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = _provider(name="google", provider_type=SSOProviderType.GOOGLE_OAUTH)
+    monkeypatch.setattr(
+        oidc_multi, "_resolve_oidc_provider", lambda *_a: (provider, _GOOGLE_CONFIG)
+    )
+    client = MagicMock()
+    client.get_authorization_url = AsyncMock(
+        return_value="https://accounts.google.com/login"
+    )
+    monkeypatch.setattr(oidc_multi, "_get_oauth_client", AsyncMock(return_value=client))
+    state: dict[str, object] = {}
+    monkeypatch.setattr(
+        oidc_multi,
+        "generate_state_token",
+        lambda data, _key: (state.update(data), "signed")[1],
+    )
+    monkeypatch.setattr(
+        oidc_multi,
+        "get_effective_permissions",
+        lambda _user: {Permission.FULL_ADMIN_PANEL_ACCESS},
+    )
+    strategy = MagicMock()
+    strategy.read_token = AsyncMock(return_value=None)
+    request = Request(
+        {
+            "type": "http",
+            "query_string": b"link_account=true",
+            "headers": [
+                (
+                    b"cookie",
+                    f"{oidc_multi.FASTAPI_USERS_AUTH_COOKIE_NAME}=session".encode(),
+                )
+            ],
+        }
+    )
+    with pytest.raises(OnyxError):
+        await oidc_multi.oidc_login_for_provider(
+            "google", request, _DB, strategy, MagicMock()
+        )
+    assert not state
+    admin = MagicMock(id=uuid4(), is_active=True)
+    strategy.read_token.return_value = admin
+    await oidc_multi.oidc_login_for_provider(
+        "google", request, _DB, strategy, MagicMock()
+    )
+    assert state["link_user_id"] == str(admin.id)
 
 
 def test_resolve_fail_closed_unknown(monkeypatch: pytest.MonkeyPatch) -> None:

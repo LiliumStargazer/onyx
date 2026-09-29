@@ -1,4 +1,4 @@
-"""Workspace admission at Google OAuth login. Enabled by OU_ROLE_MAP."""
+"""Workspace admission at Google OAuth login."""
 
 import json
 import os
@@ -10,11 +10,18 @@ from google.oauth2 import id_token, service_account
 from httpx_oauth.oauth2 import OAuth2Token
 from starlette.concurrency import run_in_threadpool
 
+from onyx.db.sso_provider import (
+    GoogleProviderConfig,
+    decrypt_directory_service_account_json,
+    parse_ou_role_map,
+)
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
+from onyx.utils.logger import setup_logger
+
+logger = setup_logger()
 
 _DIRECTORY_SCOPE = "https://www.googleapis.com/auth/admin.directory.user.readonly"
-_CONTENT_ROLES = frozenset({"interni", "tecnico", "agente", "concessionario"})
 
 
 def workspace_role_map() -> dict[str, str] | None:
@@ -22,21 +29,8 @@ def workspace_role_map() -> dict[str, str] | None:
     if raw_map is None or raw_map == "":
         return None
     try:
-        role_map = json.loads(raw_map)
-        if (
-            not isinstance(role_map, dict)
-            or not role_map
-            or any(
-                not isinstance(path, str)
-                or not path.startswith("/")
-                or not isinstance(role, str)
-                or role not in _CONTENT_ROLES
-                for path, role in role_map.items()
-            )
-        ):
-            raise ValueError("invalid OU_ROLE_MAP")
-        return role_map
-    except (ValueError, TypeError) as exc:
+        return parse_ou_role_map(raw_map)
+    except ValueError as exc:
         raise OnyxError(OnyxErrorCode.VALIDATION_ERROR, "Invalid OU_ROLE_MAP") from exc
 
 
@@ -76,13 +70,25 @@ def _verify_workspace_identity(
     return subject, email
 
 
-def _directory_user(subject: str) -> dict[str, Any]:
-    key_path = os.environ["GOOGLE_DIRECTORY_SERVICE_ACCOUNT_FILE"]
-    credentials = service_account.Credentials.from_service_account_file(
-        key_path, scopes=[_DIRECTORY_SCOPE]
-    )
-    if admin_email := os.environ.get("GOOGLE_DIRECTORY_ADMIN_EMAIL"):
-        credentials = credentials.with_subject(admin_email)
+def _directory_user(
+    subject: str, provider_config: GoogleProviderConfig | None = None
+) -> dict[str, Any]:
+    if provider_config is None:
+        credentials = service_account.Credentials.from_service_account_file(
+            os.environ["GOOGLE_DIRECTORY_SERVICE_ACCOUNT_FILE"],
+            scopes=[_DIRECTORY_SCOPE],
+        )
+        if admin_email := os.environ.get("GOOGLE_DIRECTORY_ADMIN_EMAIL"):
+            credentials = credentials.with_subject(admin_email)
+    else:
+        credentials = service_account.Credentials.from_service_account_info(
+            json.loads(
+                decrypt_directory_service_account_json(
+                    provider_config.directory_service_account_json
+                )
+            ),
+            scopes=[_DIRECTORY_SCOPE],
+        )
     with AuthorizedSession(credentials) as session:
         response = session.get(
             "https://admin.googleapis.com/admin/directory/v1/users/"
@@ -95,9 +101,31 @@ def _directory_user(subject: str) -> dict[str, Any]:
 
 
 async def admit_google_workspace_login(
-    token: OAuth2Token, client_id: str, allowed_domains: list[str]
+    token: OAuth2Token,
+    client_id: str,
+    allowed_domains: list[str],
+    provider_config: GoogleProviderConfig | None = None,
 ) -> tuple[str, str, str]:
     """Return verified subject, email and content role, or deny before account creation."""
+    role_map = (
+        parse_ou_role_map(provider_config.ou_role_map)
+        if provider_config is not None and provider_config.ou_role_map
+        else workspace_role_map()
+        if provider_config is None
+        else None
+    )
+    if role_map is None:
+        raise OnyxError(
+            OnyxErrorCode.UNAUTHORIZED, "Workspace role map is not configured"
+        )
+    if (
+        provider_config is not None
+        and not provider_config.directory_service_account_json
+    ):
+        raise OnyxError(
+            OnyxErrorCode.VALIDATION_ERROR,
+            "Workspace Directory credentials are not configured",
+        )
     if not allowed_domains:
         raise OnyxError(
             OnyxErrorCode.UNAUTHORIZED, "Workspace domain is not configured"
@@ -106,14 +134,17 @@ async def admit_google_workspace_login(
         _verify_workspace_identity, token, client_id, allowed_domains
     )
     try:
-        directory_user = await run_in_threadpool(_directory_user, subject)
+        directory_user = await run_in_threadpool(
+            _directory_user, subject, provider_config
+        )
     except Exception as exc:
+        logger.exception("Workspace Directory lookup failed")
         raise OnyxError(
             OnyxErrorCode.BAD_GATEWAY, "Workspace Directory is unavailable"
         ) from exc
     if (
         directory_user.get("id") != subject
-        or directory_user.get("suspended") is True
+        or directory_user.get("suspended") is not False
         or directory_user.get("archived") is True
         or directory_user.get("deletionTime")
         or str(directory_user.get("primaryEmail", "")).lower() != email.lower()
@@ -122,9 +153,4 @@ async def admit_google_workspace_login(
     ou_path = directory_user.get("orgUnitPath")
     if not isinstance(ou_path, str):
         raise OnyxError(OnyxErrorCode.UNAUTHORIZED, "Workspace OU is not authorized")
-    role_map = workspace_role_map()
-    if role_map is None:
-        raise OnyxError(
-            OnyxErrorCode.UNAUTHORIZED, "Workspace role map is not configured"
-        )
     return subject, email, role_for_ou(ou_path, role_map)

@@ -12,6 +12,7 @@ from onyx.db.engine.sql_engine import get_session
 from onyx.db.enums import Permission, SSOProviderType
 from onyx.db.models import SSOProvider, User
 from onyx.db.sso_provider import (
+    DIRECTORY_JSON_MASK,
     create_sso_provider,
     enabled_provider_domains,
     fetch_sso_providers,
@@ -216,6 +217,15 @@ def update_sso_provider_endpoint(
                 **stored_config,
                 **restore_masked_credentials(request.config, stored_config),
             }
+            if (
+                provider.provider_type is SSOProviderType.GOOGLE_OAUTH
+                and merged_config.get("directory_service_account_json")
+                == DIRECTORY_JSON_MASK
+                and stored_config.get("directory_service_account_json")
+            ):
+                merged_config["directory_service_account_json"] = stored_config[
+                    "directory_service_account_json"
+                ]
             reject_masked_credentials(merged_config)
             _reject_unfetchable_idp_url(merged_config)
         updated_provider = update_sso_provider(

@@ -7283,6 +7283,21 @@
           "description": "OAuth 클라이언트 시크릿입니다. 암호화되어 저장됩니다.",
           "placeholder": "클라이언트 시크릿"
         },
+        "ouRoleMap": {
+          "label": "OU와 콘텐츠 역할 매핑",
+          "description": "Google Workspace OU 경로와 역할의 JSON 매핑입니다. 매핑되지 않은 OU는 로그인할 수 없습니다."
+        },
+        "directoryAuthMode": {
+          "label": "Directory 인증 모드",
+          "description": "위임 없이 서비스 계정을 직접 사용합니다."
+        },
+        "directoryServiceAccountJson": {
+          "label": "Directory 서비스 계정 JSON",
+          "description": "Google Directory 읽기 전용 자격 증명입니다. 암호화하여 저장하며 한 번만 입력하세요."
+        },
+        "linkGoogle": {
+          "label": "내 Google 계정 연결"
+        },
         "pkceEnabled": {
           "label": "PKCE 사용",
           "description": "이 공급자의 로그인 흐름에서 PKCE 코드 챌린지를 전송합니다. 배포 전체 설정에 의해 강제될 수 있습니다."

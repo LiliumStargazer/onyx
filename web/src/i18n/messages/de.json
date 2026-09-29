@@ -7283,6 +7283,21 @@
           "description": "Das OAuth-Client-Secret. Wird verschlüsselt gespeichert.",
           "placeholder": "Client-Secret"
         },
+        "ouRoleMap": {
+          "label": "OU-Zuordnung zu Inhaltsrollen",
+          "description": "JSON-Zuordnung von Google Workspace-OU-Pfaden zu Rollen. Ohne Zuordnung ist keine Anmeldung möglich."
+        },
+        "directoryAuthMode": {
+          "label": "Directory-Authentifizierungsmodus",
+          "description": "Verwendet das Dienstkonto direkt, ohne Delegierung."
+        },
+        "directoryServiceAccountJson": {
+          "label": "Directory-Dienstkonto-JSON",
+          "description": "Leseberechtigung für Google Directory. Verschlüsselt gespeichert; einmal eingeben."
+        },
+        "linkGoogle": {
+          "label": "Mein Google-Konto verknüpfen"
+        },
         "pkceEnabled": {
           "label": "PKCE aktivieren",
           "description": "Eine PKCE-Code-Challenge im Anmeldeablauf dieses Anbieters senden. Eine deploymentweite Einstellung kann dies erzwingen."

@@ -7283,6 +7283,21 @@
           "description": "Le secret client OAuth. Stocké chiffré.",
           "placeholder": "Secret client"
         },
+        "ouRoleMap": {
+          "label": "Correspondance OU et rôle de contenu",
+          "description": "Correspondance JSON des chemins OU Google Workspace avec les rôles. Une OU sans rôle ne peut pas se connecter."
+        },
+        "directoryAuthMode": {
+          "label": "Mode d'authentification Directory",
+          "description": "Utilise directement le compte de service, sans délégation."
+        },
+        "directoryServiceAccountJson": {
+          "label": "JSON du compte de service Directory",
+          "description": "Identifiants en lecture seule pour Google Directory. Stockés chiffrés ; saisissez-les une fois."
+        },
+        "linkGoogle": {
+          "label": "Associer mon compte Google"
+        },
         "pkceEnabled": {
           "label": "Activer PKCE",
           "description": "Envoyer un code challenge PKCE dans le flux de connexion de ce fournisseur. Un paramètre global du déploiement peut l'imposer."

@@ -7283,6 +7283,21 @@
           "description": "OAuth 客户端密钥。加密存储。",
           "placeholder": "客户端密钥"
         },
+        "ouRoleMap": {
+          "label": "组织单位与内容角色映射",
+          "description": "Google Workspace 组织单位路径与角色的 JSON 映射。未映射的组织单位无法登录。"
+        },
+        "directoryAuthMode": {
+          "label": "Directory 身份验证模式",
+          "description": "直接使用服务账号，不进行委托。"
+        },
+        "directoryServiceAccountJson": {
+          "label": "Directory 服务账号 JSON",
+          "description": "Google Directory 只读凭据。加密存储，只需输入一次。"
+        },
+        "linkGoogle": {
+          "label": "关联我的 Google 账号"
+        },
         "pkceEnabled": {
           "label": "启用 PKCE",
           "description": "在此提供方的登录流程中发送 PKCE code challenge。部署级设置可能会强制启用。"

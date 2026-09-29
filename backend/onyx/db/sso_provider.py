@@ -1,17 +1,25 @@
+import base64
+import hashlib
 import json
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from email_validator import EmailNotValidError, validate_email
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from onyx.configs.app_configs import SAML_CONF_DIR, VALID_EMAIL_DOMAINS
+from onyx.configs.app_configs import (
+    SAML_CONF_DIR,
+    USER_AUTH_SECRET,
+    VALID_EMAIL_DOMAINS,
+)
 from onyx.db.enums import SSOProviderType
 from onyx.db.models import SSOProvider
 from onyx.utils.encryption import mask_string
@@ -19,6 +27,53 @@ from onyx.utils.logger import setup_logger
 from shared_configs.configs import MULTI_TENANT
 
 logger = setup_logger()
+
+_DIRECTORY_JSON_PREFIX = "fernet:"
+DIRECTORY_JSON_MASK = "••••••••••••"
+
+
+def _directory_cipher() -> Fernet:
+    if len(USER_AUTH_SECRET) < 32:
+        raise ValueError(
+            "Set a stable USER_AUTH_SECRET of at least 32 characters before saving Directory credentials"
+        )
+    key = base64.urlsafe_b64encode(hashlib.sha256(USER_AUTH_SECRET.encode()).digest())
+    return Fernet(key)
+
+
+def decrypt_directory_service_account_json(value: str) -> str:
+    if not value.startswith(_DIRECTORY_JSON_PREFIX):
+        raise ValueError("Directory credentials are not encrypted")
+    try:
+        return (
+            _directory_cipher()
+            .decrypt(value[len(_DIRECTORY_JSON_PREFIX) :].encode())
+            .decode()
+        )
+    except (InvalidToken, ValueError) as exc:
+        raise ValueError("Directory credentials cannot be decrypted") from exc
+
+
+def protect_google_config_for_storage(config: dict[str, Any]) -> dict[str, Any]:
+    credentials = config.get("directory_service_account_json")
+    if (
+        not isinstance(credentials, str)
+        or not credentials
+        or credentials.startswith(_DIRECTORY_JSON_PREFIX)
+    ):
+        return config
+    try:
+        load_pem_private_key(
+            json.loads(credentials)["private_key"].encode(), password=None
+        )
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Invalid Directory private key") from exc
+    return {
+        **config,
+        "directory_service_account_json": _DIRECTORY_JSON_PREFIX
+        + _directory_cipher().encrypt(credentials.encode()).decode(),
+    }
+
 
 # The name becomes the login URL path segment and the oauth_name stored on
 # linked login accounts, so it must be a stable, URL-safe slug.
@@ -45,8 +100,66 @@ class _OAuth2ProviderConfig(_ProviderConfig):
     scopes: list[str] = []
 
 
+def parse_ou_role_map(raw_map: str) -> dict[str, str]:
+    try:
+        role_map = json.loads(raw_map)
+    except ValueError as exc:
+        raise ValueError("Invalid OU role map") from exc
+    if (
+        not isinstance(role_map, dict)
+        or not role_map
+        or any(
+            not isinstance(path, str)
+            or not path.startswith("/")
+            or not isinstance(role, str)
+            or role not in {"interni", "tecnico", "agente", "concessionario"}
+            for path, role in role_map.items()
+        )
+    ):
+        raise ValueError("Invalid OU role map")
+    return role_map
+
+
 class GoogleProviderConfig(_OAuth2ProviderConfig):
-    pass
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    ou_role_map: str = ""
+    directory_auth_mode: Literal["service_account"] = "service_account"
+    directory_service_account_json: str = Field(
+        default="", json_schema_extra={"secret": True}
+    )
+
+    @field_validator("ou_role_map")
+    @classmethod
+    def validate_ou_role_map(cls, raw_map: str) -> str:
+        if not raw_map:
+            return raw_map  # An incomplete provider cannot admit a login.
+        parse_ou_role_map(raw_map)
+        return raw_map
+
+    @field_validator("directory_service_account_json")
+    @classmethod
+    def validate_directory_service_account_json(cls, raw_json: str) -> str:
+        if not raw_json:
+            return raw_json
+        try:
+            credentials = json.loads(
+                decrypt_directory_service_account_json(raw_json)
+                if raw_json.startswith(_DIRECTORY_JSON_PREFIX)
+                else raw_json
+            )
+        except ValueError as exc:
+            raise ValueError("Invalid Directory credentials") from exc
+        if (
+            not isinstance(credentials, dict)
+            or credentials.get("type") != "service_account"
+            or any(
+                not isinstance(credentials.get(key), str) or not credentials[key]
+                for key in ("client_email", "private_key", "token_uri")
+            )
+        ):
+            raise ValueError("Invalid Directory credentials")
+        return raw_json
 
 
 class OIDCProviderConfig(_OAuth2ProviderConfig):
@@ -121,7 +234,11 @@ def mask_secret_config_values(
     secret_keys = secret_config_keys(provider_type)
     return {
         key: (
-            mask_string(value)
+            (
+                DIRECTORY_JSON_MASK
+                if key == "directory_service_account_json"
+                else mask_string(value)
+            )
             if key in secret_keys and isinstance(value, str) and value
             else value
         )
@@ -248,7 +365,13 @@ def create_sso_provider(
         name=name,
         display_name=display_name,
         provider_type=provider_type,
-        config=validate_sso_config(provider_type, config),
+        config=(
+            protect_google_config_for_storage(
+                validate_sso_config(provider_type, config)
+            )
+            if provider_type is SSOProviderType.GOOGLE_OAUTH
+            else validate_sso_config(provider_type, config)
+        ),
         allowed_email_domains=normalize_email_domains(allowed_email_domains),
     )
     db_session.add(provider)
@@ -274,8 +397,11 @@ def update_sso_provider(
     if display_name is not None:
         provider.display_name = display_name
     if config is not None:
-        provider.config = validate_sso_config(  # ty: ignore[invalid-assignment]
-            provider.provider_type, config
+        validated = validate_sso_config(provider.provider_type, config)
+        provider.config = (  # ty: ignore[invalid-assignment]
+            protect_google_config_for_storage(validated)
+            if provider.provider_type is SSOProviderType.GOOGLE_OAUTH
+            else validated
         )
     if allowed_email_domains is not None:
         provider.allowed_email_domains = normalize_email_domains(allowed_email_domains)

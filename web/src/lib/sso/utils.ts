@@ -97,6 +97,26 @@ export const CONFIG_FIELDS_BY_TYPE: Record<SSOProviderType, SSOConfigField[]> =
     GOOGLE_OAUTH: [
       CLIENT_ID_FIELD,
       CLIENT_SECRET_FIELD,
+      {
+        name: "ou_role_map",
+        labelKey: "configFields.ouRoleMap.label",
+        descriptionKey: "configFields.ouRoleMap.description",
+        kind: "textarea",
+        optional: true,
+      },
+      {
+        name: "directory_auth_mode",
+        labelKey: "configFields.directoryAuthMode.label",
+        descriptionKey: "configFields.directoryAuthMode.description",
+        kind: "text",
+      },
+      {
+        name: "directory_service_account_json",
+        labelKey: "configFields.directoryServiceAccountJson.label",
+        descriptionKey: "configFields.directoryServiceAccountJson.description",
+        kind: "password",
+        optional: true,
+      },
       PKCE_FIELD,
       SCOPES_FIELD,
     ],

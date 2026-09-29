@@ -7285,6 +7285,21 @@
           "description": "O segredo de cliente OAuth. Armazenado criptografado.",
           "placeholder": "Segredo do cliente"
         },
+        "ouRoleMap": {
+          "label": "Mapa de OU para função de conteúdo",
+          "description": "Mapa JSON de caminhos de OU do Google Workspace para funções. OUs não mapeadas não podem iniciar sessão."
+        },
+        "directoryAuthMode": {
+          "label": "Modo de autenticação do Directory",
+          "description": "Usa a conta de serviço diretamente, sem delegação."
+        },
+        "directoryServiceAccountJson": {
+          "label": "JSON da conta de serviço do Directory",
+          "description": "Credenciais de leitura do Google Directory. Armazenadas com encriptação; introduza uma vez."
+        },
+        "linkGoogle": {
+          "label": "Associar a minha conta Google"
+        },
         "pkceEnabled": {
           "label": "Ativar PKCE",
           "description": "Enviar um code challenge PKCE no fluxo de login deste provedor. Uma configuração global da implantação pode forçar isso."

@@ -70,7 +70,7 @@ from onyx.auth.email_utils import (
     send_forgot_password_email,
     send_user_verification_email,
 )
-from onyx.auth.google_workspace import admit_google_workspace_login, workspace_role_map
+from onyx.auth.google_workspace import admit_google_workspace_login
 from onyx.auth.invited_users import get_invited_users, remove_user_from_invited_users
 from onyx.auth.jwt import verify_jwt_token
 from onyx.auth.login_claims_capture import capture_oauth_login_claims
@@ -141,6 +141,7 @@ from onyx.db.enums import AccountType, PatType, Permission
 from onyx.db.models import AccessToken, OAuthAccount, User
 from onyx.db.pat import resolve_pat
 from onyx.db.pinned_personas import seed_pinned_personas_from_featured
+from onyx.db.sso_provider import GoogleProviderConfig
 from onyx.db.users import (
     assign_user_to_default_groups__no_commit,
     fetch_user_by_id,
@@ -991,6 +992,65 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 reason=f"Password must contain at least one special character from the following set: {PASSWORD_SPECIAL_CHARS}."
             )
         return
+
+    async def link_verified_google_account(
+        self,
+        user_id: uuid.UUID,
+        oauth_name: str,
+        account_id: str,
+        account_email: str,
+        access_token: str,
+        workspace_role: str,
+        expires_at: int | None = None,
+        refresh_token: str | None = None,
+    ) -> User:
+        """Attach verified Google to the signed-in account, never by email alone."""
+        async with self._tenant_session_with_bound_user_db(
+            get_current_tenant_id()
+        ) as db_session:
+            user = await db_session.run_sync(
+                lambda session: fetch_user_by_id(session, user_id, for_update=True)
+            )
+            if (
+                user is None
+                or not user.is_active
+                or not user.account_type.is_web_login()
+                or user.email.lower() != account_email.lower()
+            ):
+                raise OnyxError(
+                    OnyxErrorCode.UNAUTHORIZED, "Google account cannot be linked"
+                )
+            await db_session.refresh(user, attribute_names=["oauth_accounts"])
+            if any(link.oauth_name == oauth_name for link in user.oauth_accounts):
+                raise OnyxError(
+                    OnyxErrorCode.UNAUTHORIZED, "Google account is already linked"
+                )
+            try:
+                await self.get_by_oauth_account(oauth_name, account_id)
+            except exceptions.UserNotExists:
+                pass
+            else:
+                raise OnyxError(
+                    OnyxErrorCode.UNAUTHORIZED, "Google identity is already linked"
+                )
+
+            user.workspace_role = workspace_role
+            try:
+                return await self.user_db.add_oauth_account(
+                    user,
+                    {
+                        "oauth_name": oauth_name,
+                        "account_id": account_id,
+                        "account_email": account_email,
+                        "access_token": access_token,
+                        "expires_at": expires_at,
+                        "refresh_token": refresh_token,
+                    },
+                )
+            except IntegrityError as exc:
+                raise OnyxError(
+                    OnyxErrorCode.UNAUTHORIZED, "Google identity is already linked"
+                ) from exc
 
     async def _rewrite_oauth_link(
         self, user: User, link: OAuthAccount, oauth_account_dict: dict[str, Any]
@@ -2749,6 +2809,7 @@ async def complete_login_flow(
     is_verified_by_default: bool,
     allowed_email_domains_override: Sequence[str] | None = None,
     enforce_verified_domain: bool = False,
+    google_provider_config: GoogleProviderConfig | None = None,
 ) -> RedirectResponse:
     """Shared post-token OAuth/OIDC login: read the verified identity, create or
     authenticate the user, and return a web or mobile redirect.
@@ -2760,7 +2821,7 @@ async def complete_login_flow(
     a first-time member does not yet answer to.
     """
     workspace_role: str | None = None
-    if isinstance(oauth_client, GoogleOAuth2) and workspace_role_map() is not None:
+    if isinstance(oauth_client, GoogleOAuth2):
         account_id, account_email, workspace_role = await admit_google_workspace_login(
             token,
             oauth_client.client_id,
@@ -2769,6 +2830,7 @@ async def complete_login_flow(
                 if allowed_email_domains_override is not None
                 else get_security_settings().valid_email_domains
             ),
+            google_provider_config,
         )
         associate_by_email = False
     else:
@@ -2802,6 +2864,26 @@ async def complete_login_flow(
 
     request.state.referral_source = referral_source
 
+    link_user_id = state_data.get("link_user_id")
+    linked_user: models.UP | None = None
+    if link_user_id is not None:
+        cookie = request.cookies.get(FASTAPI_USERS_AUTH_COOKIE_NAME)
+        linked_user = (
+            await strategy.read_token(cookie, user_manager) if cookie else None
+        )
+        if (
+            not isinstance(oauth_client, GoogleOAuth2)
+            or linked_user is None
+            or not linked_user.is_active
+            or str(linked_user.id) != link_user_id
+            or linked_user.email.lower() != account_email.lower()
+            or Permission.FULL_ADMIN_PANEL_ACCESS
+            not in get_effective_permissions(cast(User, linked_user))
+        ):
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED, "Google account linking is not authorized"
+            )
+
     # Snapshot the raw IdP claims for directory-profile enrichment and the admin
     # "OAuth Test" page. The subject-resolved tenant keeps capture working after
     # an IdP rename. Never raises, no-op unless IDP_PROFILE_ENRICHMENT_ENABLED.
@@ -2810,20 +2892,37 @@ async def complete_login_flow(
     )
 
     try:
-        user = await user_manager.oauth_callback(  # ty: ignore[invalid-argument-type]
-            oauth_client.name,
-            token["access_token"],
-            account_id,
-            account_email,
-            token.get("expires_at"),
-            token.get("refresh_token"),
-            request,
-            associate_by_email=associate_by_email,
-            is_verified_by_default=is_verified_by_default,
-            allowed_email_domains_override=allowed_email_domains_override,  # ty: ignore[unknown-argument]
-            enforce_verified_domain=enforce_verified_domain,  # ty: ignore[unknown-argument]
-            workspace_role=workspace_role,  # ty: ignore[unknown-argument]
-        )
+        user: models.UP
+        if link_user_id is not None:
+            assert workspace_role is not None and linked_user is not None
+            user = cast(
+                models.UP,
+                await cast(UserManager, user_manager).link_verified_google_account(
+                    linked_user.id,
+                    oauth_client.name,
+                    account_id,
+                    account_email,
+                    token["access_token"],
+                    workspace_role,
+                    token.get("expires_at"),
+                    token.get("refresh_token"),
+                ),
+            )
+        else:
+            user = await user_manager.oauth_callback(  # ty: ignore[invalid-argument-type]
+                oauth_client.name,
+                token["access_token"],
+                account_id,
+                account_email,
+                token.get("expires_at"),
+                token.get("refresh_token"),
+                request,
+                associate_by_email=associate_by_email,
+                is_verified_by_default=is_verified_by_default,
+                allowed_email_domains_override=allowed_email_domains_override,  # ty: ignore[unknown-argument]
+                enforce_verified_domain=enforce_verified_domain,  # ty: ignore[unknown-argument]
+                workspace_role=workspace_role,  # ty: ignore[unknown-argument]
+            )
     except UserAlreadyExists:
         raise OnyxError(
             OnyxErrorCode.VALIDATION_ERROR,

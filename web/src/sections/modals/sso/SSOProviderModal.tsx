@@ -113,14 +113,15 @@ function buildValidationSchema(t: SSOTranslate) {
       "provider_type",
       ([type], schema) => configSchemaByType[type as string] ?? schema
     ),
-    // Cloud rejects an empty list (every address the IdP asserts would become a
-    // billed seat), so require at least one domain there. Single-tenant leaves it
-    // optional, where empty means every address may sign in.
-    allowed_email_domains: NEXT_PUBLIC_CLOUD_ENABLED
-      ? Yup.array()
-          .of(Yup.string())
-          .min(1, t("modals.provider.validation.emailDomainsMin"))
-      : Yup.array().of(Yup.string()).optional(),
+    // Google Workspace also requires a domain on single-tenant deployments;
+    // other single-tenant providers may leave this list empty.
+    allowed_email_domains: Yup.array()
+      .of(Yup.string())
+      .when("provider_type", ([type], schema) =>
+        NEXT_PUBLIC_CLOUD_ENABLED || type === "GOOGLE_OAUTH"
+          ? schema.min(1, t("modals.provider.validation.emailDomainsMin"))
+          : schema
+      ),
   });
 }
 
@@ -147,7 +148,7 @@ function buildConfig(
     const raw = values.config[field.name];
     const str = typeof raw === "string" ? raw : "";
     const value = field.kind === "password" ? str : str.trim();
-    if (field.optional && !value) {
+    if (field.optional && !value && field.name !== "ou_role_map") {
       continue;
     }
     config[field.name] = value;
@@ -169,7 +170,9 @@ function initialConfig(
       initial[field.name] = Array.isArray(raw) ? raw : [];
       continue;
     }
-    initial[field.name] = config[field.name] ?? "";
+    initial[field.name] =
+      config[field.name] ??
+      (field.name === "directory_auth_mode" ? "service_account" : "");
   }
   return initial;
 }
@@ -246,7 +249,13 @@ function ConfigInput({
       />
     );
   }
-  return <InputTypeInField name={name} placeholder={placeholder} />;
+  return (
+    <InputTypeInField
+      name={name}
+      placeholder={placeholder}
+      variant={field.name === "directory_auth_mode" ? "disabled" : undefined}
+    />
+  );
 }
 
 export function SSOProviderModal({ provider, onSaved }: SSOProviderModalProps) {
@@ -427,14 +436,16 @@ export function SSOProviderModal({ provider, onSaved }: SSOProviderModalProps) {
 
                   <InputVertical
                     title={
-                      NEXT_PUBLIC_CLOUD_ENABLED
+                      NEXT_PUBLIC_CLOUD_ENABLED ||
+                      providerType === "GOOGLE_OAUTH"
                         ? t("modals.provider.emailDomainsField.title")
                         : t(
                             "modals.provider.emailDomainsField.recommendedTitle"
                           )
                     }
                     description={
-                      NEXT_PUBLIC_CLOUD_ENABLED
+                      NEXT_PUBLIC_CLOUD_ENABLED ||
+                      providerType === "GOOGLE_OAUTH"
                         ? t("modals.provider.emailDomainsField.description")
                         : t(
                             "modals.provider.emailDomainsField.optionalDescription"

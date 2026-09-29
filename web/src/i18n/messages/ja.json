@@ -7283,6 +7283,21 @@
           "description": "OAuth クライアントシークレット。暗号化して保存されます。",
           "placeholder": "クライアントシークレット"
         },
+        "ouRoleMap": {
+          "label": "OU とコンテンツロールの対応",
+          "description": "Google Workspace の OU パスとロールの JSON 対応表です。未登録の OU はログインできません。"
+        },
+        "directoryAuthMode": {
+          "label": "Directory 認証モード",
+          "description": "委任せずにサービスアカウントを直接使用します。"
+        },
+        "directoryServiceAccountJson": {
+          "label": "Directory サービスアカウント JSON",
+          "description": "Google Directory の読み取り専用認証情報です。暗号化して保存されます。初回のみ入力してください。"
+        },
+        "linkGoogle": {
+          "label": "Google アカウントを連携"
+        },
         "pkceEnabled": {
           "label": "PKCE を有効化",
           "description": "このプロバイダーのログインフローで PKCE コードチャレンジを送信します。デプロイ全体の設定により強制される場合があります。"

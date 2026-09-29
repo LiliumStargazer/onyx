@@ -28,6 +28,7 @@ from httpx_oauth.oauth2 import BaseOAuth2, GetAccessTokenError
 from sqlalchemy.orm import Session
 
 from onyx.auth.oidc_client import VerifiedEmailOpenID, log_token_exchange_failure
+from onyx.auth.permissions import get_effective_permissions
 from onyx.auth.sso_tenant_token import (
     SSO_TENANT_TOKEN_PARAM,
     decode_sso_tenant_token,
@@ -41,6 +42,7 @@ from onyx.auth.sso_web_error import delete_pkce_cookie, redirect_sso_errors_to_w
 from onyx.auth.users import (
     CSRF_TOKEN_COOKIE_NAME,
     CSRF_TOKEN_KEY,
+    FASTAPI_USERS_AUTH_COOKIE_NAME,
     STATE_TOKEN_LIFETIME_SECONDS,
     OAuth2AuthorizeResponse,
     UserManager,
@@ -65,9 +67,10 @@ from onyx.db.engine.sql_engine import (
     get_session_with_current_tenant,
     get_session_with_tenant,
 )
-from onyx.db.enums import SSOProviderType
+from onyx.db.enums import Permission, SSOProviderType
 from onyx.db.models import SSOProvider, User
 from onyx.db.sso_provider import (
+    GoogleProviderConfig,
     fetch_sso_provider_by_name,
     sso_login_callback_uri,
     validate_sso_config,
@@ -180,6 +183,11 @@ def _resolve_oidc_provider(
     try:
         config = validate_sso_config(provider.provider_type, raw_config)
     except ValueError as e:
+        if provider.provider_type is SSOProviderType.GOOGLE_OAUTH:
+            raise OnyxError(
+                OnyxErrorCode.INVALID_INPUT,
+                "Google Workspace provider configuration is invalid; review its Directory credentials",
+            ) from e
         raise OnyxError(OnyxErrorCode.NOT_FOUND, "unknown OIDC provider") from e
     return provider, config
 
@@ -316,27 +324,48 @@ async def oidc_login_for_provider(
     provider_name: str,
     request: Request,
     db_session: Session = Depends(get_authorize_session),
+    strategy: Strategy[User, uuid.UUID] = Depends(auth_backend.get_strategy),
+    user_manager: UserManager = Depends(get_user_manager),
 ) -> Response:
     provider, config = _resolve_oidc_provider(db_session, provider_name)
+    link_user_id: str | None = None
+    if request.query_params.get("link_account") == "true":
+        cookie = request.cookies.get(FASTAPI_USERS_AUTH_COOKIE_NAME)
+        current_user = (
+            await strategy.read_token(cookie, user_manager) if cookie else None
+        )
+        if (
+            MULTI_TENANT
+            or provider.provider_type is not SSOProviderType.GOOGLE_OAUTH
+            or current_user is None
+            or not current_user.is_active
+            or Permission.FULL_ADMIN_PANEL_ACCESS
+            not in get_effective_permissions(current_user)
+        ):
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED, "Google account linking is not authorized"
+            )
+        link_user_id = str(current_user.id)
+
     client = await _get_oauth_client(provider, config)
     redirect_uri = _callback_uri(provider, config)
     next_url = sanitize_next_url(request.query_params.get("next"))
     csrf_token = generate_csrf_token()
     use_pkce = _pkce_enabled(config)
-    state = generate_state_token(
-        {
-            "next_url": next_url,
-            "provider_name": provider_name,
-            # Pins this flow's PKCE mode, so a provider edit mid-login cannot
-            # make the callback disagree with the authorization request.
-            "pkce": use_pkce,
-            # The IdP redirect arrives with no session, so the state is the only
-            # thing carrying the workspace across the round trip.
-            _STATE_TENANT_KEY: get_current_tenant_id(),
-            CSRF_TOKEN_KEY: csrf_token,
-        },
-        USER_AUTH_SECRET,
-    )
+    state_data = {
+        "next_url": next_url,
+        "provider_name": provider_name,
+        # Pins this flow's PKCE mode, so a provider edit mid-login cannot
+        # make the callback disagree with the authorization request.
+        "pkce": use_pkce,
+        # The IdP redirect arrives with no session, so the state is the only
+        # thing carrying the workspace across the round trip.
+        _STATE_TENANT_KEY: get_current_tenant_id(),
+        CSRF_TOKEN_KEY: csrf_token,
+    }
+    if link_user_id is not None:
+        state_data["link_user_id"] = link_user_id
+    state = generate_state_token(state_data, USER_AUTH_SECRET)
 
     extras: dict[str, str] | None = None
     if provider.provider_type is SSOProviderType.GOOGLE_OAUTH:
@@ -506,6 +535,11 @@ async def oidc_login_callback_for_provider(
             is_verified_by_default=True,
             allowed_email_domains_override=allowed_email_domains,
             enforce_verified_domain=enforce_verified_domain,
+            google_provider_config=(
+                GoogleProviderConfig.model_validate(config)
+                if provider.provider_type is SSOProviderType.GOOGLE_OAUTH
+                else None
+            ),
         )
 
     if use_pkce:

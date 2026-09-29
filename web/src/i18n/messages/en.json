@@ -7285,6 +7285,21 @@
           "description": "The OAuth client secret. Stored encrypted.",
           "placeholder": "Client secret"
         },
+        "ouRoleMap": {
+          "label": "OU to content role map",
+          "description": "JSON map of Google Workspace OU paths to roles (interni, tecnico, agente, concessionario). Unmapped OUs cannot sign in."
+        },
+        "directoryAuthMode": {
+          "label": "Directory authentication mode",
+          "description": "Uses the service account directly, without delegated access."
+        },
+        "directoryServiceAccountJson": {
+          "label": "Directory service account JSON",
+          "description": "Google Directory read-only credentials. Stored encrypted; enter once."
+        },
+        "linkGoogle": {
+          "label": "Link my Google account"
+        },
         "pkceEnabled": {
           "label": "Enable PKCE",
           "description": "Send a PKCE code challenge with this provider's login flow. A deployment-wide setting may force this on."

@@ -7283,6 +7283,21 @@
           "description": "سر عميل OAuth. يُخزَّن مشفّرًا.",
           "placeholder": "سر العميل"
         },
+        "ouRoleMap": {
+          "label": "ربط الوحدات التنظيمية بأدوار المحتوى",
+          "description": "خريطة JSON لمسارات وحدات Google Workspace وأدوارها. لا يمكن للوحدات غير المسجلة تسجيل الدخول."
+        },
+        "directoryAuthMode": {
+          "label": "وضع مصادقة Directory",
+          "description": "يستخدم حساب الخدمة مباشرة دون تفويض."
+        },
+        "directoryServiceAccountJson": {
+          "label": "JSON لحساب خدمة Directory",
+          "description": "بيانات اعتماد Google Directory للقراءة فقط. تُخزن مشفرة وتُدخل مرة واحدة."
+        },
+        "linkGoogle": {
+          "label": "ربط حساب Google الخاص بي"
+        },
         "pkceEnabled": {
           "label": "تفعيل PKCE",
           "description": "إرسال تحدي رمز PKCE مع تدفق تسجيل الدخول لهذا الموفّر. قد يفرض إعداد على مستوى النشر تفعيله."

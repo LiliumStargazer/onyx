@@ -7285,6 +7285,21 @@
           "description": "El secreto de cliente de OAuth. Se almacena cifrado.",
           "placeholder": "Secreto de cliente"
         },
+        "ouRoleMap": {
+          "label": "Mapa de OU a roles de contenido",
+          "description": "Mapa JSON de rutas OU de Google Workspace a roles. Las OU sin asignación no pueden iniciar sesión."
+        },
+        "directoryAuthMode": {
+          "label": "Modo de autenticación de Directory",
+          "description": "Usa la cuenta de servicio directamente, sin delegación."
+        },
+        "directoryServiceAccountJson": {
+          "label": "JSON de cuenta de servicio de Directory",
+          "description": "Credenciales de solo lectura de Google Directory. Se guardan cifradas; introdúcelas una vez."
+        },
+        "linkGoogle": {
+          "label": "Vincular mi cuenta de Google"
+        },
         "pkceEnabled": {
           "label": "Habilitar PKCE",
           "description": "Enviar un desafío de código PKCE en el flujo de inicio de sesión de este proveedor. Un ajuste global del despliegue puede forzarlo."

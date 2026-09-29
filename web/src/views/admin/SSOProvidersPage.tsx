@@ -15,7 +15,11 @@ import {
 } from "@opal/layouts";
 import { cn } from "@opal/utils";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
-import { errorHandlingFetcher, FetchError } from "@/lib/fetcher";
+import {
+  errorHandlingFetcher,
+  FetchError,
+  parseErrorDetail,
+} from "@/lib/fetcher";
 import { useSettings } from "@/lib/settings/hooks";
 import { Tier } from "@/lib/settings/types";
 import type { SSOProviderResponse } from "@/lib/sso/interfaces";
@@ -117,6 +121,27 @@ export default function SSOProvidersPage() {
     }
   }
 
+  async function linkGoogleAccount(
+    provider: SSOProviderResponse
+  ): Promise<void> {
+    try {
+      const response = await fetch(
+        `/api/auth/oidc/${encodeURIComponent(provider.name)}/authorize?link_account=true&next=/admin/sso-providers`,
+        { credentials: "include" }
+      );
+      if (!response.ok)
+        throw new Error(
+          await parseErrorDetail(response, t("toasts.unexpectedError"))
+        );
+      const data: { authorization_url: string } = await response.json();
+      window.location.assign(data.authorization_url);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t("toasts.unexpectedError")
+      );
+    }
+  }
+
   if (error) {
     const detail =
       error instanceof FetchError && typeof error.info?.detail === "string"
@@ -182,6 +207,16 @@ export default function SSOProvidersPage() {
                             void copyRedirectUri(provider.redirect_uri, t);
                           }}
                         />
+                        {provider.provider_type === "GOOGLE_OAUTH" && (
+                          <Button
+                            prominence="tertiary"
+                            size="sm"
+                            disabled={isPending || !provider.enabled}
+                            onClick={() => void linkGoogleAccount(provider)}
+                          >
+                            {t("configFields.linkGoogle.label")}
+                          </Button>
+                        )}
                         <InputSwitch
                           checked={provider.enabled}
                           disabled={isPending}
