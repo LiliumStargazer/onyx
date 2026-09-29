@@ -145,12 +145,14 @@ function ConfigItem({ label, value, onEdit }: ConfigItemProps) {
 export function AdvancedConfigDisplay({
   pruneFreq,
   refreshFreq,
+  showRefreshWhenDisabled = false,
   indexingStart,
   onRefreshEdit,
   onPruningEdit,
 }: {
   pruneFreq: number | null;
   refreshFreq: number | null;
+  showRefreshWhenDisabled?: boolean;
   indexingStart: Date | null;
   // Omit to hide the pencil for a caller who may not edit.
   onRefreshEdit?: () => void;
@@ -215,7 +217,7 @@ export function AdvancedConfigDisplay({
       value: formatPruneFrequency(pruneFreq),
       onEdit: onPruningEdit,
     },
-    refreshFreq && {
+    (refreshFreq !== null || showRefreshWhenDisabled) && {
       label: t("advancedConfig.refreshFrequency.label"),
       value: formatRefreshFrequency(refreshFreq),
       onEdit: onRefreshEdit,

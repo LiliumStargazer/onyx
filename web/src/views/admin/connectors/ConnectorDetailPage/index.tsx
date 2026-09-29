@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 import IndexAttemptErrorsModal from "./IndexAttemptErrorsModal";
 import usePaginatedFetch from "@/hooks/usePaginatedFetch";
-import { IndexAttemptSnapshot } from "@/lib/types";
+import { IndexAttemptSnapshot, ValidSources } from "@/lib/types";
 import { Spinner } from "@/components/Spinner";
 import { Callout } from "@/components/ui/callout";
 import { Card } from "@/components/ui/card";
@@ -393,7 +393,13 @@ function Main({ ccPairId }: { ccPairId: number }) {
           propertyTitle={t("refreshFrequencyModal.title")}
           propertyDetails={t("refreshFrequencyModal.description")}
           propertyName="refresh_frequency"
-          propertyValue={String(Math.round((refreshFreq || 0) / 60))}
+          propertyValue={String(
+            Math.round(
+              (refreshFreq ??
+                (ccPair.connector.source === ValidSources.WikiJs ? 600 : 0)) /
+                60
+            )
+          )}
           validationSchema={RefreshFrequencySchema}
           onSubmit={handleRefreshSubmit}
           onClose={() => setEditingRefreshFrequency(false)}
@@ -759,7 +765,11 @@ function Main({ ccPairId }: { ccPairId: number }) {
         </div>
         {showAdvancedOptions && (
           <div className="pb-16">
-            {(pruneFreq || indexingStart || refreshFreq) && (
+            {(pruneFreq ||
+              indexingStart ||
+              refreshFreq ||
+              (ccPair.connector.source === ValidSources.WikiJs &&
+                ccPair.last_indexed)) && (
               <>
                 <Title size="md" className="mt-3 mb-2">
                   {t("sections.advancedConfiguration.title")}
@@ -770,12 +780,23 @@ function Main({ ccPairId }: { ccPairId: number }) {
                       pruneFreq={pruneFreq}
                       indexingStart={indexingStart}
                       refreshFreq={refreshFreq}
+                      showRefreshWhenDisabled={
+                        ccPair.connector.source === ValidSources.WikiJs &&
+                        !!ccPair.last_indexed
+                      }
                       // No handler => no pencil, matching the rest of this page's edits.
                       onRefreshEdit={
-                        can(ccPair, "edit") ? handleRefreshEdit : undefined
+                        can(ccPair, "edit") &&
+                        (ccPair.connector.source !== ValidSources.WikiJs ||
+                          ccPair.last_indexed)
+                          ? handleRefreshEdit
+                          : undefined
                       }
                       onPruningEdit={
-                        can(ccPair, "edit") ? handlePruningEdit : undefined
+                        can(ccPair, "edit") &&
+                        ccPair.connector.source !== ValidSources.WikiJs
+                          ? handlePruningEdit
+                          : undefined
                       }
                     />
                   </div>

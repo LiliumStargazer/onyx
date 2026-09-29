@@ -654,12 +654,25 @@ def update_cc_pair_property(
     # Can we centralize logic for updating connector properties
     # so that we don't need to manually validate everywhere?
     if update_request.name == "refresh_frequency":
+        if (
+            cc_pair.connector.source == DocumentSource.WIKIJS
+            and cc_pair.last_successful_index_time is None
+        ):
+            raise OnyxError(
+                OnyxErrorCode.INVALID_INPUT,
+                "Complete the first Wiki.js indexing run before enabling refresh.",
+            )
         cc_pair.connector.refresh_freq = int(update_request.value)
         cc_pair.connector.validate_refresh_freq()
         db_session.commit()
 
         msg = "Refresh frequency updated successfully"
     elif update_request.name == "pruning_frequency":
+        if cc_pair.connector.source == DocumentSource.WIKIJS:
+            raise OnyxError(
+                OnyxErrorCode.INVALID_INPUT,
+                "Wiki.js native pruning is not supported.",
+            )
         cc_pair.connector.prune_freq = int(update_request.value)
         cc_pair.connector.validate_prune_freq()
         db_session.commit()

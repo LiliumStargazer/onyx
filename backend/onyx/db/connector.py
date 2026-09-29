@@ -143,9 +143,9 @@ def update_connector(
     connector.connector_specific_config = connector_data.connector_specific_config
     connector.refresh_freq = connector_data.refresh_freq
     connector.prune_freq = (
-        connector_data.prune_freq
-        if connector_data.prune_freq is not None
-        else DEFAULT_PRUNING_FREQ
+        None
+        if connector.source == DocumentSource.WIKIJS
+        else connector_data.prune_freq or DEFAULT_PRUNING_FREQ
     )
 
     db_session.commit()
