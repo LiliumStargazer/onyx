@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -39,13 +40,14 @@ def _point_settings_at(monkeypatch: pytest.MonkeyPatch, url: str | None) -> None
 @pytest.fixture(autouse=True)
 def _patch_auth_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(users, "_maybe_refresh_oauth_tokens", _no_oauth_refresh)
+    monkeypatch.setattr(users, "recheck_google_workspace_user", _no_oauth_refresh)
     _point_settings_at(monkeypatch, None)
 
 
 @pytest.mark.asyncio
 async def test_cookie_session_user_is_session_credential() -> None:
     request = _bare_request()
-    user = cast(User, object())
+    user = cast(User, SimpleNamespace(workspace_role=None))
 
     assert await _resolve(request, user) is user
     assert request.state.usage_credential == UsageCredentialIdentity(
@@ -76,7 +78,7 @@ async def test_pat_type_selects_credential_type(
     pat_type: PatType,
     expected_credential_type: UsageCredentialType,
 ) -> None:
-    pat_user = cast(User, object())
+    pat_user = cast(User, SimpleNamespace(workspace_role=None))
     pat = PatAuthResult(
         user=pat_user,
         scopes=None,
@@ -104,7 +106,7 @@ async def test_external_jwt_user_is_jwt_credential(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Drives the real _check_for_saml_and_jwt — stubbing it out tests nothing."""
-    jwt_user = cast(User, object())
+    jwt_user = cast(User, SimpleNamespace(workspace_role=None))
 
     async def fake_verify(_: str) -> dict[str, str]:
         return {"sub": "someone"}

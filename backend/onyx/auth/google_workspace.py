@@ -8,20 +8,27 @@ from urllib.parse import quote
 from google.auth.transport.requests import AuthorizedSession, Request
 from google.oauth2 import id_token, service_account
 from httpx_oauth.oauth2 import OAuth2Token
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from onyx.db.enums import SSOProviderType
+from onyx.db.models import User
 from onyx.db.sso_provider import (
     GoogleProviderConfig,
     decrypt_directory_service_account_json,
+    fetch_sso_provider_by_name_async,
     parse_ou_role_map,
 )
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
+from onyx.redis.redis_pool import get_async_redis_connection
+from onyx.server.security.store import get_security_settings
 from onyx.utils.logger import setup_logger
 
 logger = setup_logger()
 
 _DIRECTORY_SCOPE = "https://www.googleapis.com/auth/admin.directory.user.readonly"
+_DIRECTORY_CACHE_SECONDS = 300
 
 
 def workspace_role_map() -> dict[str, str] | None:
@@ -142,10 +149,20 @@ async def admit_google_workspace_login(
         raise OnyxError(
             OnyxErrorCode.BAD_GATEWAY, "Workspace Directory is unavailable"
         ) from exc
+    return (
+        subject,
+        email,
+        _active_directory_role(directory_user, subject, email, role_map),
+    )
+
+
+def _active_directory_role(
+    directory_user: dict[str, Any], subject: str, email: str, role_map: dict[str, str]
+) -> str:
     if (
         directory_user.get("id") != subject
         or directory_user.get("suspended") is not False
-        or directory_user.get("archived") is True
+        or directory_user.get("archived") not in (False, None)
         or directory_user.get("deletionTime")
         or str(directory_user.get("primaryEmail", "")).lower() != email.lower()
     ):
@@ -153,4 +170,91 @@ async def admit_google_workspace_login(
     ou_path = directory_user.get("orgUnitPath")
     if not isinstance(ou_path, str):
         raise OnyxError(OnyxErrorCode.UNAUTHORIZED, "Workspace OU is not authorized")
-    return subject, email, role_for_ou(ou_path, role_map)
+    return role_for_ou(ou_path, role_map)
+
+
+async def recheck_google_workspace_user(user: User, db_session: AsyncSession) -> None:
+    """Recheck linked Workspace membership on every request, with a short positive cache."""
+    if not user.oauth_accounts:
+        if user.workspace_role is not None:
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED, "Workspace identity is not linked"
+            )
+        return
+    for link in user.oauth_accounts:
+        provider = await fetch_sso_provider_by_name_async(db_session, link.oauth_name)
+        if provider is None and link.oauth_name != "google":
+            continue
+        if (
+            provider is not None
+            and provider.provider_type is not SSOProviderType.GOOGLE_OAUTH
+        ):
+            continue
+        if user.workspace_role is None:
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED, "Workspace role is not assigned"
+            )
+        if provider is not None and not provider.enabled:
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED, "Workspace provider is disabled"
+            )
+        try:
+            config = (
+                GoogleProviderConfig.model_validate(
+                    provider.config.get_value(apply_mask=False)
+                )
+                if provider is not None and provider.config
+                else None
+            )
+            role_map = (
+                parse_ou_role_map(config.ou_role_map)
+                if config is not None
+                else workspace_role_map()
+            )
+            domains = (
+                provider.allowed_email_domains
+                if provider is not None
+                else get_security_settings().valid_email_domains
+            )
+            if (
+                not role_map
+                or not domains
+                or not any(
+                    user.email.lower().endswith("@" + domain.lower())
+                    for domain in domains
+                )
+                or (config is not None and not config.directory_service_account_json)
+            ):
+                raise ValueError("Workspace configuration is incomplete")
+        except ValueError as exc:
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED, "Workspace configuration is invalid"
+            ) from exc
+
+        cache_key = f"workspace-directory:{user.id}:{link.oauth_name}:{link.account_id}:{user.email.lower()}"
+        try:
+            redis = await get_async_redis_connection()
+            cached = await redis.get(cache_key)
+            directory_user = (
+                json.loads(cached)
+                if cached is not None
+                else await run_in_threadpool(_directory_user, link.account_id, config)
+            )
+            role = _active_directory_role(
+                directory_user, link.account_id, user.email, role_map
+            )
+            if cached is None:
+                await redis.set(
+                    cache_key, json.dumps(directory_user), ex=_DIRECTORY_CACHE_SECONDS
+                )
+        except OnyxError:
+            raise
+        except Exception as exc:
+            logger.warning("Workspace Directory recheck failed", exc_info=True)
+            raise OnyxError(
+                OnyxErrorCode.BAD_GATEWAY, "Workspace Directory is unavailable"
+            ) from exc
+        user.workspace_role = role
+        return
+    if user.workspace_role is not None:
+        raise OnyxError(OnyxErrorCode.UNAUTHORIZED, "Workspace identity is not linked")

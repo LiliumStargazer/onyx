@@ -31,6 +31,11 @@ logger = setup_logger()
 # How long an entry outlives its logical expiry (and how long a tombstone
 # lingers); past this, rejections classify as NOT_FOUND.
 SESSION_TOKEN_GRACE_PERIOD_SECONDS = 60 * 60
+GOOGLE_SESSION_LIFETIME_SECONDS = 12 * 60 * 60
+GOOGLE_LOGIN_VERIFIED: ContextVar[bool] = ContextVar(
+    "google_login_verified", default=False
+)
+SSO_LOGIN_VERIFIED: ContextVar[bool] = ContextVar("sso_login_verified", default=False)
 
 
 class SessionTokenValue(BaseModel):
@@ -45,6 +50,8 @@ class SessionTokenValue(BaseModel):
     issued_at: AwareDatetime | None = None
     expires_at: AwareDatetime | None = None
     logged_out_at: AwareDatetime | None = None
+    google_verified: bool = False
+    sso_verified: bool = False
 
 
 class SessionRejectionReason(Enum):
@@ -87,12 +94,16 @@ def build_session_token_value(
     tenant_id: str | None,
     issued_at: AwareDatetime,
     expires_at: AwareDatetime | None,
+    google_verified: bool = False,
+    sso_verified: bool = False,
 ) -> str:
     return SessionTokenValue(
         sub=user_id,
         tenant_id=tenant_id,
         issued_at=issued_at,
         expires_at=expires_at,
+        google_verified=google_verified,
+        sso_verified=sso_verified,
     ).model_dump_json(exclude_none=True)
 
 

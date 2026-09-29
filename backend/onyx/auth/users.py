@@ -62,6 +62,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from starlette.routing import BaseRoute
 
 from onyx.auth.api_key import get_hashed_api_key_from_request
@@ -70,7 +71,10 @@ from onyx.auth.email_utils import (
     send_forgot_password_email,
     send_user_verification_email,
 )
-from onyx.auth.google_workspace import admit_google_workspace_login
+from onyx.auth.google_workspace import (
+    admit_google_workspace_login,
+    recheck_google_workspace_user,
+)
 from onyx.auth.invited_users import get_invited_users, remove_user_from_invited_users
 from onyx.auth.jwt import verify_jwt_token
 from onyx.auth.login_claims_capture import capture_oauth_login_claims
@@ -85,8 +89,12 @@ from onyx.auth.permissions import get_effective_permissions, has_global_permissi
 from onyx.auth.pkce import generate_pkce_pair
 from onyx.auth.schemas import AuthBackend, UserCreate
 from onyx.auth.session_tokens import (
+    GOOGLE_LOGIN_VERIFIED,
+    GOOGLE_SESSION_LIFETIME_SECONDS,
     SESSION_TOKEN_GRACE_PERIOD_SECONDS,
+    SSO_LOGIN_VERIFIED,
     SessionRejection,
+    SessionRejectionReason,
     build_session_rejection_error,
     build_session_token_value,
     build_session_tombstone_value,
@@ -141,7 +149,7 @@ from onyx.db.enums import AccountType, PatType, Permission
 from onyx.db.models import AccessToken, OAuthAccount, User
 from onyx.db.pat import resolve_pat
 from onyx.db.pinned_personas import seed_pinned_personas_from_featured
-from onyx.db.sso_provider import GoogleProviderConfig
+from onyx.db.sso_provider import GoogleProviderConfig, record_google_admin_verification
 from onyx.db.users import (
     assign_user_to_default_groups__no_commit,
     fetch_user_by_id,
@@ -1786,6 +1794,15 @@ class TenantAwareRedisStrategy(RedisStrategy[User, uuid.UUID]):
         tenant_id = await resolve_tenant_for_user(user.email)
 
         now = datetime.now(timezone.utc)
+        google_verified = GOOGLE_LOGIN_VERIFIED.get()
+        lifetime = (
+            min(
+                self.lifetime_seconds or GOOGLE_SESSION_LIFETIME_SECONDS,
+                GOOGLE_SESSION_LIFETIME_SECONDS,
+            )
+            if google_verified
+            else self.lifetime_seconds
+        )
         token = secrets.token_urlsafe()
         await redis.set(
             f"{self.key_prefix}{token}",
@@ -1793,9 +1810,11 @@ class TenantAwareRedisStrategy(RedisStrategy[User, uuid.UUID]):
                 user_id=str(user.id),
                 tenant_id=tenant_id,
                 issued_at=now,
-                expires_at=compute_session_expires_at(now, self.lifetime_seconds),
+                expires_at=compute_session_expires_at(now, lifetime),
+                google_verified=google_verified,
+                sso_verified=SSO_LOGIN_VERIFIED.get(),
             ),
-            ex=physical_session_ttl_seconds(self.lifetime_seconds),
+            ex=physical_session_ttl_seconds(lifetime),
         )
         return token
 
@@ -1820,7 +1839,29 @@ class TenantAwareRedisStrategy(RedisStrategy[User, uuid.UUID]):
 
         try:
             parsed_id = user_manager.parse_id(result.sub)
-            return await user_manager.get(parsed_id)
+            user = await user_manager.get(parsed_id)
+            if (
+                (user.workspace_role is not None and not result.google_verified)
+                or (
+                    not MULTI_TENANT
+                    and not get_security_settings().password_auth_enabled
+                    and not result.sso_verified
+                )
+                or (
+                    result.google_verified
+                    and (
+                        result.issued_at is None
+                        or result.issued_at
+                        + timedelta(seconds=GOOGLE_SESSION_LIFETIME_SECONDS)
+                        <= datetime.now(timezone.utc)
+                    )
+                )
+            ):
+                record_session_rejection(
+                    SessionRejection(SessionRejectionReason.EXPIRED, result)
+                )
+                return None
+            return user
         except (exceptions.UserNotExists, exceptions.InvalidID):
             return None
 
@@ -1841,33 +1882,19 @@ class TenantAwareRedisStrategy(RedisStrategy[User, uuid.UUID]):
         )
 
     async def refresh_token(self, token: Optional[str], user: User) -> str:
-        """Refreshes a token by extending its expiration time in Redis."""
+        """Return the existing token without extending its absolute expiry."""
         if token is None:
-            # If no token provided, create a new one
-            return await self.write_token(user)
-
+            raise OnyxError(OnyxErrorCode.SESSION_EXPIRED)
         redis = await get_async_redis_connection()
-        token_key = f"{self.key_prefix}{token}"
-
-        raw_value = await redis.get(token_key)
-        result = classify_session_token_value(raw_value)
-        if isinstance(result, SessionRejection) or result.sub is None:
-            # Only a live session is extendable; mint a fresh one otherwise.
-            return await self.write_token(user)
-
-        # Extend the logical expiry; keep the original issue time.
-        now = datetime.now(timezone.utc)
-        await redis.set(
-            token_key,
-            build_session_token_value(
-                user_id=result.sub,
-                tenant_id=result.tenant_id,
-                issued_at=result.issued_at or now,
-                expires_at=compute_session_expires_at(now, self.lifetime_seconds),
-            ),
-            ex=physical_session_ttl_seconds(self.lifetime_seconds),
+        result = classify_session_token_value(
+            await redis.get(f"{self.key_prefix}{token}")
         )
-
+        if (
+            isinstance(result, SessionRejection)
+            or result.sub != str(user.id)
+            or (user.workspace_role is not None and not result.google_verified)
+        ):
+            raise OnyxError(OnyxErrorCode.SESSION_EXPIRED)
         return token
 
 
@@ -2050,49 +2077,23 @@ class FastAPIUserWithRefreshRouter(FastAPIUsers[models.UP, models.ID]):
             ),
             db_session: AsyncSession = Depends(get_async_session),
         ) -> Response:
-            try:
-                user, token = user_token
-                logger.info("Processing token refresh request for user %s", user.email)
-
-                # Check if user has OAuth accounts that need refreshing
-                await check_and_refresh_oauth_tokens(
-                    user=cast(User, user),
-                    db_session=db_session,
-                    user_manager=cast(Any, user_manager),
-                )
-
-                # Check if strategy supports refreshing
-                supports_refresh = hasattr(strategy, "refresh_token") and callable(
-                    getattr(strategy, "refresh_token")  # noqa: B009  # ods: ignore[getattr]
-                )
-
-                if supports_refresh:
-                    try:
-                        refresh_method = getattr(strategy, "refresh_token")  # noqa: B009  # ods: ignore[getattr]
-                        new_token = await refresh_method(token, user)
-                        logger.info(
-                            "Successfully refreshed session token for user %s",
-                            user.email,
-                        )
-                        return await backend.transport.get_login_response(new_token)
-                    except Exception as e:
-                        logger.error("Error refreshing session token: %s", str(e))
-                        # Fallback to logout and login if refresh fails
-                        await backend.logout(strategy, user, token)
-                        return await backend.login(strategy, user)
-
-                # Fallback: logout and login again
-                logger.info(
-                    "Strategy doesn't support refresh - using logout/login flow"
-                )
-                await backend.logout(strategy, user, token)
-                return await backend.login(strategy, user)
-            except Exception as e:
-                logger.error("Unexpected error in refresh endpoint: %s", str(e))
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Token refresh failed: {str(e)}",
-                )
+            user, token = user_token
+            if cast(User, user).workspace_role is not None:
+                await recheck_google_workspace_user(cast(User, user), db_session)
+            await check_and_refresh_oauth_tokens(
+                user=cast(User, user),
+                db_session=db_session,
+                user_manager=cast(Any, user_manager),
+            )
+            if isinstance(strategy, TenantAwareRedisStrategy):
+                new_token = await strategy.refresh_token(token, cast(User, user))
+                return await backend.transport.get_login_response(new_token)
+            if isinstance(
+                strategy, (RefreshableDatabaseStrategy, SingleTenantJWTStrategy)
+            ):
+                new_token = await strategy.refresh_token(token, cast(User, user))
+                return await backend.transport.get_login_response(new_token)
+            raise OnyxError(OnyxErrorCode.UNAUTHENTICATED)
 
         return router
 
@@ -2310,6 +2311,17 @@ async def _resolve_optional_user(
 
     if user := await _check_for_saml_and_jwt(request, user, async_db_session):
         # If user is already set, _check_for_saml_and_jwt returns the same user object
+        await recheck_google_workspace_user(user, async_db_session)
+        if (
+            request.state.usage_credential.credential_type
+            == UsageCredentialType.SESSION
+            and user.workspace_role is not None
+            and AUTH_BACKEND != AuthBackend.REDIS
+        ):
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED,
+                "Workspace sessions require Redis authentication",
+            )
         await _maybe_refresh_oauth_tokens(user, async_db_session, user_manager)
         return user
 
@@ -2358,6 +2370,7 @@ async def _resolve_optional_user(
         )
 
     if user is not None:
+        await recheck_google_workspace_user(user, async_db_session)
         await _maybe_refresh_oauth_tokens(user, async_db_session, user_manager)
     return user
 
@@ -2520,6 +2533,7 @@ async def _get_user_from_token_data(token_data: dict) -> User | None:
         user = await async_db_session.get(User, user_uuid)
         if user is None or not user.is_active:
             return None
+        await recheck_google_workspace_user(user, async_db_session)
         return user
 
 
@@ -2627,7 +2641,10 @@ async def current_user_from_websocket(
 
     tenant_context_token = CURRENT_TENANT_ID_CONTEXTVAR.set(token_tenant_id)
     try:
-        user = await _get_user_from_token_data(token_data)
+        try:
+            user = await _get_user_from_token_data(token_data)
+        except OnyxError as exc:
+            raise WebSocketException(code=1008) from exc
         if user is None:
             logger.warning("WS auth: user not found for id=%s", token_data.get("sub"))
             raise WebSocketException(code=1008)
@@ -2694,6 +2711,16 @@ async def current_user_from_websocket_cookie(
             async with get_user_db_context(db_session) as user_db:
                 async with get_user_manager_context(user_db) as user_manager:
                     user = await strategy.read_token(token, user_manager)
+                    if user is not None:
+                        try:
+                            await recheck_google_workspace_user(user, db_session)
+                            if (
+                                user.workspace_role is not None
+                                and AUTH_BACKEND != AuthBackend.REDIS
+                            ):
+                                raise WebSocketException(code=1008)
+                        except OnyxError as exc:
+                            raise WebSocketException(code=1008) from exc
 
         if user is None or not user.is_active:
             raise WebSocketException(code=1008)
@@ -2836,6 +2863,11 @@ async def complete_login_flow(
             google_provider_config,
         )
         associate_by_email = False
+        if AUTH_BACKEND != AuthBackend.REDIS:
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED,
+                "Workspace sessions require Redis authentication",
+            )
     else:
         # OnyxError has a global handler; GetIdEmailError would produce a 500.
         try:
@@ -2938,17 +2970,33 @@ async def complete_login_flow(
             ErrorCode.LOGIN_BAD_CREDENTIALS,
         )
 
-    # Mobile SSO returns a one-time PKCE code over a deep link instead of a web
-    # session cookie. Gated on the signed-state marker so only mobile clients
-    # take this early return.
-    if is_mobile_sso(state_data):
-        redirect_response = await complete_mobile_sso(user, state_data, strategy)
-        # Call on_after_login on the mobile early-return so login analytics and
-        # audit still fire. No web response, so its anon-cookie cleanup no-ops.
-        await user_manager.on_after_login(user, request)
-        return redirect_response
-
-    response = await backend.login(strategy, user)
+    # Mark only sessions minted after verified Google login; password sessions
+    # cannot become Google sessions through linking or refresh.
+    verification = GOOGLE_LOGIN_VERIFIED.set(workspace_role is not None)
+    sso_verification = SSO_LOGIN_VERIFIED.set(True)
+    try:
+        if is_mobile_sso(state_data):
+            redirect_response = await complete_mobile_sso(user, state_data, strategy)
+            if (
+                workspace_role is not None
+                and Permission.FULL_ADMIN_PANEL_ACCESS
+                in get_effective_permissions(cast(User, user))
+            ):
+                await run_in_threadpool(
+                    record_google_admin_verification, oauth_client.name
+                )
+            await user_manager.on_after_login(user, request)
+            return redirect_response
+        response = await backend.login(strategy, user)
+    finally:
+        GOOGLE_LOGIN_VERIFIED.reset(verification)
+        SSO_LOGIN_VERIFIED.reset(sso_verification)
+    if (
+        workspace_role is not None
+        and Permission.FULL_ADMIN_PANEL_ACCESS
+        in get_effective_permissions(cast(User, user))
+    ):
+        await run_in_threadpool(record_google_admin_verification, oauth_client.name)
     await user_manager.on_after_login(user, request, response)
 
     if tenant_id is None:

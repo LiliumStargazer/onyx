@@ -282,7 +282,7 @@ async def test_api_key_shaped_token_miss_not_classified() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("tenant_context")
-async def test_refresh_extends_expiry_and_preserves_issue_time(
+async def test_refresh_preserves_absolute_expiry_and_issue_time(
     db_session: Session,
 ) -> None:
     # Precondition.
@@ -307,7 +307,7 @@ async def test_refresh_extends_expiry_and_preserves_issue_time(
         refreshed = SessionTokenValue.model_validate_json(raw_value)
         assert refreshed.issued_at == original.issued_at
         assert refreshed.expires_at is not None
-        assert refreshed.expires_at > original.expires_at
+        assert refreshed.expires_at == original.expires_at
     finally:
         _delete_key(token)
 

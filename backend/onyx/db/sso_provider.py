@@ -20,8 +20,11 @@ from onyx.configs.app_configs import (
     USER_AUTH_SECRET,
     VALID_EMAIL_DOMAINS,
 )
+from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.enums import SSOProviderType
 from onyx.db.models import SSOProvider
+from onyx.key_value_store.factory import get_kv_store
+from onyx.key_value_store.interface import KvKeyNotFoundError
 from onyx.utils.encryption import mask_string
 from onyx.utils.logger import setup_logger
 from shared_configs.configs import MULTI_TENANT
@@ -311,6 +314,49 @@ def is_valid_email_domain(domain: str) -> bool:
 
 def normalize_email_domains(domains: list[str]) -> list[str]:
     return sorted({domain.strip().lower() for domain in domains if domain.strip()})
+
+
+_GOOGLE_ADMIN_VERIFICATION_KEY = "google_admin_login_verified"
+
+
+def _google_provider_fingerprint(provider: SSOProvider) -> str:
+    config = provider.config.get_value(apply_mask=False) if provider.config else {}
+    payload = json.dumps(
+        [provider.name, config, provider.allowed_email_domains], sort_keys=True
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def record_google_admin_verification(provider_name: str) -> None:
+    with get_session_with_current_tenant() as db_session:
+        provider = fetch_sso_provider_by_name(
+            db_session, provider_name, enabled_only=True
+        )
+        if (
+            provider is None
+            or provider.provider_type is not SSOProviderType.GOOGLE_OAUTH
+        ):
+            return
+        get_kv_store().store(
+            _GOOGLE_ADMIN_VERIFICATION_KEY,
+            {
+                "provider": provider.name,
+                "fingerprint": _google_provider_fingerprint(provider),
+            },
+        )
+
+
+def google_admin_login_verified(providers: list[SSOProvider]) -> bool:
+    try:
+        verification = get_kv_store().load(_GOOGLE_ADMIN_VERIFICATION_KEY)
+    except KvKeyNotFoundError:
+        return False
+    return isinstance(verification, dict) and any(
+        provider.provider_type is SSOProviderType.GOOGLE_OAUTH
+        and verification.get("provider") == provider.name
+        and verification.get("fingerprint") == _google_provider_fingerprint(provider)
+        for provider in providers
+    )
 
 
 def fetch_sso_providers(

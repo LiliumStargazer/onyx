@@ -18,7 +18,7 @@ from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.enums import IncognitoRecordMode
 from onyx.db.security_settings import load_overrides as _db_load_overrides
 from onyx.db.security_settings import upsert_overrides as _db_upsert_overrides
-from onyx.db.sso_provider import fetch_sso_providers
+from onyx.db.sso_provider import fetch_sso_providers, google_admin_login_verified
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.key_value_store.factory import get_kv_store
@@ -212,16 +212,24 @@ def _apply_present_keys(
     return SecuritySettingsOverrides.model_validate(merged)
 
 
-def _assert_login_path_survives(effective: SecuritySettings) -> None:
+def _assert_login_path_survives(
+    effective: SecuritySettings, was_password_auth_enabled: bool
+) -> None:
     """Refuse turning password auth off with no enabled SSO provider left."""
     if effective.password_auth_enabled:
         return
     with get_session_with_current_tenant() as db_session:
-        if not fetch_sso_providers(db_session, enabled_only=True):
+        providers = fetch_sso_providers(db_session, enabled_only=True)
+        if not providers:
             raise OnyxError(
                 OnyxErrorCode.INVALID_INPUT,
                 "Enable an SSO provider before turning off password login, "
                 "otherwise no one can sign in.",
+            )
+        if was_password_auth_enabled and not google_admin_login_verified(providers):
+            raise OnyxError(
+                OnyxErrorCode.INVALID_INPUT,
+                "Verify an admin Google login before disabling password login.",
             )
 
 
@@ -346,7 +354,10 @@ def apply_patch(
             effective = merge_with_env(merged)
         except ValidationError as e:
             raise OnyxError(OnyxErrorCode.INVALID_INPUT, str(e))
-        _assert_login_path_survives(effective)
+        _assert_login_path_survives(
+            effective,
+            was_password_auth_enabled=merge_with_env(existing).password_auth_enabled,
+        )
         _store_overrides_unlocked(merged)
         _audit_settings_change(existing, merged, present_keys, actor)
         return effective

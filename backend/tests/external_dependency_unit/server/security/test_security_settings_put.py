@@ -9,6 +9,7 @@ import asyncio
 import json
 import threading
 from collections.abc import Generator
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -21,6 +22,7 @@ from onyx.configs.constants import (
     KV_PASSWORD_AUTH_ENABLED_KEY,
 )
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
+from onyx.db.enums import SSOProviderType
 from onyx.db.models import SecuritySettings as SecuritySettingsRow
 from onyx.db.models import User
 from onyx.error_handling.error_codes import OnyxErrorCode
@@ -381,6 +383,9 @@ def _patch_enabled_providers(
         "fetch_sso_providers",
         lambda *_a, **_kw: providers,
     )
+    monkeypatch.setattr(
+        security_store, "google_admin_login_verified", lambda _providers: True
+    )
 
 
 def test_put_rejects_disabling_auth_with_no_enabled_provider(
@@ -407,6 +412,21 @@ def test_put_allows_disabling_auth_with_enabled_provider(
     assert result.password_auth_enabled is False
     assert _load_kv(KV_PASSWORD_AUTH_ENABLED_KEY) is False
     assert _load_row_as_dict() == {}
+
+
+def test_put_requires_verified_google_admin_before_password_lockdown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_enabled_providers(
+        monkeypatch, [SimpleNamespace(provider_type=SSOProviderType.GOOGLE_OAUTH)]
+    )
+    monkeypatch.setattr(
+        security_store, "google_admin_login_verified", lambda _providers: False
+    )
+    with pytest.raises(OnyxError) as exc_info:
+        _put({"password_auth_enabled": False})
+    assert exc_info.value.error_code is OnyxErrorCode.INVALID_INPUT
+    assert _load_kv(KV_PASSWORD_AUTH_ENABLED_KEY) == "missing"
 
 
 def test_put_explicit_null_clears_kill_switch(

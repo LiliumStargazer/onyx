@@ -3,6 +3,7 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -16,16 +17,167 @@ from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 from starlette.responses import Response
 
-from onyx.auth.google_workspace import admit_google_workspace_login, workspace_role_map
+from onyx.auth.google_workspace import (
+    admit_google_workspace_login,
+    recheck_google_workspace_user,
+    workspace_role_map,
+)
+from onyx.auth.session_tokens import (
+    GOOGLE_LOGIN_VERIFIED,
+    SSO_LOGIN_VERIFIED,
+    SessionTokenValue,
+)
 from onyx.auth.users import (
     FASTAPI_USERS_AUTH_COOKIE_NAME,
+    TenantAwareRedisStrategy,
     UserManager,
     complete_login_flow,
 )
 from onyx.db import sso_provider
-from onyx.db.enums import Permission
+from onyx.db.enums import Permission, SSOProviderType
 from onyx.db.sso_provider import GoogleProviderConfig
 from onyx.error_handling.exceptions import OnyxError
+
+
+def test_admin_google_proof_is_bound_to_provider_configuration() -> None:
+    provider = MagicMock(name="google", provider_type=SSOProviderType.GOOGLE_OAUTH)
+    provider.name = "google"
+    provider.allowed_email_domains = ["corp.test"]
+    provider.config.get_value.return_value = {"ou_role_map": '{"/":"interni"}'}
+    kv_store = MagicMock()
+    with (
+        patch("onyx.db.sso_provider.get_session_with_current_tenant") as session,
+        patch("onyx.db.sso_provider.get_kv_store", return_value=kv_store),
+        patch("onyx.db.sso_provider.fetch_sso_provider_by_name", return_value=provider),
+    ):
+        session.return_value.__enter__.return_value = MagicMock()
+        sso_provider.record_google_admin_verification("google")
+        kv_store.load.return_value = kv_store.store.call_args.args[1]
+        assert sso_provider.google_admin_login_verified([provider])
+        provider.config.get_value.return_value = {"ou_role_map": '{"/":"agente"}'}
+        assert not sso_provider.google_admin_login_verified([provider])
+
+
+@pytest.mark.asyncio
+async def test_google_session_expires_at_twelve_hours_even_after_refresh() -> None:
+    user = MagicMock(id=uuid4(), email="admin@corp.test", workspace_role="interni")
+    redis = AsyncMock()
+    redis.get.return_value = None
+    strategy = TenantAwareRedisStrategy()
+    with (
+        patch("onyx.auth.users.get_async_redis_connection", return_value=redis),
+        patch("onyx.auth.users.resolve_tenant_for_user", return_value="public"),
+    ):
+        verification = GOOGLE_LOGIN_VERIFIED.set(True)
+        sso_verification = SSO_LOGIN_VERIFIED.set(True)
+        try:
+            token = await strategy.write_token(user)
+        finally:
+            GOOGLE_LOGIN_VERIFIED.reset(verification)
+            SSO_LOGIN_VERIFIED.reset(sso_verification)
+        stored = json.loads(redis.set.call_args.args[1])
+        assert (
+            datetime.fromisoformat(stored["expires_at"])
+            - datetime.fromisoformat(stored["issued_at"])
+        ).total_seconds() == 43200
+        assert stored["google_verified"] is True
+        assert stored["sso_verified"] is True
+        redis.get.return_value = redis.set.call_args.args[1]
+        await strategy.refresh_token(token, user)
+        refreshed = json.loads(redis.set.call_args.args[1])
+        assert refreshed["expires_at"] == stored["expires_at"]
+
+        manager = MagicMock()
+        manager.parse_id.return_value = user.id
+        manager.get = AsyncMock(return_value=user)
+        assert await strategy.read_token(token, manager) is user
+        redis.get.return_value = SessionTokenValue(
+            sub=str(user.id), google_verified=False
+        ).model_dump_json()
+        assert (
+            await strategy.read_token(token, manager) is None
+        )  # Old cookie cannot transfer.
+        redis.get.return_value = SessionTokenValue(
+            sub=str(user.id),
+            google_verified=True,
+            issued_at=datetime.now(timezone.utc) - timedelta(hours=13),
+        ).model_dump_json()
+        assert await strategy.read_token(token, manager) is None
+
+        user.workspace_role = None
+        with patch("onyx.auth.users.get_security_settings") as security:
+            security.return_value.password_auth_enabled = False
+            redis.get.return_value = SessionTokenValue(
+                sub=str(user.id),
+                issued_at=datetime.now(timezone.utc),
+            ).model_dump_json()
+            assert await strategy.read_token(token, manager) is None
+            redis.get.return_value = SessionTokenValue(
+                sub=str(user.id),
+                issued_at=datetime.now(timezone.utc),
+                sso_verified=True,
+            ).model_dump_json()
+            assert await strategy.read_token(token, manager) is user
+
+
+@pytest.mark.asyncio
+async def test_protected_request_rechecks_directory_and_denies_revocation_or_outage() -> (
+    None
+):
+    user = MagicMock(email="admin@corp.test", workspace_role="interni")
+    user.oauth_accounts = [MagicMock(oauth_name="google", account_id="123")]
+    db_session = AsyncMock()
+    redis = AsyncMock()
+    redis.get.return_value = None
+    directory_user = {
+        "id": "123",
+        "primaryEmail": "admin@corp.test",
+        "orgUnitPath": "/Staff",
+        "suspended": False,
+        "archived": False,
+    }
+    with (
+        patch(
+            "onyx.auth.google_workspace.fetch_sso_provider_by_name_async",
+            return_value=None,
+        ),
+        patch(
+            "onyx.auth.google_workspace.get_async_redis_connection", return_value=redis
+        ),
+        patch(
+            "onyx.auth.google_workspace._directory_user", return_value=directory_user
+        ) as directory,
+        patch(
+            "onyx.auth.google_workspace.workspace_role_map",
+            return_value={"/Staff": "interni"},
+        ),
+        patch("onyx.auth.google_workspace.get_security_settings") as security,
+    ):
+        security.return_value.valid_email_domains = ["corp.test"]
+        await recheck_google_workspace_user(user, db_session)
+        redis.set.assert_awaited_once()
+        assert redis.set.call_args.kwargs["ex"] == 300
+        redis.get.return_value = redis.set.call_args.args[1]
+        directory_user["suspended"] = True
+        await recheck_google_workspace_user(user, db_session)
+        assert directory.call_count == 1
+        redis.get.return_value = None  # Cache expired.
+
+        with pytest.raises(OnyxError):
+            await recheck_google_workspace_user(user, db_session)
+        directory.side_effect = OSError("Directory offline")
+        with pytest.raises(OnyxError):
+            await recheck_google_workspace_user(user, db_session)
+        assert user.workspace_role == "interni"
+        user.workspace_role = None
+        with pytest.raises(OnyxError):
+            await recheck_google_workspace_user(user, db_session)
+        user.workspace_role = "interni"
+        directory.side_effect = None
+        directory_user["suspended"] = False
+        directory_user["deletionTime"] = "2026-01-01T00:00:00Z"
+        with pytest.raises(OnyxError):
+            await recheck_google_workspace_user(user, db_session)
 
 
 @pytest.mark.asyncio
@@ -171,6 +323,7 @@ async def test_google_provider_credentials_admit_login_without_environment(
             "primaryEmail": "admin@corp.test",
             "orgUnitPath": "/Staff/Team",
             "suspended": False,
+            "archived": False,
         }
         assert await admit_google_workspace_login(
             OAuth2Token({"id_token": "signed"}), "client", ["corp.test"], provider
@@ -223,6 +376,7 @@ async def test_admin_links_verified_google_identity_only_with_matching_session()
             "onyx.auth.users.get_effective_permissions",
             return_value={Permission.FULL_ADMIN_PANEL_ACCESS},
         ),
+        patch("onyx.auth.users.record_google_admin_verification") as verified_admin,
     ):
         admit.return_value = ("subject", "admin@corp.test", "interni")
         for current_user in (
@@ -279,6 +433,7 @@ async def test_admin_links_verified_google_identity_only_with_matching_session()
             allowed_email_domains_override=["corp.test"],
         )
         assert response.status_code == 302
+        verified_admin.assert_called_once_with("google")
         user_manager.link_verified_google_account.assert_awaited_once()
         assert user_manager.link_verified_google_account.call_args.args[:4] == (
             admin_id,
