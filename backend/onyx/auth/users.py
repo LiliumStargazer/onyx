@@ -1036,17 +1036,20 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
             user.workspace_role = workspace_role
             try:
-                return await self.user_db.add_oauth_account(
-                    user,
-                    {
-                        "oauth_name": oauth_name,
-                        "account_id": account_id,
-                        "account_email": account_email,
-                        "access_token": access_token,
-                        "expires_at": expires_at,
-                        "refresh_token": refresh_token,
-                    },
+                # The adapter refreshes the user and expires this loaded collection.
+                # Appending afterward would trigger an implicit async load.
+                user.oauth_accounts.append(
+                    OAuthAccount(
+                        oauth_name=oauth_name,
+                        account_id=account_id,
+                        account_email=account_email,
+                        access_token=access_token,
+                        expires_at=expires_at,
+                        refresh_token=refresh_token or "",
+                    )
                 )
+                await db_session.commit()
+                return user
             except IntegrityError as exc:
                 raise OnyxError(
                     OnyxErrorCode.UNAUTHORIZED, "Google identity is already linked"

@@ -300,8 +300,8 @@ async def test_explicit_google_link_keeps_admin_account_and_rejects_other_subjec
     session = MagicMock()
     session.run_sync = AsyncMock(return_value=account)
     session.refresh = AsyncMock()
+    session.commit = AsyncMock()
     manager = UserManager(MagicMock())
-    manager.user_db.add_oauth_account = AsyncMock(return_value=account)
     manager.get_by_oauth_account = AsyncMock(side_effect=exceptions.UserNotExists())
 
     @asynccontextmanager
@@ -314,9 +314,10 @@ async def test_explicit_google_link_keeps_admin_account_and_rejects_other_subjec
         )
         assert linked.id == account.id
         assert account.workspace_role == "interni"
-        manager.user_db.add_oauth_account.assert_awaited_once()
+        assert account.oauth_accounts[0].account_id == "subject"
+        session.commit.assert_awaited_once()
 
-        manager.user_db.add_oauth_account.reset_mock()
+        session.commit.reset_mock()
         with pytest.raises(OnyxError):
             await manager.link_verified_google_account(
                 account.id,
@@ -326,11 +327,10 @@ async def test_explicit_google_link_keeps_admin_account_and_rejects_other_subjec
                 "access",
                 "interni",
             )
-        manager.user_db.add_oauth_account.assert_not_awaited()
+        session.commit.assert_not_awaited()
 
-        manager.user_db.add_oauth_account.side_effect = IntegrityError(
-            "insert", {}, Exception()
-        )
+        account.oauth_accounts.clear()
+        session.commit.side_effect = IntegrityError("insert", {}, Exception())
         with pytest.raises(OnyxError, match="Google identity is already linked"):
             await manager.link_verified_google_account(
                 account.id,
