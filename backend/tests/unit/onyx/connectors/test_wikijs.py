@@ -13,6 +13,7 @@ CONFIG = {
     "corpus_root": "/it",
     "excluded_folder_names": '["Bozze"]',
     "visibility_folders": '{"Riservato":"interni"}',
+    "role_visibility_map": '{"interni":["public","interni"],"tecnico":["public","tecnici"],"agente":["public","agenti"],"concessionario":["public","concessionari"]}',
 }
 
 
@@ -324,6 +325,11 @@ def test_missing_or_invalid_policy_blocks_snapshot() -> None:
         {"visibility_folders": "{}"},
         {"visibility_folders": '{"x":"unknown"}'},
         {"visibility_folders": '{"x":[]}'},
+        {"role_visibility_map": None},
+        {"role_visibility_map": "{}"},
+        {"role_visibility_map": '{"interni":["unknown"]}'},
+        {"role_visibility_map": '{"interni":["interni","interni"]}'},
+        {"role_visibility_map": "not json"},
         {"corpus_root": "it"},
     ):
         config = CONFIG | override
@@ -333,6 +339,7 @@ def test_missing_or_invalid_policy_blocks_snapshot() -> None:
                 corpus_root=config["corpus_root"],
                 excluded_folder_names=config["excluded_folder_names"],
                 visibility_folders=config["visibility_folders"],
+                role_visibility_map=config["role_visibility_map"],
             )
 
 

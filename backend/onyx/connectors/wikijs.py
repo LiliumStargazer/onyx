@@ -20,7 +20,9 @@ from onyx.connectors.models import (
 )
 
 _LIST_PAGES = "{ pages { list(orderBy: TITLE) { id path locale title isPublished } } }"
-_VISIBILITIES = frozenset({"public", "interni", "agenti", "tecnici", "concessionari"})
+VISIBILITIES = frozenset({"public", "interni", "agenti", "tecnici", "concessionari"})
+ROLES = frozenset({"interni", "tecnico", "agente", "concessionario"})
+WIKI_ACL_PREFIX = "wikijs_visibility:"
 _EXPLICIT_ANCHOR = re.compile(r"\s+\{#([\w-]+)\}$")
 # ponytail: cap unpaged inventories and page bodies; add streaming only if a Wiki.js API supports it.
 _MAX_INVENTORY_PAGES = 100_000
@@ -75,7 +77,7 @@ def _folder_names(raw: str | None) -> list[str]:
     return names
 
 
-def _visibility_folders(raw: str | None) -> dict[str, str]:
+def parse_visibility_folders(raw: str | None) -> dict[str, str]:
     if raw is None:
         raise ValueError("Wiki.js visibility configuration is required")
     value = json.loads(raw)
@@ -87,7 +89,7 @@ def _visibility_folders(raw: str | None) -> dict[str, str]:
             or not folder.strip()
             or "/" in folder
             or not isinstance(visibility, str)
-            or visibility not in _VISIBILITIES
+            or visibility not in VISIBILITIES
             for folder, visibility in value.items()
         )
     ):
@@ -96,6 +98,33 @@ def _visibility_folders(raw: str | None) -> dict[str, str]:
     if len(folders) != len(value):
         raise ValueError("Duplicate visibility folder names")
     return folders
+
+
+def parse_role_visibility_map(raw: str | None) -> dict[str, list[str]]:
+    if raw is None:
+        raise ValueError("Wiki.js role visibility configuration is required")
+    try:
+        value = json.loads(raw)
+    except ValueError as exc:
+        raise ValueError("Invalid Wiki.js role visibility map") from exc
+    if (
+        not isinstance(value, dict)
+        or set(value) != ROLES
+        or any(
+            not isinstance(visibilities, list)
+            or len(visibilities) != len(set(map(str, visibilities)))
+            or any(
+                not isinstance(v, str) or v not in VISIBILITIES for v in visibilities
+            )
+            for visibilities in value.values()
+        )
+    ):
+        raise ValueError("Invalid Wiki.js role visibility map")
+    return value
+
+
+def wiki_visibility_group(connector_id: int, visibility: str) -> str:
+    return f"{WIKI_ACL_PREFIX}{connector_id}:{visibility}"
 
 
 def _sections(markdown: str, url: str) -> list[TextSection]:
@@ -140,7 +169,7 @@ def _sections(markdown: str, url: str) -> list[TextSection]:
 
 
 class WikiJsConnector(LoadConnector):
-    """Read a Wiki.js snapshot. Visibility metadata does not enforce Onyx access."""
+    """Read a Wiki.js snapshot with visibility metadata for Onyx ACLs."""
 
     def __init__(
         self,
@@ -148,6 +177,7 @@ class WikiJsConnector(LoadConnector):
         corpus_root: str | None,
         excluded_folder_names: str | None,
         visibility_folders: str | None,
+        role_visibility_map: str | None,
     ) -> None:
         parsed_url = urlsplit(wiki_url)
         if (
@@ -175,7 +205,8 @@ class WikiJsConnector(LoadConnector):
         self.wiki_url = wiki_url.rstrip("/")
         self.corpus_root = corpus_root
         self.excluded_folder_names = _folder_names(excluded_folder_names)
-        self.visibility_folders = _visibility_folders(visibility_folders)
+        self.visibility_folders = parse_visibility_folders(visibility_folders)
+        parse_role_visibility_map(role_visibility_map)
         self.api_token: str | None = None
         # Reconcile the later snapshot with per-ID proof, even if the inventory is stale.
         self._verified_pages: dict[int, _WikiPage | None] = {}

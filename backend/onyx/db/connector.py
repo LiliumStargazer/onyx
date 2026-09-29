@@ -64,6 +64,24 @@ def fetch_connectors(
     return list(results.all())
 
 
+def get_wikijs_role_visibilities(
+    db_session: Session, role: str | None
+) -> dict[int, set[str]]:
+    """Read the current policy on every request; invalid maps deny Wiki.js only."""
+    if role is None:
+        return {}
+    from onyx.connectors.wikijs import parse_role_visibility_map
+
+    allowed: dict[int, set[str]] = {}
+    for connector in fetch_connectors(db_session, sources=[DocumentSource.WIKIJS]):
+        try:
+            raw = connector.connector_specific_config.get("role_visibility_map")
+            allowed[connector.id] = set(parse_role_visibility_map(raw).get(role, []))
+        except (ValueError, TypeError):
+            continue
+    return allowed
+
+
 def connector_by_name_source_exists(
     connector_name: str, source: DocumentSource, db_session: Session
 ) -> bool:

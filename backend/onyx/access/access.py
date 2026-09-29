@@ -8,14 +8,17 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 
 from onyx.access.models import DocumentAccess
-from onyx.access.utils import prefix_user_email
+from onyx.access.utils import prefix_external_group, prefix_user_email
 from onyx.configs.constants import (
     CHAT_SESSION_ID_FILE_METADATA_KEY,
     PUBLIC_DOC_PAT,
     DocumentSource,
     FileOrigin,
 )
-from onyx.db.document import get_access_info_for_document, get_access_info_for_documents
+from onyx.connectors.wikijs import wiki_visibility_group
+from onyx.db.connector import get_wikijs_role_visibilities
+from onyx.db.document import get_access_info_for_documents
+from onyx.db.document_access import get_wikijs_document_groups
 from onyx.db.models import (
     ChatMessage,
     ChatSession,
@@ -41,20 +44,7 @@ def _get_access_for_document(
     document_id: str,
     db_session: Session,
 ) -> DocumentAccess:
-    info = get_access_info_for_document(
-        db_session=db_session,
-        document_id=document_id,
-    )
-
-    doc_access = DocumentAccess.build(
-        user_emails=info[1] if info and info[1] else [],
-        user_groups=[],
-        external_user_emails=[],
-        external_user_group_ids=[],
-        is_public=info[2] if info else False,
-    )
-
-    return doc_access
+    return _get_access_for_documents([document_id], db_session)[document_id]
 
 
 def get_access_for_document(
@@ -103,6 +93,14 @@ def _get_access_for_documents(
     for doc_id in document_ids:
         if doc_id not in doc_access:
             doc_access[doc_id] = get_null_document_access()
+    for doc_id, group in get_wikijs_document_groups(db_session, document_ids).items():
+        doc_access[doc_id] = DocumentAccess.build(
+            user_emails=[],
+            user_groups=[],
+            external_user_emails=[],
+            external_user_group_ids=[group] if group else [],
+            is_public=False,
+        )
     return doc_access
 
 
@@ -134,11 +132,21 @@ def _get_acl_for_user(
     """
     if user.is_anonymous:
         return {PUBLIC_DOC_PAT}
-    return {
+    acl = {
         prefix_user_email(user.email),
         *(prefix_user_email(email) for email in user.prior_emails),
         PUBLIC_DOC_PAT,
     }
+    for connector_id, visibilities in (
+        get_wikijs_role_visibilities(db_session, user.workspace_role).items()
+        if db_session is not None
+        else []
+    ):
+        acl.update(
+            prefix_external_group(wiki_visibility_group(connector_id, visibility))
+            for visibility in visibilities
+        )
+    return acl
 
 
 def get_acl_for_user(user: User, db_session: Session | None = None) -> set[str]:

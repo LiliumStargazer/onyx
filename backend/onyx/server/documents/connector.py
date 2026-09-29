@@ -1512,6 +1512,17 @@ def _validate_wikijs_configuration(
 ) -> None:
     if connector_data.source != DocumentSource.WIKIJS:
         return
+    from onyx.connectors.wikijs import (
+        parse_role_visibility_map,
+        parse_visibility_folders,
+    )
+
+    config = connector_data.connector_specific_config
+    try:
+        parse_visibility_folders(config.get("visibility_folders"))
+        parse_role_visibility_map(config.get("role_visibility_map"))
+    except (ValueError, TypeError) as exc:
+        raise OnyxError(OnyxErrorCode.INVALID_INPUT, str(exc)) from exc
     if (
         connector_data.input_type != InputType.LOAD_STATE
         or (connector_data.refresh_freq is not None and not allow_existing_refresh)

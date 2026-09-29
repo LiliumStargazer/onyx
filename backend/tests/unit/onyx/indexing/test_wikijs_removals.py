@@ -133,6 +133,7 @@ def test_rename_removes_old_link_and_updates_existing_new_path() -> None:
         corpus_root="/it",
         excluded_folder_names="[]",
         visibility_folders='{"Riservato":"interni"}',
+        role_visibility_map='{"interni":["interni"],"tecnico":[],"agente":[],"concessionario":[]}',
     )
     connector.load_credentials({"wikijs_api_token": "fixture-token"})
 

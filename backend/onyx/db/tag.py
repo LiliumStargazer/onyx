@@ -183,6 +183,7 @@ def find_tags(
     )
     accessible_documents = apply_document_access_filter(
         accessible_documents,
+        db_session,
         user_email,
         external_group_ids,
         user_id=user_id,

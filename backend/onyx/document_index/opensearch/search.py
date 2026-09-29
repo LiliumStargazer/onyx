@@ -1274,6 +1274,32 @@ class DocumentQuery:
             # there is explicitly no list provided, we make no restrictions on
             # the documents that can be retrieved.
             filter_clauses.append(_get_acl_visibility_filter(access_control_list))
+            wiki_acl = [
+                token
+                for token in access_control_list
+                if token.startswith("external_group:wikijs_visibility:")
+            ]
+            filter_clauses.append(
+                {
+                    "bool": {
+                        "should": [
+                            {
+                                "bool": {
+                                    "must_not": [
+                                        {
+                                            "term": {
+                                                SOURCE_TYPE_FIELD_NAME: DocumentSource.WIKIJS.value
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {"terms": {ACCESS_CONTROL_LIST_FIELD_NAME: wiki_acl}},
+                        ],
+                        "minimum_should_match": 1,
+                    }
+                }
+            )
 
         if forced_document_sets:
             # Its own top-level AND clause (not merged into the OR-based

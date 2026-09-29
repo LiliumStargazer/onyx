@@ -1074,7 +1074,7 @@ export const connectorConfigs: Record<
   },
   wikijs: {
     description:
-      "Initial Wiki.js Markdown snapshot. Use an isolated test index; visibility metadata does not enforce access. Do not use for live import.",
+      "Wiki.js Markdown pages. Workspace roles control visibility in search and documents.",
     values: [
       { type: "text", label: "Wiki.js URL", name: "wiki_url", optional: false },
       {
@@ -1093,6 +1093,12 @@ export const connectorConfigs: Record<
         type: "text",
         label: "Visibility folders (JSON map: folder name to visibility)",
         name: "visibility_folders",
+        optional: false,
+      },
+      {
+        type: "text",
+        label: "Role visibility (JSON map: role to visibility array)",
+        name: "role_visibility_map",
         optional: false,
       },
     ],

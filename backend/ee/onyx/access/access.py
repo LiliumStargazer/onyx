@@ -17,6 +17,7 @@ from onyx.access.access import collect_user_file_access
 from onyx.access.models import DocumentAccess
 from onyx.access.utils import prefix_external_group, prefix_user_group
 from onyx.db.document import get_document_sources, get_documents_by_ids
+from onyx.db.document_access import get_wikijs_document_groups
 from onyx.db.models import User, UserFile
 from onyx.db.user_file import fetch_user_files_with_access_relationships
 from onyx.utils.logger import setup_logger
@@ -61,6 +62,7 @@ def _get_access_for_documents(
     )
     doc_id_map = {doc.id: doc for doc in documents}
 
+    wiki_document_ids = get_wikijs_document_groups(db_session, document_ids)
     # Get all sources in one batch
     doc_id_to_source_map = get_document_sources(
         db_session=db_session,
@@ -75,6 +77,9 @@ def _get_access_for_documents(
         source = doc_id_to_source_map.get(document_id)
         if source is None:
             logger.error("Document %s has no source", document_id)
+            continue
+        if document_id in wiki_document_ids:
+            access_map[document_id] = non_ee_access
             continue
 
         perm_sync_config = get_source_perm_sync_config(source)
