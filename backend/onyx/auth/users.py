@@ -54,6 +54,7 @@ from fastapi_users.manager import UserManagerDependency
 from fastapi_users.openapi import OpenAPIResponseType
 from fastapi_users.router.common import ErrorCode, ErrorModel
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
+from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.exceptions import GetIdEmailError
 from httpx_oauth.integrations.fastapi import OAuth2AuthorizeCallback
 from httpx_oauth.oauth2 import BaseOAuth2, GetAccessTokenError, OAuth2Token
@@ -69,6 +70,7 @@ from onyx.auth.email_utils import (
     send_forgot_password_email,
     send_user_verification_email,
 )
+from onyx.auth.google_workspace import admit_google_workspace_login, workspace_role_map
 from onyx.auth.invited_users import get_invited_users, remove_user_from_invited_users
 from onyx.auth.jwt import verify_jwt_token
 from onyx.auth.login_claims_capture import capture_oauth_login_claims
@@ -1016,6 +1018,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         is_verified_by_default: bool = False,
         allowed_email_domains_override: Sequence[str] | None = None,
         enforce_verified_domain: bool = False,
+        workspace_role: str | None = None,
     ) -> User:
         referral_source = (
             getattr(request.state, "referral_source", None)  # ods: ignore[getattr]
@@ -1120,9 +1123,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                             stale_link is not None
                             and oauth_security_settings.allow_same_provider_subject_relink
                         )
-                        if not associate_by_email and (
-                            user.prior_emails
-                            or (user.oauth_accounts and not relink_allowed)
+                        if workspace_role is not None or (
+                            not associate_by_email
+                            and (
+                                user.prior_emails
+                                or (user.oauth_accounts and not relink_allowed)
+                            )
                         ):
                             raise exceptions.UserAlreadyExists()
 
@@ -1225,6 +1231,11 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             rekey_tenant_mapping_after_login(
                 user.email, tenant_id, oauth_identities, replaced_email
             )
+
+            if workspace_role is not None:
+                user = await self.user_db.update(
+                    user, update_dict={"workspace_role": workspace_role}
+                )
 
             # NOTE: Most IdPs have very short expiry times, and we don't want to force the user to
             # re-authenticate that frequently, so by default this is disabled
@@ -2748,17 +2759,29 @@ async def complete_login_flow(
     the same override rather than re-deriving a workspace from the address, which
     a first-time member does not yet answer to.
     """
-    # Convert a failed or unverified userinfo fetch into a controlled login
-    # rejection. OnyxError has a global handler, GetIdEmailError would 500.
-    try:
-        account_id, account_email = await oauth_client.get_id_email(
-            token["access_token"]
+    workspace_role: str | None = None
+    if isinstance(oauth_client, GoogleOAuth2) and workspace_role_map() is not None:
+        account_id, account_email, workspace_role = await admit_google_workspace_login(
+            token,
+            oauth_client.client_id,
+            list(
+                allowed_email_domains_override
+                if allowed_email_domains_override is not None
+                else get_security_settings().valid_email_domains
+            ),
         )
-    except GetIdEmailError as e:
-        raise OnyxError(
-            OnyxErrorCode.VALIDATION_ERROR,
-            "Could not retrieve a verified identity from the SSO provider",
-        ) from e
+        associate_by_email = False
+    else:
+        # OnyxError has a global handler; GetIdEmailError would produce a 500.
+        try:
+            account_id, account_email = await oauth_client.get_id_email(
+                token["access_token"]
+            )
+        except GetIdEmailError as e:
+            raise OnyxError(
+                OnyxErrorCode.VALIDATION_ERROR,
+                "Could not retrieve a verified identity from the SSO provider",
+            ) from e
 
     if account_email is None:
         raise OnyxError(
@@ -2799,6 +2822,7 @@ async def complete_login_flow(
             is_verified_by_default=is_verified_by_default,
             allowed_email_domains_override=allowed_email_domains_override,  # ty: ignore[unknown-argument]
             enforce_verified_domain=enforce_verified_domain,  # ty: ignore[unknown-argument]
+            workspace_role=workspace_role,  # ty: ignore[unknown-argument]
         )
     except UserAlreadyExists:
         raise OnyxError(

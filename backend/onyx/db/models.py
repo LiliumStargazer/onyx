@@ -401,6 +401,8 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # personalization fields are exposed via the chat user settings "Personalization" tab
     personal_name: Mapped[str | None] = mapped_column(String, nullable=True)
     personal_role: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Workspace content role, independent of Onyx administration and profile text.
+    workspace_role: Mapped[str | None] = mapped_column(String, nullable=True)
     use_memories: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     enable_memory_tool: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True

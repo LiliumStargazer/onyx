@@ -919,6 +919,88 @@ class TestOAuthNoAutoLinkExemptions:
     @patch("onyx.auth.users.verify_email_domain")
     @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
     @patch("onyx.auth.users.get_async_session_context_manager")
+    @patch("onyx.auth.users.SQLAlchemyUserDatabase")
+    async def test_workspace_identity_cannot_claim_existing_email(
+        self,
+        mock_user_db_cls: MagicMock,
+        mock_session_manager: MagicMock,
+        mock_fetch_ee: MagicMock,
+        mock_verify_domain: MagicMock,  # noqa: ARG002
+        mock_verify_whitelist: MagicMock,  # noqa: ARG002
+        mock_async_session: MagicMock,
+    ) -> None:
+        mock_session_manager.return_value = _AsyncSessionContextManager(
+            mock_async_session
+        )
+        mock_fetch_ee.return_value = AsyncMock(return_value="test_tenant")
+        user_manager = self._manager_with_existing(self._unclaimed(), mock_user_db_cls)
+
+        with pytest.raises(exceptions.UserAlreadyExists):
+            await user_manager.oauth_callback(
+                oauth_name="google",
+                access_token="token",
+                account_id="second-subject",
+                account_email="provisioned@corp.com",
+                associate_by_email=True,
+                workspace_role="interni",
+            )
+
+        cast(AsyncMock, user_manager.user_db.add_oauth_account).assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("onyx.auth.users.MULTI_TENANT", False)
+    @patch("onyx.auth.users.verify_email_in_whitelist")
+    @patch("onyx.auth.users.verify_email_domain")
+    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.get_async_session_context_manager")
+    @patch("onyx.auth.users.remove_user_from_invited_users")
+    @patch("onyx.auth.users.SQLAlchemyUserDatabase")
+    async def test_workspace_subject_keeps_account_after_email_change(
+        self,
+        mock_user_db_cls: MagicMock,
+        mock_remove_invited: MagicMock,
+        mock_session_manager: MagicMock,
+        mock_fetch_ee: MagicMock,
+        mock_verify_domain: MagicMock,  # noqa: ARG002
+        mock_verify_whitelist: MagicMock,  # noqa: ARG002
+        mock_async_session: MagicMock,
+    ) -> None:
+        mock_session_manager.return_value = _AsyncSessionContextManager(
+            mock_async_session
+        )
+        mock_fetch_ee.return_value = AsyncMock(return_value="test_tenant")
+        linked = self._unclaimed(
+            email="old@corp.com",
+            oauth_accounts=[MagicMock(oauth_name="google", account_id="subject-123")],
+        )
+        user_manager = self._manager_with_existing(linked, mock_user_db_cls)
+        user_manager.get_by_oauth_account = AsyncMock(return_value=linked)
+        mock_async_session.run_sync = AsyncMock(
+            return_value=("old@corp.com", ["old@corp.com"])
+        )
+
+        result = await user_manager.oauth_callback(
+            oauth_name="google",
+            access_token="token",
+            account_id="subject-123",
+            account_email="new@corp.com",
+            workspace_role="interni",
+        )
+
+        assert result.id == linked.id
+        assert result.email == "new@corp.com"
+        mock_remove_invited.assert_any_call("old@corp.com")
+        cast(AsyncMock, user_manager.user_db.add_oauth_account).assert_not_awaited()
+        cast(AsyncMock, user_manager.user_db.update).assert_awaited_with(
+            linked, update_dict={"workspace_role": "interni"}
+        )
+
+    @pytest.mark.asyncio
+    @patch("onyx.auth.users.MULTI_TENANT", False)
+    @patch("onyx.auth.users.verify_email_in_whitelist")
+    @patch("onyx.auth.users.verify_email_domain")
+    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.remove_user_from_invited_users")
     @patch("onyx.auth.users.SQLAlchemyUserDatabase")
     async def test_deactivated_row_is_not_linked(
