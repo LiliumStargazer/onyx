@@ -1,10 +1,6 @@
-name: Build and Push Docker Images on Tag
+name: Build and Push Upstream Docker Images (manual)
 
 on:
-  push:
-    tags:
-      - "*"
-      - "!wiki-agent-rag-v*"
   workflow_dispatch:
 
 # Set restrictive default permissions for all jobs. Jobs that need more permissions
