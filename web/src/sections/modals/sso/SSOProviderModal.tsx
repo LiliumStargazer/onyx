@@ -332,10 +332,18 @@ export function SSOProviderModal({ provider, onSaved }: SSOProviderModalProps) {
             touched,
             isSubmitting,
             dirty,
-            isValid,
           }) => {
             const providerType = values.provider_type;
             const providerTypeIcon = SSO_PROVIDER_DETAILS[providerType].icon;
+            const validationError = [
+              errors.name,
+              errors.display_name,
+              errors.provider_type,
+              errors.allowed_email_domains,
+              ...(errors.config && typeof errors.config === "object"
+                ? Object.values(errors.config)
+                : [errors.config]),
+            ].find((error): error is string => typeof error === "string");
 
             return (
               // flex-col fills the fixed-height Content so Modal.Body scrolls
@@ -504,6 +512,11 @@ export function SSOProviderModal({ provider, onSaved }: SSOProviderModalProps) {
                 </Modal.Body>
 
                 <Modal.Footer>
+                  {dirty && validationError && (
+                    <Text font="secondary-body" color="status-error-05">
+                      {validationError}
+                    </Text>
+                  )}
                   <Button
                     prominence="secondary"
                     type="button"
@@ -513,7 +526,7 @@ export function SSOProviderModal({ provider, onSaved }: SSOProviderModalProps) {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !isValid || !dirty}
+                    disabled={isSubmitting || !dirty}
                     icon={isSubmitting ? SvgSimpleLoader : undefined}
                   >
                     {isEditing
