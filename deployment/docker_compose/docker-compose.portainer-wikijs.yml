@@ -1,5 +1,5 @@
 # Portainer Git stack: add this file after docker-compose.yml.
-# Keep the UI on the host loopback; never expose Wiki.js documents publicly.
+# Caddy serves public HTTPS; do not sync the real Wiki until access checks pass.
 services:
   api_server:
     image: ghcr.io/liliumstargazer/onyx-backend:${IMAGE_TAG:?Set IMAGE_TAG in Portainer}
@@ -8,7 +8,7 @@ services:
       FILE_STORE_BACKEND: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
       USER_AUTH_SECRET: ${USER_AUTH_SECRET:?Set USER_AUTH_SECRET in Portainer}
-      WEB_DOMAIN: http://localhost:13000
+      WEB_DOMAIN: https://am-copilot.duckdns.org
   background:
     image: ghcr.io/liliumstargazer/onyx-backend:${IMAGE_TAG:?Set IMAGE_TAG in Portainer}
     build: !reset null
@@ -16,11 +16,12 @@ services:
       FILE_STORE_BACKEND: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Portainer}
       USER_AUTH_SECRET: ${USER_AUTH_SECRET:?Set USER_AUTH_SECRET in Portainer}
+      WEB_DOMAIN: https://am-copilot.duckdns.org
   web_server:
     image: ghcr.io/liliumstargazer/onyx-web-server:${IMAGE_TAG:?Set IMAGE_TAG in Portainer}
     build: !reset null
     environment:
-      WEB_DOMAIN: http://localhost:13000
+      WEB_DOMAIN: https://am-copilot.duckdns.org
   inference_model_server:
     image: onyxdotapp/onyx-model-server:nightly-latest-20260926
     build: !reset null
@@ -37,7 +38,28 @@ services:
       # ponytail: 1 GiB heap for the 8 GiB trial host; restore 2 GiB on a larger host.
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
   nginx:
-    ports: !override
-      - "127.0.0.1:13000:80"
+    ports: !override []
     volumes:
       - /opt/onyx/nginx:/nginx-templates:ro
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      DOMAIN: am-copilot.duckdns.org
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        printf '%s {\n  reverse_proxy nginx:80\n}\n' "$$DOMAIN" > /etc/caddy/Caddyfile
+        && exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nginx
+
+volumes:
+  caddy_data:
+  caddy_config:
