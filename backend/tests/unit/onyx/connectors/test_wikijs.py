@@ -51,9 +51,7 @@ def test_initial_snapshot_preserves_paths_visibility_and_section_links() -> None
             _graphql(
                 {
                     "single": {
-                        "id": 1,
-                        "path": "Help",
-                        "locale": "it",
+                        **_page(1, "Help"),
                         "content": "# Installazione\nTesto\n",
                     }
                 }
@@ -61,9 +59,7 @@ def test_initial_snapshot_preserves_paths_visibility_and_section_links() -> None
             _graphql(
                 {
                     "single": {
-                        "id": 2,
-                        "path": "Riservato/Manuale",
-                        "locale": "it",
+                        **_page(2, "Riservato/Manuale"),
                         "content": "## Accesso\nSegreto\n",
                     }
                 }
@@ -71,9 +67,7 @@ def test_initial_snapshot_preserves_paths_visibility_and_section_links() -> None
             _graphql(
                 {
                     "single": {
-                        "id": 5,
-                        "path": "Help/Other",
-                        "locale": "it",
+                        **_page(5, "Help/Other"),
                         "content": "Altro",
                     }
                 }
@@ -116,9 +110,8 @@ def test_next_snapshot_emits_changed_content_and_visibility_at_same_path() -> No
                 _graphql(
                     {
                         "single": {
-                            "id": 7,
-                            "path": path,
-                            "locale": "it",
+                            **_page(7, path),
+                            "title": title,
                             "content": content,
                         }
                     }
@@ -242,9 +235,8 @@ def test_verified_rename_indexes_new_path_from_stale_inventory() -> None:
             _graphql(
                 {
                     "single": {
-                        "id": 7,
-                        "path": "Riservato/New",
-                        "locale": "it",
+                        **_page(7, "Riservato/New"),
+                        "title": "New title",
                         "content": "New text",
                     }
                 }
@@ -252,9 +244,7 @@ def test_verified_rename_indexes_new_path_from_stale_inventory() -> None:
             _graphql(
                 {
                     "single": {
-                        "id": 8,
-                        "path": "Other",
-                        "locale": "it",
+                        **_page(8, "Other"),
                         "content": "Other text",
                     }
                 }
@@ -273,6 +263,38 @@ def test_verified_rename_indexes_new_path_from_stale_inventory() -> None:
     assert docs[0].title == "New title"
     assert docs[0].get_text_content() == "New text"
     assert docs[0].doc_metadata == {"wikijs_page_id": 7, "visibility": "interni"}
+
+
+def test_same_path_uses_title_read_with_content_when_inventory_is_stale() -> None:
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with patch(
+        "httpx.post",
+        side_effect=[
+            _graphql({"list": [_page(7, "Old")]}),
+            _graphql({"single": {**_page(7, "Old"), "title": "Current title"}}),
+            _graphql({"list": [_page(7, "Old")]}),
+            _graphql(
+                {
+                    "single": {
+                        **_page(7, "Old"),
+                        "title": "Current title",
+                        "content": "Current content",
+                    }
+                }
+            ),
+        ],
+    ) as post:
+        assert connector.confirm_removed_pages({"/it/Old": 7}) == []
+        doc = next(
+            doc
+            for batch in connector.load_from_state()
+            for doc in batch
+            if isinstance(doc, Document)
+        )
+
+    assert "title isPublished content" in post.call_args.kwargs["json"]["query"]
+    assert doc.title == "Current title"
 
 
 def test_verified_move_out_of_scope_does_not_reload_old_path() -> None:
@@ -361,9 +383,7 @@ def test_explicit_heading_anchor_is_preserved_and_code_fence_is_not_a_heading() 
             _graphql(
                 {
                     "single": {
-                        "id": 1,
-                        "path": "Help",
-                        "locale": "it",
+                        **_page(1, "Help"),
                         "content": "# Setup {#install}\nText\n```\n# Not a heading\n```",
                     }
                 }
@@ -406,9 +426,7 @@ def test_inconsistent_page_response_fails_closed() -> None:
             _graphql(
                 {
                     "single": {
-                        "id": 1,
-                        "path": "Other",
-                        "locale": "it",
+                        **_page(1, "Other"),
                         "content": "wrong",
                     }
                 }

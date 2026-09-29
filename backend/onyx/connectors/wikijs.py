@@ -319,22 +319,26 @@ class WikiJsConnector(LoadConnector):
         batch: list[Document | HierarchyNode] = []
         for page, visibility in self._snapshot_pages():
             details = self._query(
-                f"{{ pages {{ single(id: {page.id}) {{ id path locale content }} }} }}"
+                f"{{ pages {{ single(id: {page.id}) {{ id path locale title isPublished content }} }} }}"
             ).get("single")
-            if not isinstance(details, dict) or (
-                details.get("id") != page.id
-                or details.get("path") != page.path
-                or details.get("locale") != page.locale
-                or not isinstance(details.get("content"), str)
+            if not isinstance(details, dict) or not isinstance(
+                details.get("content"), str
             ):
                 raise ValueError(f"Incomplete Wiki.js page: {page.page_path}")
+            current_page = _WikiPage.model_validate(details)
+            if (
+                current_page.id != page.id
+                or current_page.page_path != page.page_path
+                or not current_page.isPublished
+            ):
+                raise ValueError(f"Changed Wiki.js page: {page.page_path}")
             url = f"{self.wiki_url}{quote(page.page_path, safe='/')}"
             batch.append(
                 Document(
                     id=page.page_path,
                     source=DocumentSource.WIKIJS,
-                    semantic_identifier=page.title,
-                    title=page.title,
+                    semantic_identifier=current_page.title,
+                    title=current_page.title,
                     sections=_sections(details["content"], url),
                     metadata={"page_path": page.page_path, "visibility": visibility},
                     doc_metadata={"wikijs_page_id": page.id, "visibility": visibility},

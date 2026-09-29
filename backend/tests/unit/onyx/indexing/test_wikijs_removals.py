@@ -19,7 +19,7 @@ from onyx.db.document import (
     upsert_document_by_connector_credential_pair,
 )
 from onyx.db.models import Document as DBDocument
-from onyx.indexing.indexing_pipeline import get_docs_to_update, index_doc_batch_prepare
+from onyx.indexing.indexing_pipeline import index_doc_batch_prepare
 
 
 def test_wikijs_page_ids_are_scoped_to_cc_pair_and_legacy_shared_ids_are_ignored() -> (
@@ -156,16 +156,14 @@ def test_rename_removes_old_link_and_updates_existing_new_path() -> None:
         patch(
             "httpx.post",
             side_effect=[
-                response({"list": [new_page]}),
-                response({"single": new_page}),
-                response({"single": new_page}),
+                response({"list": [new_page | {"path": "Old", "title": "Old title"}]}),
+                response({"single": new_page | {"title": "Earlier title"}}),
+                response({"single": new_page | {"title": "Earlier title"}}),
                 response({"list": [new_page]}),
                 response(
                     {
                         "single": {
-                            "id": 7,
-                            "path": "Riservato/New",
-                            "locale": "it",
+                            **new_page,
                             "content": "Current content",
                         }
                     }
@@ -204,12 +202,39 @@ def test_rename_removes_old_link_and_updates_existing_new_path() -> None:
     previous = cast(
         DBDocument,
         SimpleNamespace(
-            id=new_document.id, doc_updated_at=None, content_hash="old revision"
+            id=new_document.id,
+            file_id=None,
+            boost=0,
+            doc_updated_at=None,
+            content_hash=new_document.model_copy(
+                update={"title": "Earlier title"}
+            ).content_hash(),
         ),
     )
-    assert get_docs_to_update([new_document], [previous]).updatable_docs == [
-        new_document
-    ]
+    attempt = IndexAttemptMetadata(
+        connector_id=3, credential_id=4, attempt_id=None, request_id="test"
+    )
+    db_session = Mock()
+    with (
+        patch(
+            "onyx.indexing.indexing_pipeline.get_documents_by_ids",
+            return_value=[previous],
+        ),
+        patch("onyx.indexing.indexing_pipeline.upsert_document_tags"),
+        patch(
+            "onyx.indexing.indexing_pipeline.upsert_document_by_connector_credential_pair"
+        ),
+        patch("onyx.indexing.indexing_pipeline.link_hierarchy_nodes_to_documents"),
+    ):
+        prepared = index_doc_batch_prepare([new_document], attempt, db_session)
+
+    assert prepared is not None and prepared.updatable_docs == [new_document]
+    statement = db_session.execute.call_args.args[0].compile(
+        dialect=postgresql.dialect()
+    )
+    assert "/it/Riservato/New" in statement.params.values()
+    assert "Current title" in statement.params.values()
+    assert "ON CONFLICT (id) DO UPDATE" in str(statement)
 
 
 def test_verification_error_never_starts_cleanup() -> None:
