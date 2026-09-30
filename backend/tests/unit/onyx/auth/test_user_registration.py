@@ -48,6 +48,7 @@ def mock_async_session() -> MagicMock:
     session = MagicMock()
     session.execute = AsyncMock()
     session.scalar = AsyncMock()
+    session.refresh = AsyncMock()
     session.commit = AsyncMock()
     session.rollback = AsyncMock()
     session.run_sync = AsyncMock(return_value=None)

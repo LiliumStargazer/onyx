@@ -21,8 +21,9 @@ from onyx.db.sso_provider import (
     parse_ou_role_map,
 )
 from onyx.db.users import (
-    persist_user_workspace_role,
-    revoke_user_chat_access__no_commit,
+    persist_user_workspace_role_and_revoke_chats,
+    revoke_oauth_account_chat_access,
+    revoke_user_chat_access,
 )
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
@@ -112,11 +113,20 @@ def _directory_user(
         return response.json()
 
 
+def _directory_account_was_deleted(error: HTTPError) -> bool:
+    return (
+        error.response is not None
+        and error.response.status_code == OnyxErrorCode.NOT_FOUND.status_code
+    )
+
+
 async def admit_google_workspace_login(
     token: OAuth2Token,
     client_id: str,
     allowed_domains: list[str],
     provider_config: GoogleProviderConfig | None = None,
+    *,
+    oauth_name: str = "google",
 ) -> tuple[str, str, str]:
     """Return verified subject, email and content role, or deny before account creation."""
     role_map = (
@@ -149,33 +159,47 @@ async def admit_google_workspace_login(
         directory_user = await run_in_threadpool(
             _directory_user, subject, provider_config
         )
+        role = _active_directory_role(directory_user, subject, email, role_map)
+    except OnyxError as exc:
+        if exc.error_code is OnyxErrorCode.UNAUTHORIZED:
+            await revoke_oauth_account_chat_access(oauth_name, subject)
+        raise
     except Exception as exc:
+        if isinstance(exc, HTTPError) and _directory_account_was_deleted(exc):
+            await revoke_oauth_account_chat_access(oauth_name, subject)
+            raise OnyxError(
+                OnyxErrorCode.UNAUTHORIZED, "Workspace account was deleted"
+            ) from exc
         logger.exception("Workspace Directory lookup failed")
         raise OnyxError(
             OnyxErrorCode.BAD_GATEWAY, "Workspace Directory is unavailable"
         ) from exc
-    return (
-        subject,
-        email,
-        _active_directory_role(directory_user, subject, email, role_map),
-    )
+    return subject, email, role
 
 
 def _active_directory_role(
     directory_user: dict[str, Any], subject: str, email: str, role_map: dict[str, str]
 ) -> str:
+    if directory_user.get("id") != subject:
+        raise OnyxError(
+            OnyxErrorCode.UNAUTHENTICATED, "Workspace identity does not match"
+        )
     if (
-        directory_user.get("id") != subject
-        or directory_user.get("suspended") is not False
+        directory_user.get("suspended") is not False
         or directory_user.get("archived") not in (False, None)
         or directory_user.get("deletionTime")
-        or str(directory_user.get("primaryEmail", "")).lower() != email.lower()
     ):
         raise OnyxError(OnyxErrorCode.UNAUTHORIZED, "Workspace account is not active")
     ou_path = directory_user.get("orgUnitPath")
     if not isinstance(ou_path, str):
         raise OnyxError(OnyxErrorCode.UNAUTHORIZED, "Workspace OU is not authorized")
-    return role_for_ou(ou_path, role_map)
+    role = role_for_ou(ou_path, role_map)
+    if str(directory_user.get("primaryEmail", "")).lower() != email.lower():
+        # An email change alone requires login, not permanent chat revocation.
+        raise OnyxError(
+            OnyxErrorCode.UNAUTHENTICATED, "Workspace email changed; sign in again"
+        )
+    return role
 
 
 async def recheck_google_workspace_user(user: User, db_session: AsyncSession) -> None:
@@ -196,8 +220,7 @@ async def recheck_google_workspace_user(user: User, db_session: AsyncSession) ->
         ):
             continue
         if user.workspace_role is None:
-            await revoke_user_chat_access__no_commit(db_session, user.id)
-            await db_session.commit()
+            await revoke_user_chat_access(db_session, user.id)
             raise OnyxError(
                 OnyxErrorCode.UNAUTHORIZED, "Workspace role is not assigned"
             )
@@ -254,17 +277,13 @@ async def recheck_google_workspace_user(user: User, db_session: AsyncSession) ->
                 await redis.set(
                     cache_key, json.dumps(directory_user), ex=_DIRECTORY_CACHE_SECONDS
                 )
-        except OnyxError:
-            await revoke_user_chat_access__no_commit(db_session, user.id)
-            await db_session.commit()
+        except OnyxError as exc:
+            if exc.error_code is OnyxErrorCode.UNAUTHORIZED:
+                await revoke_user_chat_access(db_session, user.id)
             raise
         except HTTPError as exc:
-            if (
-                exc.response is not None
-                and exc.response.status_code == OnyxErrorCode.NOT_FOUND.status_code
-            ):
-                await revoke_user_chat_access__no_commit(db_session, user.id)
-                await db_session.commit()
+            if _directory_account_was_deleted(exc):
+                await revoke_user_chat_access(db_session, user.id)
                 raise OnyxError(
                     OnyxErrorCode.UNAUTHORIZED, "Workspace account was deleted"
                 ) from exc
@@ -276,7 +295,7 @@ async def recheck_google_workspace_user(user: User, db_session: AsyncSession) ->
             raise OnyxError(
                 OnyxErrorCode.BAD_GATEWAY, "Workspace Directory is unavailable"
             ) from exc
-        await persist_user_workspace_role(db_session, user, role)
+        await persist_user_workspace_role_and_revoke_chats(db_session, user, role)
         return
     if user.workspace_role is not None:
         raise OnyxError(OnyxErrorCode.UNAUTHORIZED, "Workspace identity is not linked")

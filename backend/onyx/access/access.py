@@ -320,8 +320,8 @@ def _user_can_access_chat_image_gen_file(
         else None
     )
     if raw_session_id is None:
-        # Written before generated files were stamped with their session.
-        return True
+        # Legacy files have no verifiable chat ownership.
+        return False
     try:
         chat_session_id = UUID(str(raw_session_id))
     except ValueError:

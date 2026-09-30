@@ -156,10 +156,10 @@ from onyx.db.users import (
     get_user_by_email,
     get_user_by_oauth_account,
     is_limited_user,
-    persist_user_workspace_role,
+    persist_user_workspace_role_and_revoke_chats,
     promote_placeholder_to_web_login__no_commit,
     reconcile_user_email__no_commit,
-    update_user_workspace_role__no_commit,
+    update_user_workspace_role_and_revoke_chats__no_commit,
 )
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import (
@@ -1044,7 +1044,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                     OnyxErrorCode.UNAUTHORIZED, "Google identity is already linked"
                 )
 
-            await update_user_workspace_role__no_commit(
+            await update_user_workspace_role_and_revoke_chats__no_commit(
                 db_session, user, workspace_role
             )
             try:
@@ -1308,7 +1308,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             )
 
             if workspace_role is not None:
-                await persist_user_workspace_role(db_session, user, workspace_role)
+                await persist_user_workspace_role_and_revoke_chats(
+                    db_session, user, workspace_role
+                )
 
             # NOTE: Most IdPs have very short expiry times, and we don't want to force the user to
             # re-authenticate that frequently, so by default this is disabled
@@ -2875,6 +2877,7 @@ async def complete_login_flow(
                 else get_security_settings().valid_email_domains
             ),
             google_provider_config,
+            oauth_name=oauth_client.name,
         )
         associate_by_email = False
         if AUTH_BACKEND != AuthBackend.REDIS:

@@ -1,7 +1,7 @@
 """Workspace login uses verified Google identity and Directory membership."""
 
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -37,6 +37,15 @@ from onyx.db import sso_provider
 from onyx.db.enums import Permission, SSOProviderType
 from onyx.db.sso_provider import GoogleProviderConfig
 from onyx.error_handling.exceptions import OnyxError
+
+
+@pytest.fixture(autouse=True)
+def _mock_login_chat_revocation_database() -> Iterator[None]:
+    with patch(
+        "onyx.auth.google_workspace.revoke_oauth_account_chat_access",
+        new_callable=AsyncMock,
+    ):
+        yield
 
 
 def test_admin_google_proof_is_bound_to_provider_configuration() -> None:

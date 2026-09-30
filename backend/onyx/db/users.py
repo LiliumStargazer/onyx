@@ -22,6 +22,7 @@ from onyx.configs.constants import (
     NO_AUTH_PLACEHOLDER_USER_EMAIL,
     SLACK_SERVICE_ACCOUNT_EMAIL,
 )
+from onyx.db.engine.async_sql_engine import get_async_session_context_manager
 from onyx.db.enums import AccountType, Permission
 from onyx.db.models import (
     ChatMessage,
@@ -70,20 +71,41 @@ async def revoke_user_chat_access__no_commit(
     )
 
 
-async def update_user_workspace_role__no_commit(
+async def revoke_user_chat_access(db_session: AsyncSession, user_id: UUID) -> None:
+    await revoke_user_chat_access__no_commit(db_session, user_id)
+    await db_session.commit()
+
+
+async def revoke_oauth_account_chat_access(oauth_name: str, account_id: str) -> None:
+    async with get_async_session_context_manager() as db_session:
+        user = await db_session.run_sync(
+            lambda sync_session: get_user_by_oauth_account(
+                oauth_name, account_id, sync_session
+            )
+        )
+        if user is not None:
+            await revoke_user_chat_access(db_session, user.id)
+
+
+async def update_user_workspace_role_and_revoke_chats__no_commit(
     db_session: AsyncSession, user: User, workspace_role: str
 ) -> None:
+    # Compare the current role under a row lock, not a request's stale snapshot.
+    await db_session.refresh(
+        user, attribute_names=["workspace_role"], with_for_update=True
+    )
     if user.workspace_role != workspace_role:
         await revoke_user_chat_access__no_commit(db_session, user.id)
         user.workspace_role = workspace_role
 
 
-async def persist_user_workspace_role(
+async def persist_user_workspace_role_and_revoke_chats(
     db_session: AsyncSession, user: User, workspace_role: str
 ) -> None:
-    if user.workspace_role != workspace_role:
-        await update_user_workspace_role__no_commit(db_session, user, workspace_role)
-        await db_session.commit()
+    await update_user_workspace_role_and_revoke_chats__no_commit(
+        db_session, user, workspace_role
+    )
+    await db_session.commit()
 
 
 def is_limited_user(user: User) -> bool:

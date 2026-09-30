@@ -4,8 +4,8 @@
 authenticated user, so a leaked file id exposed another user's generated images
 and code-interpreter outputs. Generated files are now stamped with their owning
 chat session, and access follows the session: the owner, or anyone when the
-session is shared as `PUBLIC`. Files written before the stamp existed carry no
-session and keep the old behaviour so previously rendered images still load.
+session is shared as `PUBLIC` and sharing is enabled. Files without a session
+stamp are denied because their ownership cannot be verified.
 """
 
 from collections.abc import Generator
@@ -98,7 +98,7 @@ def test_other_user_cannot_read_a_generated_file_from_a_private_session(
     assert not user_can_access_chat_file(file_id, users.intruder, db_session)
 
 
-def test_other_user_can_read_a_generated_file_from_a_public_session(
+def test_disabled_sharing_denies_a_generated_file_from_a_public_session(
     db_session: Session, users: _Users
 ) -> None:
     session = _new_session(db_session, users.owner.id)
@@ -108,7 +108,7 @@ def test_other_user_can_read_a_generated_file_from_a_public_session(
         db_session, users, chat_image_gen_metadata(session.id)
     )
 
-    assert user_can_access_chat_file(file_id, users.intruder, db_session)
+    assert not user_can_access_chat_file(file_id, users.intruder, db_session)
 
 
 def test_deleted_public_session_no_longer_shares_its_generated_file(
@@ -125,12 +125,14 @@ def test_deleted_public_session_no_longer_shares_its_generated_file(
     assert not user_can_access_chat_file(file_id, users.intruder, db_session)
 
 
-def test_legacy_unstamped_generated_file_stays_readable(
-    db_session: Session, users: _Users
+@pytest.mark.parametrize("file_metadata", [None, {}])
+def test_legacy_unstamped_generated_file_is_denied(
+    db_session: Session, users: _Users, file_metadata: dict[str, str] | None
 ) -> None:
-    file_id = _seed_generated_file(db_session, users, None)
+    file_id = _seed_generated_file(db_session, users, file_metadata)
 
-    assert user_can_access_chat_file(file_id, users.intruder, db_session)
+    assert not user_can_access_chat_file(file_id, users.intruder, db_session)
+    assert not user_can_access_chat_file(file_id, users.owner, db_session)
 
 
 def test_malformed_session_stamp_is_denied(db_session: Session, users: _Users) -> None:
