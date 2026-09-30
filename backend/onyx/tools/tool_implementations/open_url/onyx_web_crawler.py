@@ -307,11 +307,7 @@ class OnyxWebCrawler(WebContentProvider):
                 timeout=(self._connect_timeout_seconds, self._read_timeout_seconds),
                 allow_private_network=not self._should_validate_ssrf(),
                 stream=True,
-                **(
-                    {"blocked_hosts": self._blocked_hosts}
-                    if self._blocked_hosts
-                    else {}
-                ),
+                blocked_hosts=self._blocked_hosts,
             )
         except SSRFException as exc:
             logger.error(

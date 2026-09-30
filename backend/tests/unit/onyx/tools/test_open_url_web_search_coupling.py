@@ -150,17 +150,16 @@ def test_open_url_checks_redirect_destinations(destination: str, denied: bool) -
     redirect = requests.Response()
     redirect.status_code = 302
     redirect.headers["Location"] = destination
-    redirect._content = b""
     redirect.raw = HTTPResponse(body=BytesIO(b""), preload_content=False)
     page = requests.Response()
     page.status_code = 200
     page.headers["Content-Type"] = "text/html"
-    page._content = (
+    html_content = (
         b"<html><title>Simulated page</title><body>"
         + b"Simulated excerpt. " * 100
         + b"</body></html>"
     )
-    page.raw = HTTPResponse(body=BytesIO(page._content), preload_content=False)
+    page.raw = HTTPResponse(body=BytesIO(html_content), preload_content=False)
     provider = OnyxWebCrawler(validate_ssrf=True, playwright_fallback_enabled=False)
     tool = OpenURLTool(
         tool_id=2,
