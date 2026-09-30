@@ -2,13 +2,14 @@ from collections.abc import Callable
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, literal, or_, select
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 
 from onyx.access.models import DocumentAccess
 from onyx.access.utils import prefix_external_group, prefix_user_email
+from onyx.configs.chat_configs import CHAT_SHARING_ENABLED
 from onyx.configs.constants import (
     CHAT_SESSION_ID_FILE_METADATA_KEY,
     PUBLIC_DOC_PAT,
@@ -281,6 +282,7 @@ def user_can_access_chat_file(file_id: str, user: User, db_session: Session) -> 
             or_(
                 ChatSession.user_id == user.id,
                 and_(
+                    literal(CHAT_SHARING_ENABLED),
                     ChatSession.shared_status == ChatSessionSharedStatus.PUBLIC,
                     ChatSession.deleted.is_(False),
                 ),
@@ -333,6 +335,7 @@ def _user_can_access_chat_image_gen_file(
             or_(
                 ChatSession.user_id == user.id,
                 and_(
+                    literal(CHAT_SHARING_ENABLED),
                     ChatSession.shared_status == ChatSessionSharedStatus.PUBLIC,
                     ChatSession.deleted.is_(False),
                 ),

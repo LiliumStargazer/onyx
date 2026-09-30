@@ -9,7 +9,7 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql.expression import ColumnElement
 
-from onyx.configs.chat_configs import HARD_DELETE_CHATS
+from onyx.configs.chat_configs import CHAT_SHARING_ENABLED, HARD_DELETE_CHATS
 from onyx.configs.constants import ANONYMOUS_USER_UUID, DocumentSource, MessageType
 from onyx.context.search.models import InferenceSection, SavedSearchDoc
 from onyx.context.search.models import SearchDoc as ServerSearchDoc
@@ -110,6 +110,10 @@ def get_chat_session_by_id(
     is_shared: bool = False,
     eager_load_persona: bool = False,
 ) -> ChatSession:
+    if is_shared and not CHAT_SHARING_ENABLED:
+        raise OnyxError(
+            OnyxErrorCode.INSUFFICIENT_PERMISSIONS, "Chat sharing is disabled"
+        )
     stmt = select(ChatSession).where(ChatSession.id == chat_session_id)
 
     if eager_load_persona:
@@ -157,7 +161,10 @@ def get_chat_sessions_by_slack_thread_id(
     user_id: UUID | None,
     db_session: Session,
 ) -> Sequence[ChatSession]:
-    stmt = select(ChatSession).where(ChatSession.slack_thread_id == slack_thread_id)
+    stmt = select(ChatSession).where(
+        ChatSession.slack_thread_id == slack_thread_id,
+        build_chat_document_access_filter(db_session, user_id),
+    )
     if user_id is not None:
         stmt = stmt.where(
             or_(ChatSession.user_id == user_id, ChatSession.user_id.is_(None))
@@ -408,6 +415,10 @@ def update_chat_session(
     description: str | None = None,
     sharing_status: ChatSessionSharedStatus | None = None,
 ) -> ChatSession:
+    if sharing_status is not None and not CHAT_SHARING_ENABLED:
+        raise OnyxError(
+            OnyxErrorCode.INSUFFICIENT_PERMISSIONS, "Chat sharing is disabled"
+        )
     chat_session = get_chat_session_by_id(
         chat_session_id=chat_session_id, user_id=user_id, db_session=db_session
     )

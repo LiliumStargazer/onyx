@@ -16,6 +16,7 @@ import { useAppBackground } from "@/providers/AppBackgroundProvider";
 import { useTheme } from "next-themes";
 import useBrowserInfo from "@/hooks/useBrowserInfo";
 import ShareChatSessionModal from "@/sections/modals/ShareChatSessionModal";
+import { CHAT_SHARING_ENABLED } from "@/lib/constants";
 import { useProjectsContext } from "@/lib/projects/providers";
 import useChatSessions from "@/hooks/useChatSessions";
 import {
@@ -365,7 +366,7 @@ function Header() {
 
   return (
     <>
-      {showShareModal && currentChatSession && (
+      {CHAT_SHARING_ENABLED && showShareModal && currentChatSession && (
         <ShareChatSessionModal
           chatSession={currentChatSession}
           onClose={() => setShowShareModal(false)}
@@ -569,16 +570,18 @@ function Header() {
                   currentChatSession &&
                   !incognitoEnabled && (
                     <FrostedDiv className="flex shrink flex-row items-center">
-                      <Button
-                        icon={SvgShare}
-                        prominence="tertiary"
-                        interaction={showShareModal ? "hover" : "rest"}
-                        responsiveHideText
-                        onClick={() => setShowShareModal(true)}
-                        aria-label="share-chat-button"
-                      >
-                        {t("share.label")}
-                      </Button>
+                      {CHAT_SHARING_ENABLED && (
+                        <Button
+                          icon={SvgShare}
+                          prominence="tertiary"
+                          interaction={showShareModal ? "hover" : "rest"}
+                          responsiveHideText
+                          onClick={() => setShowShareModal(true)}
+                          aria-label="share-chat-button"
+                        >
+                          {t("share.label")}
+                        </Button>
+                      )}
                       <SimplePopover
                         trigger={
                           <Button

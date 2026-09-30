@@ -233,7 +233,7 @@ def build_chat_document_access_filter(
         .correlate(ChatSession)
         .exists()
     )
-    return ~(denied_messages | denied_tools)
+    return ChatSession.access_revoked.is_(False) & ~(denied_messages | denied_tools)
 
 
 def require_chat_document_access(
@@ -247,7 +247,7 @@ def require_chat_document_access(
     ):
         raise OnyxError(
             OnyxErrorCode.INSUFFICIENT_PERMISSIONS,
-            "Chat contains Wiki documents that are no longer authorized",
+            "Chat access was revoked or Wiki documents are no longer authorized",
         )
 
 

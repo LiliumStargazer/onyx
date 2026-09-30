@@ -8,6 +8,7 @@ from urllib.parse import quote
 from google.auth.transport.requests import AuthorizedSession, Request
 from google.oauth2 import id_token, service_account
 from httpx_oauth.oauth2 import OAuth2Token
+from requests import HTTPError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
@@ -19,7 +20,10 @@ from onyx.db.sso_provider import (
     fetch_sso_provider_by_name_async,
     parse_ou_role_map,
 )
-from onyx.db.users import persist_user_workspace_role
+from onyx.db.users import (
+    persist_user_workspace_role,
+    revoke_user_chat_access__no_commit,
+)
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.redis.redis_pool import get_async_redis_connection
@@ -192,6 +196,8 @@ async def recheck_google_workspace_user(user: User, db_session: AsyncSession) ->
         ):
             continue
         if user.workspace_role is None:
+            await revoke_user_chat_access__no_commit(db_session, user.id)
+            await db_session.commit()
             raise OnyxError(
                 OnyxErrorCode.UNAUTHORIZED, "Workspace role is not assigned"
             )
@@ -249,7 +255,22 @@ async def recheck_google_workspace_user(user: User, db_session: AsyncSession) ->
                     cache_key, json.dumps(directory_user), ex=_DIRECTORY_CACHE_SECONDS
                 )
         except OnyxError:
+            await revoke_user_chat_access__no_commit(db_session, user.id)
+            await db_session.commit()
             raise
+        except HTTPError as exc:
+            if (
+                exc.response is not None
+                and exc.response.status_code == OnyxErrorCode.NOT_FOUND.status_code
+            ):
+                await revoke_user_chat_access__no_commit(db_session, user.id)
+                await db_session.commit()
+                raise OnyxError(
+                    OnyxErrorCode.UNAUTHORIZED, "Workspace account was deleted"
+                ) from exc
+            raise OnyxError(
+                OnyxErrorCode.BAD_GATEWAY, "Workspace Directory is unavailable"
+            ) from exc
         except Exception as exc:
             logger.warning("Workspace Directory recheck failed", exc_info=True)
             raise OnyxError(

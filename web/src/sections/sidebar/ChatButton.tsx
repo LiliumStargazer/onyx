@@ -16,7 +16,7 @@ import {
 } from "@/lib/projects/svc";
 import { useProjectsContext } from "@/lib/projects/providers";
 import { MoveCustomAgentChatModal } from "@/lib/agents/components";
-import { UNNAMED_CHAT } from "@/lib/constants";
+import { CHAT_SHARING_ENABLED, UNNAMED_CHAT } from "@/lib/constants";
 import ShareChatSessionModal from "@/sections/modals/ShareChatSessionModal";
 import { Button, LineItemButton, SidebarTab } from "@opal/components";
 import { InputTypeIn } from "@opal/components";
@@ -191,14 +191,16 @@ const ChatButton = memo(
     useEffect(() => {
       if (!showMoveOptions) {
         const popoverItems = [
-          <LineItemButton
-            key="share"
-            sizePreset="main-ui"
-            rounding={2}
-            icon={SvgShare}
-            title={t("chatButton.share.label")}
-            onClick={noProp(() => setShowShareModal(true))}
-          />,
+          CHAT_SHARING_ENABLED ? (
+            <LineItemButton
+              key="share"
+              sizePreset="main-ui"
+              rounding={2}
+              icon={SvgShare}
+              title={t("chatButton.share.label")}
+              onClick={noProp(() => setShowShareModal(true))}
+            />
+          ) : null,
           <LineItemButton
             key="rename"
             sizePreset="main-ui"
@@ -526,7 +528,7 @@ const ChatButton = memo(
           />
         )}
 
-        {showShareModal && (
+        {CHAT_SHARING_ENABLED && showShareModal && (
           <ShareChatSessionModal
             chatSession={chatSession}
             onClose={() => setShowShareModal(false)}

@@ -1,5 +1,8 @@
 export const APP_NAME = "Wiki Agent Rag";
 
+// Keep sharing code, but do not expose it in Wiki Agent Rag.
+export const CHAT_SHARING_ENABLED = false;
+
 export const IS_DEV = process.env.NODE_ENV === "development";
 
 export const HOST_URL = process.env.WEB_DOMAIN || "http://localhost:3000";

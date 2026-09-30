@@ -60,11 +60,29 @@ _MAX_LISTED_STRANDED_EMAILS = 3
 _MEMBERSHIP_LOCK_NAMESPACE = "onyx_membership_lock"
 
 
+async def revoke_user_chat_access__no_commit(
+    db_session: AsyncSession, user_id: UUID
+) -> None:
+    await db_session.execute(
+        update(ChatSession)
+        .where(ChatSession.user_id == user_id, ChatSession.access_revoked.is_(False))
+        .values(access_revoked=True)
+    )
+
+
+async def update_user_workspace_role__no_commit(
+    db_session: AsyncSession, user: User, workspace_role: str
+) -> None:
+    if user.workspace_role != workspace_role:
+        await revoke_user_chat_access__no_commit(db_session, user.id)
+        user.workspace_role = workspace_role
+
+
 async def persist_user_workspace_role(
     db_session: AsyncSession, user: User, workspace_role: str
 ) -> None:
     if user.workspace_role != workspace_role:
-        user.workspace_role = workspace_role
+        await update_user_workspace_role__no_commit(db_session, user, workspace_role)
         await db_session.commit()
 
 

@@ -991,9 +991,7 @@ class TestOAuthNoAutoLinkExemptions:
         assert result.email == "new@corp.com"
         mock_remove_invited.assert_any_call("old@corp.com")
         cast(AsyncMock, user_manager.user_db.add_oauth_account).assert_not_awaited()
-        cast(AsyncMock, user_manager.user_db.update).assert_awaited_with(
-            linked, update_dict={"workspace_role": "interni"}
-        )
+        assert result.workspace_role == "interni"
 
     @pytest.mark.asyncio
     @patch("onyx.auth.users.MULTI_TENANT", False)

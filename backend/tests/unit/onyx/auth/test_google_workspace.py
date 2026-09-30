@@ -455,6 +455,7 @@ async def test_explicit_google_link_keeps_admin_account_and_rejects_other_subjec
     session = MagicMock()
     session.run_sync = AsyncMock(return_value=account)
     session.refresh = AsyncMock()
+    session.execute = AsyncMock()
     session.commit = AsyncMock()
     manager = UserManager(MagicMock())
     manager.get_by_oauth_account = AsyncMock(side_effect=exceptions.UserNotExists())

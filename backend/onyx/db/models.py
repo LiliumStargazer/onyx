@@ -3223,6 +3223,10 @@ class ChatSession(Base):
     )
     # Only ever set to True if system is set to not hard-delete chats
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    # A Workspace role change permanently blocks saved content, without deleting it.
+    access_revoked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     # controls whether or not this conversation is viewable by others
     shared_status: Mapped[ChatSessionSharedStatus] = mapped_column(
         Enum(ChatSessionSharedStatus, native_enum=False),

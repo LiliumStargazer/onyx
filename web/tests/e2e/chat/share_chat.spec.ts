@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { CHAT_SHARING_ENABLED } from "@/lib/constants";
 import { loginAsRandomUser } from "../utils/auth";
 import { expectElementScreenshot } from "../utils/visualRegression";
 
@@ -25,6 +26,10 @@ async function openShareModal(page: Page) {
 }
 
 test.describe("Share Chat Session Modal", () => {
+  test.skip(
+    !CHAT_SHARING_ENABLED,
+    "Chat sharing is disabled in Wiki Agent Rag"
+  );
   test.describe.configure({ mode: "serial" });
 
   let page: Page;

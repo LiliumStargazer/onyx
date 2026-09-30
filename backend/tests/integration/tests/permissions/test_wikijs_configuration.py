@@ -30,6 +30,7 @@ from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.enums import AccessType, ConnectorCredentialPairStatus, SSOProviderType
 from onyx.db.models import (
     ChatSession,
+    ChatSessionSharedStatus,
     ConnectorCredentialPair,
     Document,
     DocumentByConnectorCredentialPair,
@@ -548,7 +549,7 @@ def test_chat_answers_sources_and_tool_replay_obey_current_wiki_policy(
         )
         assert content not in continuation.text
         assert "This must not be generated" not in continuation.text
-        assert "Wiki documents that are no longer authorized" in continuation.text
+        assert "Wiki documents are no longer authorized" in continuation.text
         fresh = ChatSessionManager.create(workspace_admin)
         new_chat = client.get(
             f"{FRONTEND_API}/chat/get-chat-session/{fresh.id}",
@@ -616,6 +617,108 @@ def test_chat_answers_sources_and_tool_replay_obey_current_wiki_policy(
             )
             db_session.execute(delete(Document).where(Document.id.in_(document_ids)))
             db_session.commit()
+
+
+@pytest.mark.parametrize("new_role", ["tecnico", None])
+def test_sourceless_chat_revocation_and_disabled_existing_share_links(
+    workspace_admin: DATestUser, new_role: str | None
+) -> None:
+    chat = ChatSessionManager.create(workspace_admin, description="Sourceless fixture")
+    content = f"Sourceless-answer-{uuid4()}"
+    with get_session_with_current_tenant() as db_session:
+        root = get_or_create_root_message(chat.id, db_session)
+        create_new_chat_message(
+            db_session=db_session,
+            chat_session_id=chat.id,
+            parent_message=root,
+            message=content,
+            token_count=1,
+            message_type=MessageType.ASSISTANT,
+        )
+        saved_chat = db_session.get(ChatSession, chat.id)
+        assert saved_chat is not None
+        # Simulate a link saved before sharing was disabled.
+        saved_chat.shared_status = ChatSessionSharedStatus.PUBLIC
+        db_session.commit()
+    url = f"{FRONTEND_API}/chat/get-chat-session/{chat.id}"
+    initial = client.get(url, headers=workspace_admin.headers)
+    initial.raise_for_status()
+    assert content in initial.text
+    for headers in (workspace_admin.headers, {}):
+        shared = client.get(f"{url}?is_shared=true", headers=headers)
+        assert shared.status_code in (401, 403)
+        assert content not in shared.text
+    sharing = client.patch(
+        f"{FRONTEND_API}/chat/chat-session/{chat.id}",
+        json={"sharing_status": "PUBLIC"},
+        headers=workspace_admin.headers,
+    )
+    assert sharing.status_code == 403
+
+    with get_session_with_current_tenant() as db_session:
+        user = db_session.get(User, UUID(workspace_admin.id))
+        assert user is not None
+        provider = db_session.scalar(
+            select(SSOProvider).where(
+                SSOProvider.name == user.oauth_accounts[0].oauth_name
+            )
+        )
+        assert provider is not None and provider.config is not None
+        config = provider.config.get_value(apply_mask=False)
+        config["ou_role_map"] = json.dumps(
+            {"/Fixtures": new_role} if new_role else {"/Other": "interni"}
+        )
+        db_session.execute(
+            update(SSOProvider)
+            .where(SSOProvider.id == provider.id)
+            .values(config=config)
+        )
+        db_session.commit()
+    denied = client.get(url, headers=workspace_admin.headers)
+    assert denied.status_code == 403
+    assert content not in denied.text
+    if new_role:
+        authorized_chat = ChatSessionManager.create(workspace_admin)
+        client.get(
+            f"{FRONTEND_API}/chat/get-chat-session/{authorized_chat.id}",
+            headers=workspace_admin.headers,
+        ).raise_for_status()
+
+    # Restoring the old role must not restore access to saved answers.
+    with get_session_with_current_tenant() as db_session:
+        config["ou_role_map"] = '{"/Fixtures":"interni"}'
+        db_session.execute(
+            update(SSOProvider)
+            .where(SSOProvider.id == provider.id)
+            .values(config=config)
+        )
+        db_session.commit()
+    denied = client.get(url, headers=workspace_admin.headers)
+    assert denied.status_code == 403
+    assert content not in denied.text
+    for path in ("get-user-chat-sessions", "search", "search?query=Sourceless"):
+        history = client.get(
+            f"{FRONTEND_API}/chat/{path}", headers=workspace_admin.headers
+        )
+        history.raise_for_status()
+        assert str(chat.id) not in history.text
+    continuation = client.post(
+        f"{FRONTEND_API}/chat/send-chat-message",
+        json={
+            "message": "Continue",
+            "chat_session_id": str(chat.id),
+            "parent_message_id": -1,
+            "mock_llm_response": "Forbidden continuation",
+        },
+        headers=workspace_admin.headers,
+    )
+    assert "Forbidden continuation" not in continuation.text
+    assert "Chat access was revoked" in continuation.text
+    fresh = ChatSessionManager.create(workspace_admin)
+    client.get(
+        f"{FRONTEND_API}/chat/get-chat-session/{fresh.id}",
+        headers=workspace_admin.headers,
+    ).raise_for_status()
 
 
 def test_ingestion_reports_wikijs_indexing_failure(
