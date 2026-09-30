@@ -112,10 +112,17 @@ These should not assume any Onyx/external services are available to be called.
 Interactions with the outside world should be mocked using `unittest.mock`. Generally, only
 write these for complex, isolated modules e.g. `citation_processing.py`.
 
-To run them:
+For routine validation, run the fork suite defined in `backend/pytest.ini`:
 
 ```bash
-uv run pytest -xv backend/tests/unit
+PYTHONPATH=backend uv run pytest --rootdir=. -c backend/pytest.ini
+```
+
+Use explicit test paths when work changes an excluded module.
+For full upstream compatibility checks:
+
+```bash
+PYTHONPATH=backend uv run pytest -xv backend/tests/unit
 ```
 
 ### External Dependency Unit Tests

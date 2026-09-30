@@ -1,6 +1,9 @@
 name: Publish Wiki Agent Rag images
 
+# Keep this workflow, quality checks, and dependency audit enabled.
+# Disable the other upstream workflows in repository Actions settings.
 on:
+  pull_request:
   push:
     branches: [main]
     tags:
@@ -11,6 +14,52 @@ permissions:
   contents: read
 
 jobs:
+  test-backend:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: ./backend
+      POSTGRES_HOST: localhost
+      POSTGRES_PASSWORD: password
+      LICENSE_ENFORCEMENT_ENABLED: "false"
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.25"
+          python-version: "3.13"
+          enable-cache: false
+      - name: Install locked Python dependencies
+        run: uv sync --frozen
+      - name: Check Python types
+        run: uv run --no-sync ty check --output-format github
+      - name: Test project backend
+        run: uv run --no-sync pytest --rootdir=. -c backend/pytest.ini
+      - name: Apply database migrations
+        working-directory: ./backend
+        env:
+          PYTHONPATH: .
+        run: uv run --no-sync alembic upgrade head
+      - name: Test Wiki.js access and SSO storage
+        run: |
+          uv run --no-sync pytest \
+            backend/tests/external_dependency_unit/db/test_wikijs_document_access.py \
+            backend/tests/external_dependency_unit/db/test_sso_provider_store.py
+
   test-web:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -29,7 +78,7 @@ jobs:
           bun run test:ci
 
   publish:
-    needs: test-web
+    needs: [test-backend, test-web]
     if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 90

@@ -27,8 +27,6 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # ratchet:actions/setup-python@v7.0.0
         with:
           python-version: "3.13"
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # ratchet:hashicorp/setup-terraform@v4.0.1
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # ratchet:oven-sh/setup-bun@v2 # zizmor: ignore[cache-poisoning]
         with:
@@ -36,15 +34,10 @@ jobs:
       - name: Install node dependencies
         working-directory: ./web
         run: bun install --frozen-lockfile
-      # web/ has its own lockfile; widget/, examples/widget/ and desktop/ live in
-      # the root bun workspace. The hooks that type-check them run `tsgo` from
-      # the root node_modules, and prek never runs the post-checkout hook that
-      # would install it.
-      - name: Install root workspace dependencies
-        run: bun install --frozen-lockfile
       - uses: j178/prek-action@4e14d07f9231acabce116ccfca13b13dd9755ece
         env:
-          SKIP: ty,desktop-rust-fmt,desktop-rust-clippy
+          # The fork ships the web app, not mobile, desktop, widgets, or Terraform.
+          SKIP: ty,desktop-rust-fmt,desktop-rust-clippy,widget-typescript-check,examples-widget-typescript-check,root-bun-install-check,mobile-bun-install-check,mobile-typescript-check,mobile-lint,mobile-format,terraform_validate
           # Lets the zizmor hook run its online audits. Read-only: the job
           # grants `contents: read` and nothing else.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
