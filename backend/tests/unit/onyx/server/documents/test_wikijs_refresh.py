@@ -31,7 +31,10 @@ def test_wikijs_creation_does_not_enable_refresh_or_pruning() -> None:
         name="wiki",
         source=DocumentSource.WIKIJS,
         input_type=InputType.LOAD_STATE,
-        connector_specific_config={},
+        connector_specific_config={
+            "visibility_folders": '{"Riservato":"interni"}',
+            "role_visibility_map": '{"interni":["interni"],"tecnico":[],"agente":[],"concessionario":[]}',
+        },
         refresh_freq=600,
     )
     with pytest.raises(OnyxError):
@@ -132,7 +135,10 @@ def test_wikijs_connector_update_cannot_enable_refresh_early() -> None:
         name="wiki",
         source=DocumentSource.WIKIJS,
         input_type=InputType.LOAD_STATE,
-        connector_specific_config={},
+        connector_specific_config={
+            "visibility_folders": '{"Riservato":"interni"}',
+            "role_visibility_map": '{"interni":["interni"],"tecnico":[],"agente":[],"concessionario":[]}',
+        },
         access_type=AccessType.PRIVATE,
         refresh_freq=600,
     )
