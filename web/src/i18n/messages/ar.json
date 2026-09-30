@@ -2557,6 +2557,11 @@
       }
     },
     "connectorsList": {
+      "wikijs": {
+        "roleVisibility": {
+          "label": "إمكانية الوصول حسب الدور (خريطة JSON: الدور إلى قائمة تصنيفات الوصول)"
+        }
+      },
       "branding": {
         "sharedDrivesAccessible": "يتيح هذا لـ{appName} فهرسة كل ما في مساحات التخزين المشتركة التي يمكنك الوصول إليها.",
         "sharedDrivesOrganization": "يتيح هذا لـ{appName} فهرسة كل ما في مساحات التخزين المشتركة في مؤسستك.",

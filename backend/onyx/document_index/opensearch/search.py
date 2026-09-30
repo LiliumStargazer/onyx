@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Any, TypeAlias, TypeVar
 
+from onyx.access.utils import prefix_external_group
 from onyx.configs.app_configs import (
     DEFAULT_OPENSEARCH_QUERY_TIMEOUT_S,
     OPENSEARCH_EXPLAIN_ENABLED,
@@ -9,6 +10,7 @@ from onyx.configs.app_configs import (
     OPENSEARCH_PROFILING_DISABLED,
 )
 from onyx.configs.constants import INDEX_SEPARATOR, DocumentSource
+from onyx.connectors.wikijs import WIKI_ACL_PREFIX
 from onyx.context.search.models import IndexFilters, Tag, TimeRange
 from onyx.document_index.interfaces_new import TenantState
 from onyx.document_index.opensearch.constants import (
@@ -1277,7 +1279,7 @@ class DocumentQuery:
             wiki_acl = [
                 token
                 for token in access_control_list
-                if token.startswith("external_group:wikijs_visibility:")
+                if token.startswith(prefix_external_group(WIKI_ACL_PREFIX))
             ]
             filter_clauses.append(
                 {

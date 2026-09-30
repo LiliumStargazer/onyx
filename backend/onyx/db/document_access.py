@@ -113,19 +113,26 @@ def apply_document_access_filter(
     ]
     wiki_link = aliased(DocumentByConnectorCredentialPair)
     wiki_connector = aliased(Connector)
-    has_wiki_link = (
+    wiki_links = (
         select(wiki_link.id)
         .join(wiki_connector, wiki_connector.id == wiki_link.connector_id)
         .where(
             wiki_link.id == Document.id, wiki_connector.source == DocumentSource.WIKIJS
         )
-        .exists()
     )
+    has_wiki_link = wiki_links.exists()
+    has_other_wiki_connector = wiki_links.where(
+        wiki_link.connector_id != ConnectorCredentialPair.connector_id
+    ).exists()
     stmt = stmt.join(Connector, Connector.id == ConnectorCredentialPair.connector_id)
     return stmt.where(
         or_(
             and_(~has_wiki_link, or_(*access_filters)),
-            and_(Connector.source == DocumentSource.WIKIJS, or_(*wiki_filters))
+            and_(
+                Connector.source == DocumentSource.WIKIJS,
+                ~has_other_wiki_connector,
+                or_(*wiki_filters),
+            )
             if wiki_filters
             else false(),
         )

@@ -2559,6 +2559,11 @@
       }
     },
     "connectorsList": {
+      "wikijs": {
+        "roleVisibility": {
+          "label": "Role visibility (JSON map: role to visibility array)"
+        }
+      },
       "branding": {
         "sharedDrivesAccessible": "This allows {appName} to index everything in the shared drives you can access.",
         "sharedDrivesOrganization": "This allows {appName} to index everything in your organization's shared drives.",

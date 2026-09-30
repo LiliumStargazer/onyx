@@ -2557,6 +2557,11 @@
       }
     },
     "connectorsList": {
+      "wikijs": {
+        "roleVisibility": {
+          "label": "按角色设置可见范围（JSON：角色到可见范围数组）"
+        }
+      },
       "branding": {
         "sharedDrivesAccessible": "这让 {appName} 可以索引您有权访问的共享云端硬盘中的所有内容。",
         "sharedDrivesOrganization": "这让 {appName} 可以索引您所在组织的共享云端硬盘中的所有内容。",

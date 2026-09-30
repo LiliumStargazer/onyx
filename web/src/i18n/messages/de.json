@@ -2557,6 +2557,11 @@
       }
     },
     "connectorsList": {
+      "wikijs": {
+        "roleVisibility": {
+          "label": "Sichtbarkeit nach Rolle (JSON: Rolle zu Sichtbarkeitsliste)"
+        }
+      },
       "branding": {
         "sharedDrivesAccessible": "Damit kann {appName} alle Inhalte in den geteilten Ablagen indizieren, auf die Sie Zugriff haben.",
         "sharedDrivesOrganization": "Damit kann {appName} alle Inhalte in den geteilten Ablagen Ihrer Organisation indizieren.",

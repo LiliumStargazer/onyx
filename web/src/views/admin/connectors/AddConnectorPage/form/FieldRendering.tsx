@@ -137,8 +137,9 @@ export const RenderField: FC<RenderFieldProps> = ({
   const t = useTranslations("admin.connectorsList");
   const { setFieldValue } = useFormikContext<FormValues>(); // Get Formik's context functions
 
-  const label =
-    typeof field.label === "function"
+  const label = field.labelKey
+    ? t(field.labelKey)
+    : typeof field.label === "function"
       ? field.label(currentCredential)
       : field.label;
   const descriptionKey: ConnectorDescriptionKey | undefined =

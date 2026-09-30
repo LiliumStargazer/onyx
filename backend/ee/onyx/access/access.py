@@ -73,13 +73,13 @@ def _get_access_for_documents(
 
     access_map = {}
     for document_id, non_ee_access in non_ee_access_dict.items():
+        if document_id in wiki_document_ids:
+            access_map[document_id] = non_ee_access
+            continue
         document = doc_id_map[document_id]
         source = doc_id_to_source_map.get(document_id)
         if source is None:
             logger.error("Document %s has no source", document_id)
-            continue
-        if document_id in wiki_document_ids:
-            access_map[document_id] = non_ee_access
             continue
 
         perm_sync_config = get_source_perm_sync_config(source)

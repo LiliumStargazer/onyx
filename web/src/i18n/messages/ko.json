@@ -2557,6 +2557,11 @@
       }
     },
     "connectorsList": {
+      "wikijs": {
+        "roleVisibility": {
+          "label": "역할별 공개 범위 (JSON: 역할에서 공개 범위 배열로 매핑)"
+        }
+      },
       "branding": {
         "sharedDrivesAccessible": "{appName}가 접근 가능한 공유 드라이브의 모든 항목을 인덱싱할 수 있습니다.",
         "sharedDrivesOrganization": "{appName}가 조직의 공유 드라이브에 있는 모든 항목을 인덱싱할 수 있습니다.",

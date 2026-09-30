@@ -1097,7 +1097,8 @@ export const connectorConfigs: Record<
       },
       {
         type: "text",
-        label: "Role visibility (JSON map: role to visibility array)",
+        label: "",
+        labelKey: "wikijs.roleVisibility.label",
         name: "role_visibility_map",
         optional: false,
       },

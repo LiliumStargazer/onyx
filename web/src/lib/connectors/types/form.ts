@@ -28,6 +28,7 @@ export type ConnectorDescriptionKey =
 
 export interface Option {
   label: string | ((currentCredential: Credential<any> | null) => string);
+  labelKey?: "wikijs.roleVisibility.label";
   name: string;
   description?:
     | string

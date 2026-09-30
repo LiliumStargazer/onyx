@@ -2557,6 +2557,11 @@
       }
     },
     "connectorsList": {
+      "wikijs": {
+        "roleVisibility": {
+          "label": "ロール別の公開範囲（JSON：ロールと公開範囲の配列）"
+        }
+      },
       "branding": {
         "sharedDrivesAccessible": "これにより、{appName} はアクセスできる共有ドライブ内のすべてをインデックスできます。",
         "sharedDrivesOrganization": "これにより、{appName} は組織の共有ドライブ内のすべてをインデックスできます。",
