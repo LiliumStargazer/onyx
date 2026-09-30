@@ -70,6 +70,9 @@ def test_create_and_fetch_roundtrip(db_session: Session, provider_name: str) -> 
         "legacy_callback": False,
         "pkce_enabled": False,
         "scopes": [],
+        "ou_role_map": "",
+        "directory_auth_mode": "service_account",
+        "directory_service_account_json": "",
     }
     assert fetched.config.get_value(apply_mask=True)["client_secret"] != "super-secret"
 
@@ -183,6 +186,9 @@ def test_partial_update_preserves_config(
         "legacy_callback": False,
         "pkce_enabled": False,
         "scopes": [],
+        "ou_role_map": "",
+        "directory_auth_mode": "service_account",
+        "directory_service_account_json": "",
     }
 
 
