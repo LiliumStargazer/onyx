@@ -220,6 +220,8 @@ def upsert_ingestion_doc(
         request_id=None,
         adapter=adapter,
     )
+    if indexing_pipeline_result.failures:
+        raise OnyxError(OnyxErrorCode.INTERNAL_ERROR, "Document indexing failed")
 
     # If there's a secondary index being built, index the doc but don't use it for return here
     if active_search_settings.secondary:
@@ -240,7 +242,7 @@ def upsert_ingestion_doc(
             active_search_settings.secondary, None, None
         )
 
-        run_indexing_pipeline(
+        secondary_indexing_result = run_indexing_pipeline(
             embedder=new_index_embedding_model,
             document_indices=sec_document_indices,
             ignore_time_skip=True,
@@ -253,6 +255,8 @@ def upsert_ingestion_doc(
             request_id=None,
             adapter=adapter,
         )
+        if secondary_indexing_result.failures:
+            raise OnyxError(OnyxErrorCode.INTERNAL_ERROR, "Document indexing failed")
 
     return IngestionResult(
         document_id=document.id,

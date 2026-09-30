@@ -91,3 +91,19 @@ def test_coercion_works_on_base_class() -> None:
     kwargs.pop("id")
     doc = DocumentBase(**kwargs)
     assert doc.metadata == {"count": "42"}
+
+
+def test_ingestion_conversion_preserves_wikijs_page_id_and_visibility() -> None:
+    doc = DocumentBase(
+        id="/it/Riservato/test",
+        source=DocumentSource.WIKIJS,
+        semantic_identifier="Wiki fixture",
+        sections=[TextSection(text="Fixture content", link="https://example.com")],
+        metadata={"visibility": "interni"},
+        doc_metadata={"wikijs_page_id": 42, "visibility": "interni"},
+    )
+
+    assert Document.from_base(doc).doc_metadata == {
+        "wikijs_page_id": 42,
+        "visibility": "interni",
+    }

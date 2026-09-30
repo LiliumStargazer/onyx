@@ -413,6 +413,7 @@ class Document(DocumentBase):
             source=base.source or DocumentSource.INGESTION_API,
             semantic_identifier=base.semantic_identifier,
             metadata=base.metadata,
+            doc_metadata=base.doc_metadata,
             doc_updated_at=base.doc_updated_at,
             doc_created_at=base.doc_created_at,
             primary_owners=base.primary_owners,
