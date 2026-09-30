@@ -21,6 +21,7 @@ import ModelSelectorContent, {
   useModelDetailManagers,
 } from "@/sections/model-selector/ModelSelectorContent";
 import type { LLMOption } from "@/lib/languageModels/types";
+import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
 
 export const MAX_MODELS = 3;
 
@@ -172,6 +173,8 @@ export default function MultiModelSelector({
     setReplacingIndex(index);
     setOpen(true);
   };
+
+  if (!USER_MODEL_SELECTION_ENABLED) return null;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>

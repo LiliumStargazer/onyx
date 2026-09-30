@@ -1,4 +1,5 @@
 import { expect, Page, test } from "@playwright/test";
+import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
 import { ChatPage } from "@tests/e2e/chat/ChatPage";
 import { loginAs, loginAsWorkerUser } from "@tests/e2e/utils/auth";
 import {
@@ -162,6 +163,7 @@ function buildMockStreamResponse(turn: number): string {
 }
 
 test.describe("LLM Runtime Selection", () => {
+  test.skip(!USER_MODEL_SELECTION_ENABLED, "User model selection is disabled");
   let providersToCleanup: number[] = [];
   let groupsToCleanup: number[] = [];
 

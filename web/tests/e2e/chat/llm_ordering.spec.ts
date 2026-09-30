@@ -1,10 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
 import { loginAs } from "@tests/e2e/utils/auth";
 import { verifyCurrentModel } from "@tests/e2e/utils/chatActions";
 import { ensureImageGenerationEnabled } from "@tests/e2e/utils/agentUtils";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
 
 test.describe("LLM Ordering", () => {
+  test.skip(!USER_MODEL_SELECTION_ENABLED, "User model selection is disabled");
   let imageGenConfigId: string | null = null;
 
   test.beforeEach(async ({ page }) => {

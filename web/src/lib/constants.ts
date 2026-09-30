@@ -3,6 +3,9 @@ export const APP_NAME = "Wiki Agent Rag";
 // Keep sharing code, but do not expose it in Wiki Agent Rag.
 export const CHAT_SHARING_ENABLED = false;
 
+// Frontend chats use the Admin default. Direct API overrides stay available.
+export const USER_MODEL_SELECTION_ENABLED = false;
+
 export const IS_DEV = process.env.NODE_ENV === "development";
 
 export const HOST_URL = process.env.WEB_DOMAIN || "http://localhost:3000";

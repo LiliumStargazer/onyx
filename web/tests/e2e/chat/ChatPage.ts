@@ -40,10 +40,23 @@ export class ChatPage {
     return this.aiMessages.nth(index);
   }
 
-  async goto(): Promise<void> {
-    await this.page.goto("/app");
+  async goto(sessionId?: string): Promise<void> {
+    await this.page.goto(sessionId ? `/app?chatId=${sessionId}` : "/app");
     await this.page.waitForLoadState("networkidle");
     await this.inputBar.textbox.waitFor({ state: "visible", timeout: 15000 });
+  }
+
+  async expectNoModelSelectors(): Promise<void> {
+    await expect(this.page.getByTestId("model-selector")).toHaveCount(0);
+    await expect(
+      this.page.getByRole("button", { name: "Add Model", exact: true })
+    ).toHaveCount(0);
+  }
+
+  async regenerate(index = 0): Promise<void> {
+    await this.aiMessage(index).hover();
+    await this.aiMessage(index).getByTestId("AgentMessage/regenerate").click();
+    await expect(this.page.getByRole("dialog")).toHaveCount(0);
   }
 
   async scrollTo(position: "top" | "bottom"): Promise<void> {

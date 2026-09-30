@@ -37,7 +37,11 @@ import {
 } from "@/lib/languageModels/types";
 import { isAnthropic } from "@/lib/languageModels/svc";
 import { getConfiguredSources } from "@/lib/sources";
-import { DEFAULT_AGENT_ID, NEXT_PUBLIC_CLOUD_ENABLED } from "./constants";
+import {
+  DEFAULT_AGENT_ID,
+  NEXT_PUBLIC_CLOUD_ENABLED,
+  USER_MODEL_SELECTION_ENABLED,
+} from "@/lib/constants";
 import { useUser } from "@/providers/UserProvider";
 import { SEARCH_TOOL_ID } from "@/lib/tools/constants";
 import {
@@ -483,7 +487,9 @@ export function useLlmManager(
   const llmProviders =
     personaProviders !== undefined ? personaProviders : allUserProviders;
   const defaultText =
-    personaProviders !== undefined ? personaDefaultText : allUserDefaultText;
+    USER_MODEL_SELECTION_ENABLED && personaProviders !== undefined
+      ? personaDefaultText
+      : allUserDefaultText;
 
   const [userHasManuallyOverriddenLLM, setUserHasManuallyOverriddenLLM] =
     useState(false);
@@ -544,6 +550,16 @@ export function useLlmManager(
   // A second memo preserves object identity when the resolved fields stay the
   // same, preventing unnecessary re-creation of downstream callbacks.
   const resolvedCurrentLlm = useMemo((): LlmDescriptor => {
+    if (!USER_MODEL_SELECTION_ENABLED) {
+      return getValidLlmDescriptorForProviders(
+        null,
+        llmProviders?.filter(
+          (provider) => !defaultText || provider.id === defaultText.provider_id
+        ),
+        defaultText
+      );
+    }
+
     if (llmProviders === undefined || llmProviders === null) {
       return manualLlm;
     }

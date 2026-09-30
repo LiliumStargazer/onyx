@@ -43,6 +43,7 @@ import {
 } from "@/i18n/config";
 import useUserPersonalization from "@/hooks/useUserPersonalization";
 import ModelSelector from "@/sections/model-selector/ModelSelector";
+import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
 import { structureValue } from "@/lib/languageModels/utils";
 import { deleteAllChatSessions } from "@/app/app/services/lib";
 import { useLlmManager } from "@/lib/hooks";
@@ -1326,48 +1327,50 @@ function ChatPreferencesSettings() {
         />
         <Card border="solid" rounding={4}>
           <Section alignItems="start" height="fit">
-            <InputHorizontal
-              title={t("chats.defaultModel.title")}
-              description={t("chats.defaultModel.description", {
-                appName: settings.appName,
-              })}
-              withLabel
-            >
-              <ModelSelector
-                value={
-                  user?.preferences?.default_model
-                    ? findModelConfigId(
-                        llmManager.llmProviders,
-                        llmManager.currentLlm.provider,
-                        llmManager.currentLlm.modelName
-                      )
-                    : null
-                }
-                onChange={(opt) => {
-                  if (opt.modelConfigurationId === null) {
-                    void updateUserDefaultModel(null);
-                  } else {
-                    llmManager.updateCurrentLlm({
-                      name: opt.name,
-                      provider: opt.provider,
-                      modelName: opt.modelName,
-                      modelConfigurationId: opt.modelConfigurationId,
-                    });
-                    void updateUserDefaultModel(
-                      structureValue(
-                        opt.name,
-                        opt.provider,
-                        opt.modelName,
-                        opt.modelConfigurationId
-                      )
-                    );
+            {USER_MODEL_SELECTION_ENABLED && (
+              <InputHorizontal
+                title={t("chats.defaultModel.title")}
+                description={t("chats.defaultModel.description", {
+                  appName: settings.appName,
+                })}
+                withLabel
+              >
+                <ModelSelector
+                  value={
+                    user?.preferences?.default_model
+                      ? findModelConfigId(
+                          llmManager.llmProviders,
+                          llmManager.currentLlm.provider,
+                          llmManager.currentLlm.modelName
+                        )
+                      : null
                   }
-                }}
-                temperatureManager={llmManager}
-                includeGlobalDefault
-                side="bottom"
-              />
-            </InputHorizontal>
+                  onChange={(opt) => {
+                    if (opt.modelConfigurationId === null) {
+                      void updateUserDefaultModel(null);
+                    } else {
+                      llmManager.updateCurrentLlm({
+                        name: opt.name,
+                        provider: opt.provider,
+                        modelName: opt.modelName,
+                        modelConfigurationId: opt.modelConfigurationId,
+                      });
+                      void updateUserDefaultModel(
+                        structureValue(
+                          opt.name,
+                          opt.provider,
+                          opt.modelName,
+                          opt.modelConfigurationId
+                        )
+                      );
+                    }
+                  }}
+                  temperatureManager={llmManager}
+                  includeGlobalDefault
+                  side="bottom"
+                />
+              </InputHorizontal>
+            )}
 
             {(user?.preferences?.temperature_override_enabled ?? true) && (
               <InputHorizontal

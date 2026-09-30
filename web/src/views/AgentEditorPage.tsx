@@ -33,6 +33,7 @@ import ModelSelector from "@/sections/model-selector/ModelSelector";
 import {
   MAX_CHARACTERS_STARTER_MESSAGE,
   MAX_CHARACTERS_AGENT_DESCRIPTION,
+  USER_MODEL_SELECTION_ENABLED,
 } from "@/lib/constants";
 import {
   IMAGE_GENERATION_TOOL_ID,
@@ -1640,30 +1641,34 @@ export default function AgentEditorPage({
                           <GeneralLayouts.Section>
                             <Card border="solid" rounding={4}>
                               <GeneralLayouts.Section>
-                                <InputHorizontal
-                                  withLabel="llm_model"
-                                  title={t("modals.viewer.defaultModel.title")}
-                                  description={t(
-                                    "modals.viewer.defaultModel.description",
-                                    { appName }
-                                  )}
-                                >
-                                  <ModelSelector
-                                    agentId={existingAgent?.id}
-                                    value={
-                                      (values.default_model_configuration_id as
-                                        | number
-                                        | null) ?? null
-                                    }
-                                    onChange={(opt) =>
-                                      setFieldValue(
-                                        "default_model_configuration_id",
-                                        opt.modelConfigurationId ?? null
-                                      )
-                                    }
-                                    includeGlobalDefault
-                                  />
-                                </InputHorizontal>
+                                {USER_MODEL_SELECTION_ENABLED && (
+                                  <InputHorizontal
+                                    withLabel="llm_model"
+                                    title={t(
+                                      "modals.viewer.defaultModel.title"
+                                    )}
+                                    description={t(
+                                      "modals.viewer.defaultModel.description",
+                                      { appName }
+                                    )}
+                                  >
+                                    <ModelSelector
+                                      agentId={existingAgent?.id}
+                                      value={
+                                        (values.default_model_configuration_id as
+                                          | number
+                                          | null) ?? null
+                                      }
+                                      onChange={(opt) =>
+                                        setFieldValue(
+                                          "default_model_configuration_id",
+                                          opt.modelConfigurationId ?? null
+                                        )
+                                      }
+                                      includeGlobalDefault
+                                    />
+                                  </InputHorizontal>
+                                )}
                                 <InputHorizontal
                                   withLabel="knowledge_cutoff_date"
                                   title={t(

@@ -21,7 +21,8 @@ import MessageSwitcher from "@/app/app/message/MessageSwitcher";
 import { useIncognitoOptional } from "@/providers/IncognitoProvider";
 import SourceTag from "@/refresh-components/buttons/source-tag/SourceTag";
 import { citationsToSourceInfoArray } from "@/refresh-components/buttons/source-tag/sourceTagUtils";
-import { CopyButton, OpenButton, SelectButton } from "@opal/components";
+import { Button, CopyButton, OpenButton, SelectButton } from "@opal/components";
+import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
 import ModelSelector from "@/sections/model-selector/ModelSelector";
 import { SvgRefreshCw, SvgThumbsDown, SvgThumbsUp } from "@opal/icons";
 import { LlmManager } from "@/lib/hooks";
@@ -347,63 +348,82 @@ export default function MessageToolbar({
               parentMessage &&
               llmManager && (
                 <div data-testid="AgentMessage/regenerate">
-                  <ModelSelector
-                    providerOptions={llmManager.llmProviders}
-                    value={
-                      // The response's model may live under a different
-                      // provider than the global selection, so resolve it
-                      // across all providers, by raw or display name.
-                      ownModelName
-                        ? (llmManager.llmProviders
-                            ?.flatMap((p) => p.model_configurations)
-                            .find(
-                              (m) =>
-                                m.name === ownModelName ||
-                                m.effectiveDisplayName === ownModelName
-                            )?.id ?? null)
-                        : findModelConfigId(
-                            llmManager.llmProviders,
-                            llmManager.currentLlm.provider,
-                            currentModelName ?? llmManager.currentLlm.modelName
-                          )
-                    }
-                    renderTrigger={() => {
-                      const rawName =
-                        ownModelName ??
-                        currentModelName ??
-                        llmManager!.currentLlm.modelName;
-                      const mc = llmManager!.llmProviders
-                        ?.flatMap((p) => p.model_configurations)
-                        .find(
-                          (m) =>
-                            m.name === rawName ||
-                            m.effectiveDisplayName === rawName
+                  {USER_MODEL_SELECTION_ENABLED ? (
+                    <ModelSelector
+                      providerOptions={llmManager.llmProviders}
+                      value={
+                        // The response's model may live under a different
+                        // provider than the global selection, so resolve it
+                        // across all providers, by raw or display name.
+                        ownModelName
+                          ? (llmManager.llmProviders
+                              ?.flatMap((p) => p.model_configurations)
+                              .find(
+                                (m) =>
+                                  m.name === ownModelName ||
+                                  m.effectiveDisplayName === ownModelName
+                              )?.id ?? null)
+                          : findModelConfigId(
+                              llmManager.llmProviders,
+                              llmManager.currentLlm.provider,
+                              currentModelName ??
+                                llmManager.currentLlm.modelName
+                            )
+                      }
+                      renderTrigger={() => {
+                        const rawName =
+                          ownModelName ??
+                          currentModelName ??
+                          llmManager!.currentLlm.modelName;
+                        const mc = llmManager!.llmProviders
+                          ?.flatMap((p) => p.model_configurations)
+                          .find(
+                            (m) =>
+                              m.name === rawName ||
+                              m.effectiveDisplayName === rawName
+                          );
+                        const displayName = mc?.effectiveDisplayName ?? rawName;
+                        return (
+                          <OpenButton
+                            icon={SvgRefreshCw}
+                            tooltip={t("toolbar.regenerateButton.tooltip")}
+                            foldable={distinctModelsUsed <= 1}
+                          >
+                            {displayName}
+                          </OpenButton>
                         );
-                      const displayName = mc?.effectiveDisplayName ?? rawName;
-                      return (
-                        <OpenButton
-                          icon={SvgRefreshCw}
-                          tooltip={t("toolbar.regenerateButton.tooltip")}
-                          foldable={distinctModelsUsed <= 1}
-                        >
-                          {displayName}
-                        </OpenButton>
-                      );
-                    }}
-                    onChange={(opt) => {
-                      const regenerator = onRegenerate({
-                        messageId,
-                        parentMessage,
-                      });
-                      regenerator({
-                        name: opt.name,
-                        provider: opt.provider,
-                        modelName: opt.modelName,
-                      });
-                    }}
-                    temperatureManager={llmManager}
-                    reasoningManager={llmManager}
-                  />
+                      }}
+                      onChange={(opt) => {
+                        const regenerator = onRegenerate({
+                          messageId,
+                          parentMessage,
+                        });
+                        regenerator({
+                          name: opt.name,
+                          provider: opt.provider,
+                          modelName: opt.modelName,
+                        });
+                      }}
+                      temperatureManager={llmManager}
+                      reasoningManager={llmManager}
+                    />
+                  ) : (
+                    <Button
+                      icon={SvgRefreshCw}
+                      prominence="tertiary"
+                      disabled={
+                        llmManager.isLoadingProviders ||
+                        !llmManager.currentLlm.modelName
+                      }
+                      tooltip={t("toolbar.regenerateButton.tooltip")}
+                      aria-label={t("toolbar.regenerateButton.tooltip")}
+                      onClick={() =>
+                        onRegenerate({ messageId, parentMessage })(
+                          llmManager.currentLlm
+                        )
+                      }
+                    />
+                  )}
                 </div>
               )}
 

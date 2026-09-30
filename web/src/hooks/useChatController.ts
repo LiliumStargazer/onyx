@@ -15,7 +15,10 @@ import {
   getUnresolvedMultiModelTurn,
 } from "@/app/app/message/multiModel";
 import { getMaxSelectedDocumentTokens } from "@/lib/projects/svc";
-import { DEFAULT_CONTEXT_TOKENS } from "@/lib/constants";
+import {
+  DEFAULT_CONTEXT_TOKENS,
+  USER_MODEL_SELECTION_ENABLED,
+} from "@/lib/constants";
 import { StreamStopInfo } from "@/lib/search/types";
 import type { SourceMetadata } from "@/lib/search/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -421,7 +424,9 @@ export default function useChatController({
       // Read at submit time so no caller can capture a stale value.
       const incognito = incognitoEnabledRef.current ?? false;
       const isMultiModel =
-        !regenerationRequest && (selectedModels?.length ?? 0) >= 2;
+        USER_MODEL_SELECTION_ENABLED &&
+        !regenerationRequest &&
+        (selectedModels?.length ?? 0) >= 2;
       const projectId = searchParams.get(SEARCH_PARAM_NAMES.PROJECT_ID);
       {
         const params = new URLSearchParams(searchParams?.toString() || "");
@@ -599,7 +604,9 @@ export default function useChatController({
       // message with it. If the user switches models and then starts a new
       // chat session, it is unexpected for that model to be used when they
       // return to this session the next day.
-      let finalLLM = modelOverride || llmManager.currentLlm;
+      const finalLLM = USER_MODEL_SELECTION_ENABLED
+        ? modelOverride || llmManager.currentLlm
+        : llmManager.currentLlm;
       updateLlmOverrideForChatSession(
         currChatSessionId,
         structureValue(
@@ -1098,20 +1105,13 @@ export default function useChatController({
               : null,
             toolConfiguration.filters.tags
           ),
-          modelProvider: isMultiModel
-            ? undefined
-            : modelOverride?.name || llmManager.currentLlm.name || undefined,
+          modelProvider: isMultiModel ? undefined : finalLLM.name || undefined,
           modelVersion: isMultiModel
             ? undefined
-            : modelOverride?.modelName ||
-              llmManager.currentLlm.modelName ||
-              searchParams?.get(SEARCH_PARAM_NAMES.MODEL_VERSION) ||
-              undefined,
+            : finalLLM.modelName || undefined,
           modelConfigurationId: isMultiModel
             ? undefined
-            : modelOverride
-              ? (modelOverride.modelConfigurationId ?? undefined)
-              : (llmManager.currentLlm.modelConfigurationId ?? undefined),
+            : (finalLLM.modelConfigurationId ?? undefined),
           // Only a chosen temperature is sent, zero included. Without one the
           // backend resolves the admin default, then GEN_AI_TEMPERATURE.
           temperature: llmManager.hasTemperatureOverride

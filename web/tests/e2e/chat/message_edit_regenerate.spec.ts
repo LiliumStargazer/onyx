@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
 import { loginAsRandomUser } from "@tests/e2e/utils/auth";
 import { sendMessage, switchModel } from "@tests/e2e/utils/chatActions";
 
@@ -140,6 +141,10 @@ test.describe("Message Edit and Regenerate Tests", () => {
   });
 
   test("Message regeneration with model selection", async ({ page }) => {
+    test.skip(
+      !USER_MODEL_SELECTION_ENABLED,
+      "User model selection is disabled"
+    );
     // make sure we're using something other than GPT-4o Mini, otherwise the below
     // will fail since we need to switch to a different model for the test
     await switchModel(page, "GPT-4.1");

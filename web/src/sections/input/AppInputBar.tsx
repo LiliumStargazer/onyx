@@ -72,6 +72,7 @@ import {
 } from "@/app/app/stores/useChatSessionStore";
 import QueuedMessageBar from "@/sections/input/QueuedMessageBar";
 import { handleInputNavKeys } from "@/sections/input/inputBarKeys";
+import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
 
 export interface AppInputBarHandle {
   reset: () => void;
@@ -123,13 +124,17 @@ const AppInputBar = React.memo(
     toggleDeepResearch,
     isMultiModelActive,
     setPresentingDocument,
-    disabled,
+    disabled: disabledByParent,
     toolConfiguration,
     ref,
     tabReadingEnabled,
     currentTabUrl,
     onToggleTabReading,
   }: AppInputBarProps) => {
+    const disabled =
+      disabledByParent ||
+      (!USER_MODEL_SELECTION_ENABLED &&
+        (llmManager.isLoadingProviders || !llmManager.currentLlm.modelName));
     const t = useTranslations("chat.input");
     const { incognitoEnabled } = useIncognito();
     const [isRecording, setIsRecording] = useState(false);
