@@ -1,3 +1,4 @@
+import json
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from typing import Tuple
@@ -9,9 +10,14 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql.expression import ColumnElement
 
 from onyx.configs.chat_configs import HARD_DELETE_CHATS
-from onyx.configs.constants import ANONYMOUS_USER_UUID, MessageType
+from onyx.configs.constants import ANONYMOUS_USER_UUID, DocumentSource, MessageType
 from onyx.context.search.models import InferenceSection, SavedSearchDoc
 from onyx.context.search.models import SearchDoc as ServerSearchDoc
+from onyx.db.document_access import (
+    build_chat_document_access_filter,
+    get_wikijs_document_groups,
+    require_chat_document_access,
+)
 from onyx.db.enums import IncognitoRecordMode, record_mode_persists_content
 from onyx.db.models import (
     ChatMessage,
@@ -37,6 +43,63 @@ logger = setup_logger()
 
 
 # Note: search/streaming packet helpers moved to streaming_utils.py
+
+
+def record_chat_wiki_sources(
+    db_session: Session,
+    chat_session_id: UUID,
+    message_id: int,
+    search_docs: list[ServerSearchDoc],
+) -> bool:
+    """Save Wiki provenance before streaming excerpts or generated file links."""
+    groups = get_wikijs_document_groups(
+        db_session, [doc.document_id for doc in search_docs]
+    )
+    wiki_docs = [
+        doc
+        for doc in search_docs
+        if doc.source_type == DocumentSource.WIKIJS or doc.document_id in groups
+    ]
+    if not wiki_docs:
+        return False
+    message = db_session.scalar(
+        select(ChatMessage)
+        .where(
+            ChatMessage.id == message_id, ChatMessage.chat_session_id == chat_session_id
+        )
+        .with_for_update()
+    )
+    if message is None:
+        raise ValueError("Wiki source has no reserved chat message")
+    if not record_mode_persists_content(message.chat_session.incognito_record_mode):
+        raise OnyxError(
+            OnyxErrorCode.INSUFFICIENT_PERMISSIONS,
+            "Wiki content requires saved source access checks",
+        )
+    seen = {
+        (
+            doc.document_id,
+            doc.chunk_ind,
+            doc.source_type,
+            json.dumps(doc.doc_metadata, sort_keys=True),
+        )
+        for doc in message.search_docs
+    }
+    for doc in wiki_docs:
+        key = (
+            doc.document_id,
+            doc.chunk_ind,
+            doc.source_type,
+            json.dumps(doc.metadata, sort_keys=True),
+        )
+        if key not in seen:
+            # ponytail: early snapshots can duplicate final sources; reuse exact snapshots if storage grows.
+            message.search_docs.append(
+                create_db_search_doc(doc, db_session, commit=False)
+            )
+            seen.add(key)
+    db_session.commit()
+    return True
 
 
 def get_chat_session_by_id(
@@ -85,6 +148,7 @@ def get_chat_session_by_id(
     if not include_deleted and chat_session.deleted:
         raise ValueError("Chat session has been deleted")
 
+    require_chat_document_access(db_session, chat_session.id, user_id)
     return chat_session
 
 
@@ -136,11 +200,13 @@ def get_chat_sessions_by_user(
     include_failed_chats: bool = False,
     exclude_incognito: bool = False,
     exclude_content_free: bool = False,
+    viewer_id: UUID | None = None,
 ) -> list[ChatSession]:
     stmt = (
         select(ChatSession)
         .where(ChatSession.user_id == user_id)
         .where(ChatSession.onyxbot_flow.is_(False))
+        .where(build_chat_document_access_filter(db_session, viewer_id or user_id))
         .order_by(desc(ChatSession.time_updated))
     )
 
@@ -490,6 +556,7 @@ def get_chat_message(
         )
         raise ValueError("Chat message does not belong to user")
 
+    require_chat_document_access(db_session, chat_message.chat_session_id, user_id)
     return chat_message
 
 

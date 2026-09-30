@@ -7,6 +7,7 @@ from typing_extensions import override
 from onyx.chat.emitter import Emitter
 from onyx.context.search.models import SearchDocsResponse
 from onyx.context.search.utils import convert_inference_sections_to_search_docs
+from onyx.db.connector import exclude_wikijs_urls
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.web_search import fetch_active_web_search_provider
 from onyx.server.query_and_chat.placement import Placement
@@ -302,6 +303,16 @@ class WebSearchTool(Tool[WebSearchToolOverrideKwargs]):
                 # Stop if no more results to add
                 if not added_any:
                     break
+
+        with get_session_with_current_tenant() as db_session:
+            allowed_urls = set(
+                exclude_wikijs_urls(
+                    db_session, [result.link for result in all_search_results]
+                )
+            )
+        all_search_results = [
+            result for result in all_search_results if result.link in allowed_urls
+        ]
 
         # This should be a very rare case and is due to not failing loudly enough in the search provider implementation.
         if not all_search_results:

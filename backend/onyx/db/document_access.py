@@ -1,8 +1,9 @@
 """SQL filters matching indexed document visibility."""
 
+import json
 from uuid import UUID
 
-from sqlalchemy import Select, String, and_, any_, cast, false, or_, select
+from sqlalchemy import Select, String, and_, any_, cast, false, func, or_, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql.elements import ColumnElement
@@ -13,12 +14,19 @@ from onyx.db.connector import get_wikijs_role_visibilities
 from onyx.db.connector_credential_pair import build_user_cc_pair_access_filter
 from onyx.db.enums import AccessType, ConnectorCredentialPairStatus
 from onyx.db.models import (
+    ChatMessage,
+    ChatSession,
     Connector,
     ConnectorCredentialPair,
     Document,
     DocumentByConnectorCredentialPair,
+    SearchDoc,
+    ToolCall,
+    ToolCall__SearchDoc,
     User,
 )
+from onyx.error_handling.error_codes import OnyxErrorCode
+from onyx.error_handling.exceptions import OnyxError
 
 
 def get_wikijs_document_groups(
@@ -137,6 +145,110 @@ def apply_document_access_filter(
             else false(),
         )
     )
+
+
+def build_chat_document_access_filter(
+    db_session: Session, user_id: UUID | None
+) -> ColumnElement[bool]:
+    """Deny the whole chat if a saved Wiki excerpt is no longer authorized.
+
+    Removing citations alone cannot remove content from answers or tool outputs.
+    Check both the saved classification and the current document ACL.
+    """
+    user = db_session.get(User, user_id) if user_id else None
+    allowed = get_wikijs_role_visibilities(
+        db_session, user.workspace_role if user and not user.is_anonymous else None
+    )
+    allowed_snapshot_filters = [
+        and_(
+            DocumentByConnectorCredentialPair.connector_id == connector_id,
+            SearchDoc.doc_metadata["visibility"].astext.in_(
+                [
+                    value
+                    for visibility in visibilities
+                    for value in (visibility, json.dumps([visibility]))
+                ]
+            ),
+        )
+        for connector_id, visibilities in allowed.items()
+        if visibilities
+    ]
+    allowed_snapshots = (
+        select(SearchDoc.id)
+        .join(
+            DocumentByConnectorCredentialPair,
+            DocumentByConnectorCredentialPair.id == SearchDoc.document_id,
+        )
+        .where(or_(*allowed_snapshot_filters) if allowed_snapshot_filters else false())
+    )
+    allowed_documents = apply_document_access_filter(
+        select(Document.id), db_session, None, [], user_id=user_id
+    )
+    wiki_document_ids = (
+        select(DocumentByConnectorCredentialPair.id)
+        .join(Connector, Connector.id == DocumentByConnectorCredentialPair.connector_id)
+        .where(Connector.source == DocumentSource.WIKIJS)
+    )
+    denied_snapshots = select(SearchDoc.id).where(
+        or_(
+            SearchDoc.source_type == DocumentSource.WIKIJS,
+            SearchDoc.document_id.in_(wiki_document_ids),
+        ),
+        or_(
+            SearchDoc.id.not_in(allowed_snapshots),
+            SearchDoc.document_id.not_in(allowed_documents),
+        ),
+    )
+    # Older citation-only snapshots can be absent from the junction table.
+    denied_citations = (
+        select(SearchDoc.id)
+        .where(
+            SearchDoc.id.in_(denied_snapshots),
+            func.jsonb_path_query_array(ChatMessage.citations, "$.*").op("@>")(
+                func.jsonb_build_array(SearchDoc.id)
+            ),
+        )
+        .correlate(ChatMessage)
+        .exists()
+    )
+    denied_messages = (
+        select(ChatMessage.id)
+        .where(
+            ChatMessage.chat_session_id == ChatSession.id,
+            or_(
+                ChatMessage.search_docs.any(SearchDoc.id.in_(denied_snapshots)),
+                denied_citations,
+            ),
+        )
+        .correlate(ChatSession)
+        .exists()
+    )
+    denied_tools = (
+        select(ToolCall.id)
+        .join(ToolCall__SearchDoc)
+        .where(
+            ToolCall.chat_session_id == ChatSession.id,
+            ToolCall__SearchDoc.search_doc_id.in_(denied_snapshots),
+        )
+        .correlate(ChatSession)
+        .exists()
+    )
+    return ~(denied_messages | denied_tools)
+
+
+def require_chat_document_access(
+    db_session: Session, chat_session_id: UUID, user_id: UUID | None
+) -> None:
+    if not db_session.scalar(
+        select(ChatSession.id).where(
+            ChatSession.id == chat_session_id,
+            build_chat_document_access_filter(db_session, user_id),
+        )
+    ):
+        raise OnyxError(
+            OnyxErrorCode.INSUFFICIENT_PERMISSIONS,
+            "Chat contains Wiki documents that are no longer authorized",
+        )
 
 
 def get_accessible_documents_by_ids(

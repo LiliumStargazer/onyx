@@ -20,6 +20,7 @@ from onyx.context.search.utils import (
     convert_inference_sections_to_search_docs,
     inference_section_from_chunks,
 )
+from onyx.db.connector import exclude_wikijs_urls, get_wikijs_url_hosts
 from onyx.db.document import fetch_document_ids_by_links, filter_existing_document_ids
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.models import User
@@ -37,6 +38,7 @@ from onyx.tools.tool_implementations.open_url.models import (
     FailedFetch,
     WebContentProvider,
 )
+from onyx.tools.tool_implementations.open_url.onyx_web_crawler import OnyxWebCrawler
 from onyx.tools.tool_implementations.open_url.url_normalization import (
     _default_url_normalizer,
     normalize_url_candidates,
@@ -944,11 +946,28 @@ class OpenURLTool(Tool[OpenURLToolOverrideKwargs]):
                 for url in urls
             ]
 
-        raw_web_contents = self._provider.contents(urls)
+        with get_session_with_current_tenant() as db_session:
+            web_urls = exclude_wikijs_urls(db_session, urls)
+            wiki_hosts = get_wikijs_url_hosts(db_session)
+        blocked_fetches = {
+            url: FailedFetch(
+                url=url, failure_reason="Wiki content requires indexed access"
+            )
+            for url in urls
+            if url not in web_urls
+        }
+        if not web_urls:
+            return [], list(blocked_fetches.values())
+
+        # ponytail: hosted/browser crawlers hide redirects; add destination checks before enabling them with Wiki.
+        provider = (
+            OnyxWebCrawler(blocked_hosts=wiki_hosts) if wiki_hosts else self._provider
+        )
+        raw_web_contents = provider.contents(web_urls)
         # Track per-URL failure reasons (preferred) but de-dupe by URL since the
         # same URL can show up in both the "empty" and "scrape unsuccessful"
         # branches below.
-        failed_by_url: dict[str, FailedFetch] = {}
+        failed_by_url: dict[str, FailedFetch] = blocked_fetches
 
         def _mark_failed(url: str, reason: str | None) -> None:
             existing = failed_by_url.get(url)

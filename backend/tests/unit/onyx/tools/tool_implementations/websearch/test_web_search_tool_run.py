@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from onyx.configs.constants import DocumentSource
 from onyx.server.query_and_chat.placement import Placement
 from onyx.tools.models import ToolCallException, WebSearchToolOverrideKwargs
 from onyx.tools.tool_implementations.web_search.models import WebSearchResult
@@ -52,9 +53,36 @@ def _run(tool: WebSearchTool, queries: Any) -> list[str]:
     """Call tool.run() and return the list of query strings passed to provider.search."""
     placement = Placement(turn_index=0, tab_index=0)
     override_kwargs = WebSearchToolOverrideKwargs(starting_citation_num=1)
-    tool.run(placement=placement, override_kwargs=override_kwargs, queries=queries)
+    with patch(
+        "onyx.tools.tool_implementations.web_search.web_search_tool.get_session_with_current_tenant"
+    ):
+        tool.run(placement=placement, override_kwargs=override_kwargs, queries=queries)
     search_mock = cast(MagicMock, tool._provider.search)  # noqa: SLF001
     return [call.args[0] for call in search_mock.call_args_list]
+
+
+def test_web_search_does_not_return_wiki_snippets() -> None:
+    provider = MagicMock(supports_site_filter=False)
+    provider.search.return_value = [
+        _make_result("Restricted Wiki title", "https://wiki.example.com/it/Riservato"),
+        _make_result("External page", "https://example.com"),
+    ]
+    tool = _make_tool(provider)
+    connector = MagicMock(source=DocumentSource.WIKIJS)
+    connector.connector_specific_config = {"wiki_url": "https://wiki.example.com"}
+    with patch(
+        "onyx.tools.tool_implementations.web_search.web_search_tool.get_session_with_current_tenant"
+    ) as session_context:
+        session_context.return_value.__enter__.return_value.scalars.return_value.all.return_value = [
+            connector
+        ]
+        response = tool.run(
+            placement=Placement(turn_index=0),
+            override_kwargs=WebSearchToolOverrideKwargs(starting_citation_num=1),
+            queries=["Wiki fixture"],
+        )
+    assert "Restricted Wiki title" not in response.llm_facing_response
+    assert "External page" in response.llm_facing_response
 
 
 class TestNormalizeQueriesInput:

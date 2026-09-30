@@ -7,9 +7,18 @@ links are still served from indexed documents, nothing is fetched from the
 live internet.
 """
 
-from unittest.mock import MagicMock
+from io import BytesIO
+from unittest.mock import MagicMock, patch
 
+import pytest
+import requests
+from urllib3 import HTTPResponse
+
+from onyx.configs.constants import DocumentSource
+from onyx.server.query_and_chat.placement import Placement
+from onyx.tools.models import OpenURLToolOverrideKwargs
 from onyx.tools.tool_constructor import should_disable_open_url_web_fetch
+from onyx.tools.tool_implementations.open_url.onyx_web_crawler import OnyxWebCrawler
 from onyx.tools.tool_implementations.open_url.open_url_tool import (
     WEB_FETCH_DISABLED_REASON,
     OpenURLTool,
@@ -89,6 +98,101 @@ def test_disabled_tool_needs_no_content_provider_and_says_so() -> None:
 def test_enabled_tool_keeps_default_description() -> None:
     tool = _build_tool(web_fetch_disabled=False)
     assert tool.description == OpenURLTool.DESCRIPTION
+
+
+@pytest.mark.parametrize(
+    "wiki_url",
+    [
+        "https://wiki.example.com/it/Riservato",
+        "https://WIKI.example.com.:443/it/Riservato",
+        "https://%77iki.example.com/it/Riservato",
+    ],
+)
+def test_open_url_does_not_crawl_configured_wiki_pages(wiki_url: str) -> None:
+    provider = MagicMock()
+    tool = OpenURLTool(
+        tool_id=2,
+        emitter=MagicMock(),
+        document_index=MagicMock(),
+        user=MagicMock(),
+        content_provider=provider,
+    )
+    connector = MagicMock(source=DocumentSource.WIKIJS)
+    connector.connector_specific_config = {"wiki_url": "https://wiki.example.com"}
+    with patch(
+        "onyx.tools.tool_implementations.open_url.open_url_tool.get_session_with_current_tenant"
+    ) as session_context:
+        session_context.return_value.__enter__.return_value.scalars.return_value.all.return_value = [
+            connector
+        ]
+        response = tool.run(
+            placement=Placement(turn_index=0),
+            override_kwargs=OpenURLToolOverrideKwargs(
+                starting_citation_num=1, citation_mapping={}, url_snippet_map={}
+            ),
+            urls=[wiki_url],
+        )
+    assert response.rich_response is None
+    provider.contents.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "destination, denied",
+    [
+        ("https://wiki.example.com/secret", True),
+        ("https://WIKI.example.com.:443/secret", True),
+        ("https://%77iki.example.com/secret", True),
+        ("https://other.example.com/page", False),
+    ],
+)
+def test_open_url_checks_redirect_destinations(destination: str, denied: bool) -> None:
+    url = "https://public.example.com/redirect"
+    redirect = requests.Response()
+    redirect.status_code = 302
+    redirect.headers["Location"] = destination
+    redirect._content = b""
+    redirect.raw = HTTPResponse(body=BytesIO(b""), preload_content=False)
+    page = requests.Response()
+    page.status_code = 200
+    page.headers["Content-Type"] = "text/html"
+    page._content = (
+        b"<html><title>Simulated page</title><body>"
+        + b"Simulated excerpt. " * 100
+        + b"</body></html>"
+    )
+    page.raw = HTTPResponse(body=BytesIO(page._content), preload_content=False)
+    provider = OnyxWebCrawler(validate_ssrf=True, playwright_fallback_enabled=False)
+    tool = OpenURLTool(
+        tool_id=2,
+        emitter=MagicMock(),
+        document_index=MagicMock(),
+        user=MagicMock(),
+        content_provider=provider,
+    )
+    connector = MagicMock(source=DocumentSource.WIKIJS)
+    connector.connector_specific_config = {"wiki_url": "https://wiki.example.com"}
+    with (
+        patch(
+            "onyx.tools.tool_implementations.open_url.open_url_tool.get_session_with_current_tenant"
+        ) as session_context,
+        patch(
+            "onyx.utils.url._validate_and_resolve_url",
+            return_value=("93.184.216.34", "public.example.com", 443),
+        ),
+        patch("onyx.utils.url._pinned_get", side_effect=[redirect, page]) as fetch,
+    ):
+        session_context.return_value.__enter__.return_value.scalars.return_value.all.return_value = [
+            connector
+        ]
+        response = tool.run(
+            placement=Placement(turn_index=0),
+            override_kwargs=OpenURLToolOverrideKwargs(
+                starting_citation_num=1, citation_mapping={}, url_snippet_map={}
+            ),
+            urls=[url],
+        )
+    assert (response.rich_response is None) is denied
+    assert fetch.call_count == (1 if denied else 2)
 
 
 def test_fetch_web_content_guard_when_provider_missing() -> None:

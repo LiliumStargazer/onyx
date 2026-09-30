@@ -8,21 +8,50 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
-from onyx.configs.constants import DocumentSource
+from onyx.cache.factory import get_cache_backend
+from onyx.chat.chat_processing_checker import set_processing_status
+from onyx.chat.stream_buffer import StreamBufferWriter, stream_buffer_key_pattern
+from onyx.configs.constants import DocumentSource, MessageType
 from onyx.connectors.models import InputType
+from onyx.context.search.models import SearchDoc
 from onyx.db.api_key import insert_api_key, remove_api_key
+from onyx.db.chat import (
+    create_db_search_doc,
+    create_new_chat_message,
+    get_or_create_root_message,
+)
 from onyx.db.connector_credential_pair import (
     add_credential_to_connector,
     delete_connector_credential_pair__no_commit,
 )
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.enums import AccessType, ConnectorCredentialPairStatus, SSOProviderType
-from onyx.db.models import OAuthAccount, SSOProvider, User, UserGroup
+from onyx.db.models import (
+    ChatSession,
+    ConnectorCredentialPair,
+    Document,
+    DocumentByConnectorCredentialPair,
+    OAuthAccount,
+    SSOProvider,
+    ToolCall,
+    User,
+    UserGroup,
+)
+from onyx.db.models import SearchDoc as DBSavedSearchDoc
+from onyx.db.tools import get_tool_by_name
+from onyx.kg.models import KGStage
 from onyx.redis.redis_pool import get_redis_client
 from onyx.server.api_key.models import APIKeyArgs
+from onyx.server.query_and_chat.placement import Placement
+from onyx.server.query_and_chat.streaming_models import AgentResponseDelta, Packet
+from tests.external_dependency_unit.indexing_helpers import (
+    cleanup_cc_pair,
+    make_cc_pair,
+)
 from tests.integration.common_utils.http_client import client, set_test_client
+from tests.integration.common_utils.managers.chat import ChatSessionManager
 from tests.integration.common_utils.managers.connector import ConnectorManager
 from tests.integration.common_utils.managers.credential import CredentialManager
 from tests.integration.common_utils.test_models import (
@@ -341,6 +370,252 @@ def test_role_visibility_update_revokes_search_and_direct_access_without_reindex
             headers=workspace_admin.headers,
         )
         assert denied_chunk.status_code == 404
+
+
+@pytest.fixture
+def saved_wiki_connection(
+    workspace_admin: DATestUser,
+) -> Generator[ConnectorCredentialPair, None, None]:
+    # Saved-answer checks need no index or embedding service.
+    with get_session_with_current_tenant() as db_session:
+        pair = make_cc_pair(db_session, DocumentSource.WIKIJS, commit=False)
+        pair.status = ConnectorCredentialPairStatus.PAUSED
+        pair.access_type = AccessType.PRIVATE
+        pair.credential.user_id = UUID(workspace_admin.id)
+        pair.connector.connector_specific_config = {
+            "wiki_url": "https://wiki.example.invalid",
+            "role_visibility_map": '{"interni":["interni"],"tecnico":[],"agente":[],"concessionario":[]}',
+        }
+        db_session.commit()
+        try:
+            yield pair
+        finally:
+            cleanup_cc_pair(db_session, pair)
+
+
+@pytest.mark.parametrize("role", ["interni", "tecnico", "agente", "concessionario"])
+def test_chat_answers_sources_and_tool_replay_obey_current_wiki_policy(
+    workspace_admin: DATestUser,
+    saved_wiki_connection: ConnectorCredentialPair,
+    role: str,
+) -> None:
+    cc_pair = saved_wiki_connection
+    chat = ChatSessionManager.create(workspace_admin, description="Wiki fixture answer")
+    document_ids = [f"wiki-chat-{uuid4()}" for _ in range(2)]
+    content = f"Restricted-excerpt-{uuid4()}"
+    with get_session_with_current_tenant() as db_session:
+        user = db_session.get(User, UUID(workspace_admin.id))
+        assert user is not None
+        provider = db_session.scalar(
+            select(SSOProvider).where(
+                SSOProvider.name == user.oauth_accounts[0].oauth_name
+            )
+        )
+        assert provider is not None and provider.config is not None
+        provider_config = provider.config.get_value(apply_mask=False)
+        provider_config["ou_role_map"] = json.dumps({"/Fixtures": role})
+        db_session.execute(
+            update(SSOProvider)
+            .where(SSOProvider.id == provider.id)
+            .values(config=provider_config)
+        )
+        root = get_or_create_root_message(chat.id, db_session)
+        message = create_new_chat_message(
+            db_session=db_session,
+            chat_session_id=chat.id,
+            parent_message=root,
+            message=f"{content} [1]",
+            token_count=3,
+            message_type=MessageType.ASSISTANT,
+        )
+        snapshots: list[DBSavedSearchDoc] = []
+        for document_id in document_ids:
+            db_session.add(
+                Document(
+                    id=document_id,
+                    semantic_id=document_id,
+                    kg_stage=KGStage.NOT_STARTED,
+                    doc_metadata={"visibility": "interni"},
+                )
+            )
+            db_session.add(
+                DocumentByConnectorCredentialPair(
+                    id=document_id,
+                    connector_id=cc_pair.connector_id,
+                    credential_id=cc_pair.credential_id,
+                    has_been_indexed=True,
+                )
+            )
+            snapshots.append(
+                create_db_search_doc(
+                    SearchDoc(
+                        document_id=document_id,
+                        chunk_ind=0,
+                        semantic_identifier="Wiki fixture",
+                        blurb=content,
+                        source_type=DocumentSource.WIKIJS,
+                        boost=1,
+                        hidden=False,
+                        metadata={"visibility": ["interni"]},
+                        match_highlights=[],
+                    ),
+                    db_session,
+                    commit=False,
+                )
+            )
+        message.search_docs = snapshots
+        message.citations = {1: snapshots[0].id}
+        tool = get_tool_by_name("internal_search", db_session)
+        db_session.add(
+            ToolCall(
+                chat_session_id=chat.id,
+                parent_chat_message_id=message.id,
+                turn_number=0,
+                tab_index=0,
+                tool_id=tool.id,
+                tool_call_id=uuid4().hex,
+                tool_call_arguments={"queries": ["fixture"]},
+                tool_call_response=content,
+                tool_call_tokens=2,
+                search_docs=snapshots,
+            )
+        )
+        db_session.commit()
+    try:
+        url = f"{FRONTEND_API}/chat/get-chat-session/{chat.id}"
+        initial = client.get(url, headers=workspace_admin.headers)
+        if role == "interni":
+            initial.raise_for_status()
+            assert content in initial.text
+            answer = next(
+                msg
+                for msg in initial.json()["messages"]
+                if msg["message_type"] == "assistant"
+            )
+            # Only one citation supplies Sources; the tool retrieved two documents.
+            assert answer["citations"] == {"1": document_ids[0]}
+            packets = [
+                packet["obj"] for turn in initial.json()["packets"] for packet in turn
+            ]
+            retrieved = next(
+                packet
+                for packet in packets
+                if packet["type"] == "search_tool_documents_delta"
+            )
+            assert {doc["document_id"] for doc in retrieved["documents"]} == set(
+                document_ids
+            )
+        else:
+            assert initial.status_code == 403
+            assert content not in initial.text
+
+        # Simulate a policy revocation without indexing or changing the real Wiki.
+        with get_session_with_current_tenant() as db_session:
+            pair = db_session.scalar(
+                select(ConnectorCredentialPair).where(
+                    ConnectorCredentialPair.id == cc_pair.id
+                )
+            )
+            assert pair is not None
+            pair.connector.connector_specific_config = {
+                **pair.connector.connector_specific_config,
+                "role_visibility_map": '{"interni":[],"tecnico":[],"agente":[],"concessionario":[]}',
+            }
+            db_session.commit()
+        for path in (
+            url,
+            f"{url}?is_shared=true",
+            f"{FRONTEND_API}/chat/chat-session/{chat.id}/resume-stream",
+        ):
+            denied = client.get(path, headers=workspace_admin.headers)
+            assert denied.status_code in (403, 404)
+            assert content not in denied.text
+        for path in ("get-user-chat-sessions", "search", "search?query=Wiki"):
+            history = client.get(
+                f"{FRONTEND_API}/chat/{path}", headers=workspace_admin.headers
+            )
+            history.raise_for_status()
+            assert str(chat.id) not in history.text
+        continuation = client.post(
+            f"{FRONTEND_API}/chat/send-chat-message",
+            json={
+                "message": "Continue",
+                "chat_session_id": str(chat.id),
+                "parent_message_id": -1,
+                "mock_llm_response": "This must not be generated",
+            },
+            headers=workspace_admin.headers,
+        )
+        assert content not in continuation.text
+        assert "This must not be generated" not in continuation.text
+        assert "Wiki documents that are no longer authorized" in continuation.text
+        fresh = ChatSessionManager.create(workspace_admin)
+        new_chat = client.get(
+            f"{FRONTEND_API}/chat/get-chat-session/{fresh.id}",
+            headers=workspace_admin.headers,
+        )
+        new_chat.raise_for_status()
+        # An in-flight buffer has no saved sources yet.
+        cache = get_cache_backend()
+        set_processing_status(fresh.id, cache, True, run_id=1)
+        buffer = StreamBufferWriter(cache, fresh.id, run_id=1)
+        buffer.append_line(
+            json.dumps(
+                {
+                    "obj": {"type": "message_delta", "content": content},
+                    "placement": {"turn_index": 0},
+                }
+            )
+            + "\n"
+        )
+        buffer.mark_done()
+        try:
+            replay = client.get(
+                f"{FRONTEND_API}/chat/chat-session/{fresh.id}/resume-stream?cursor=0",
+                headers=workspace_admin.headers,
+            )
+            assert replay.status_code == 404
+            assert content not in replay.text
+            set_processing_status(fresh.id, cache, True, run_id=2)
+            safe_buffer = StreamBufferWriter(cache, fresh.id, run_id=2)
+            safe_buffer.append_packet(
+                Packet(
+                    placement=Placement(turn_index=0),
+                    obj=AgentResponseDelta(content="Non-Wiki answer"),
+                )
+            )
+            safe_buffer.mark_done()
+            safe_replay = client.get(
+                f"{FRONTEND_API}/chat/chat-session/{fresh.id}/resume-stream",
+                headers=workspace_admin.headers,
+            )
+            safe_replay.raise_for_status()
+            assert "Non-Wiki answer" in safe_replay.text
+        finally:
+            set_processing_status(fresh.id, cache, False)
+            redis = get_redis_client()
+            keys = list(redis.scan_iter(match=stream_buffer_key_pattern(fresh.id)))
+            if keys:
+                redis.delete(*keys)
+    finally:
+        with get_session_with_current_tenant() as db_session:
+            db_session.execute(
+                delete(ChatSession).where(
+                    ChatSession.user_id == UUID(workspace_admin.id)
+                )
+            )
+            db_session.execute(
+                delete(DBSavedSearchDoc).where(
+                    DBSavedSearchDoc.document_id.in_(document_ids)
+                )
+            )
+            db_session.execute(
+                delete(DocumentByConnectorCredentialPair).where(
+                    DocumentByConnectorCredentialPair.id.in_(document_ids)
+                )
+            )
+            db_session.execute(delete(Document).where(Document.id.in_(document_ids)))
+            db_session.commit()
 
 
 def test_ingestion_reports_wikijs_indexing_failure(

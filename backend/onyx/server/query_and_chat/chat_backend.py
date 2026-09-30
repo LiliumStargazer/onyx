@@ -1325,6 +1325,11 @@ def resume_chat_stream(
             OnyxErrorCode.NOT_FOUND, "No resumable run for this chat session"
         )
 
+    meta = read_stream_chunks(cache, session_id, run_id, cursor, max_chunks=0)
+    # ponytail: replay known non-Wiki buffers; store source ACLs to resume Wiki.
+    if meta is None or meta.has_wiki_documents is not False:
+        raise OnyxError(OnyxErrorCode.NOT_FOUND, "Reload the saved chat response")
+
     def stream_buffered_run() -> Generator[str, None, None]:
         chunk_cursor = cursor
         last_emit = time.monotonic()
@@ -1338,7 +1343,7 @@ def resume_chat_stream(
             )
             # Buffer expired/evicted or sequence broken: end the stream — the
             # client refetches the session and renders the persisted message.
-            if read is None or read.gap:
+            if read is None or read.gap or read.has_wiki_documents is not False:
                 return
             if read.blocks:
                 yield "".join(read.blocks)
@@ -1361,7 +1366,12 @@ def resume_chat_stream(
                         chunk_cursor,
                         max_chunks=_RESUME_MAX_CHUNKS_PER_READ,
                     )
-                    if read is None or read.gap or not read.blocks:
+                    if (
+                        read is None
+                        or read.gap
+                        or not read.blocks
+                        or read.has_wiki_documents is not False
+                    ):
                         return
                     yield "".join(read.blocks)
                     chunk_cursor = read.next_cursor

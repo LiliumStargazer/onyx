@@ -134,6 +134,7 @@ def section_to_dict(section: InferenceSection, section_num: int) -> dict:
 def _retrieve_adjacent_chunks(
     section: InferenceSection,
     document_index: DocumentIndex,
+    filters: IndexFilters,
     num_chunks_above: int,
     num_chunks_below: int,
 ) -> tuple[list[InferenceChunk], list[InferenceChunk]]:
@@ -150,10 +151,6 @@ def _retrieve_adjacent_chunks(
     """
     # Get the document_id and chunk range from the section
     document_id = section.center_chunk.document_id
-
-    # The document fetching already enforced permissions
-    # the expansion does not need to do this unless it's for performance reasons
-    filters = IndexFilters(access_control_list=None)
 
     # Find the min and max chunk_id in the section
     chunk_ids = [chunk.chunk_id for chunk in section.chunks]
@@ -358,6 +355,7 @@ def expand_section_with_context(
     user_query: str,
     llm: LLM,
     document_index: DocumentIndex,
+    filters: IndexFilters,
     expand_override: bool = False,
 ) -> InferenceSection | None:
     """Use LLM to classify section relevance and return expanded section with appropriate context.
@@ -390,6 +388,7 @@ def expand_section_with_context(
         chunks_above_for_prompt, chunks_below_for_prompt = _retrieve_adjacent_chunks(
             section=section,
             document_index=document_index,
+            filters=filters,
             num_chunks_above=2,
             num_chunks_below=2,
         )
@@ -468,6 +467,7 @@ def expand_section_with_context(
         chunks_above_full, chunks_below_full = _retrieve_adjacent_chunks(
             section=section,
             document_index=document_index,
+            filters=filters,
             num_chunks_above=FULL_DOC_NUM_CHUNKS_AROUND,
             num_chunks_below=FULL_DOC_NUM_CHUNKS_AROUND,
         )

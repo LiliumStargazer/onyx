@@ -1170,6 +1170,7 @@ class SearchTool(Tool[SearchToolOverrideKwargs]):
                     user_query=user_query,
                     llm=llm,
                     document_index=document_index,
+                    filters=IndexFilters(access_control_list=acl_filters),
                     expand_override=expand_override,
                 )
                 # Return expanded section if not None, otherwise original

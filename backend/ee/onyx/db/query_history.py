@@ -10,6 +10,7 @@ from sqlalchemy.sql.expression import UnaryExpression, literal
 from ee.onyx.background.task_name_builders import QUERY_HISTORY_TASK_NAME_PREFIX
 from onyx.configs.constants import QAFeedbackType
 from onyx.db.chat import content_persisting_sessions_filter
+from onyx.db.document_access import build_chat_document_access_filter
 from onyx.db.models import ChatMessage, ChatMessageFeedback, ChatSession, TaskQueueState
 from onyx.db.tasks import get_all_tasks_with_prefix
 
@@ -18,6 +19,8 @@ def _build_filter_conditions(
     start_time: datetime | None,
     end_time: datetime | None,
     feedback_filter: QAFeedbackType | None,
+    db_session: Session,
+    viewer_id: UUID | None,
 ) -> list[ColumnElement]:
     """
     Helper function to build all filter conditions for chat sessions.
@@ -27,7 +30,11 @@ def _build_filter_conditions(
     feedback_filter: Feedback type to filter by
     Returns: List of filter conditions
     """
-    conditions = [content_persisting_sessions_filter()]
+    # Unscoped workspace exports have no content role and must omit Wiki answers.
+    conditions = [
+        content_persisting_sessions_filter(),
+        build_chat_document_access_filter(db_session, viewer_id),
+    ]
 
     if start_time is not None:
         conditions.append(ChatSession.time_created >= start_time)
@@ -70,8 +77,11 @@ def get_total_filtered_chat_sessions_count(
     start_time: datetime | None,
     end_time: datetime | None,
     feedback_filter: QAFeedbackType | None,
+    viewer_id: UUID | None = None,
 ) -> int:
-    conditions = _build_filter_conditions(start_time, end_time, feedback_filter)
+    conditions = _build_filter_conditions(
+        start_time, end_time, feedback_filter, db_session, viewer_id
+    )
     stmt = (
         select(func.count(distinct(ChatSession.id)))
         .select_from(ChatSession)
@@ -87,8 +97,11 @@ def get_page_of_chat_sessions(
     page_num: int,
     page_size: int,
     feedback_filter: QAFeedbackType | None = None,
+    viewer_id: UUID | None = None,
 ) -> Sequence[ChatSession]:
-    conditions = _build_filter_conditions(start_time, end_time, feedback_filter)
+    conditions = _build_filter_conditions(
+        start_time, end_time, feedback_filter, db_session, viewer_id
+    )
 
     subquery = (
         select(ChatSession.id)
@@ -123,6 +136,7 @@ def get_page_of_chat_sessions(
 def fetch_persisting_chat_session_by_id(
     chat_session_id: UUID,
     db_session: Session,
+    viewer_id: UUID | None = None,
 ) -> ChatSession:
     """The admin detail read, filtered like the list and the export it belongs to.
 
@@ -134,6 +148,7 @@ def fetch_persisting_chat_session_by_id(
         select(ChatSession).where(
             ChatSession.id == chat_session_id,
             content_persisting_sessions_filter(),
+            build_chat_document_access_filter(db_session, viewer_id),
         )
     )
     if chat_session is None:

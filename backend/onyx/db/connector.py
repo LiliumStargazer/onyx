@@ -17,6 +17,7 @@ from onyx.kg.models import KGConnectorData
 from onyx.server.documents.models import ConnectorBase, ObjectCreationIdResponse
 from onyx.server.models import StatusResponse
 from onyx.utils.logger import setup_logger
+from onyx.utils.url import normalized_url_hostname
 
 logger = setup_logger()
 
@@ -80,6 +81,19 @@ def get_wikijs_role_visibilities(
         except (ValueError, TypeError):
             continue
     return allowed
+
+
+def get_wikijs_url_hosts(db_session: Session) -> set[str]:
+    return {
+        normalized_url_hostname(connector.connector_specific_config["wiki_url"])
+        for connector in fetch_connectors(db_session, sources=[DocumentSource.WIKIJS])
+    }
+
+
+def exclude_wikijs_urls(db_session: Session, urls: list[str]) -> list[str]:
+    """Wiki hosts must use indexed ACLs, never web snippets or live crawling."""
+    wiki_hosts = get_wikijs_url_hosts(db_session)
+    return [url for url in urls if normalized_url_hostname(url) not in wiki_hosts]
 
 
 def connector_by_name_source_exists(

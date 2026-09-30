@@ -963,7 +963,8 @@ class TestRunModels:
             )
 
         buffered = "".join(
-            call.args[0] for call in stream_buffer.append_line.call_args_list
+            call.args[0].model_dump_json()
+            for call in stream_buffer.append_packet.call_args_list
         )
         # Both packets reached the buffer — including the one emitted after the
         # client was gone.

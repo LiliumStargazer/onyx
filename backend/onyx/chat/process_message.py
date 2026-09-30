@@ -140,7 +140,6 @@ from onyx.server.query_and_chat.streaming_models import (
 )
 from onyx.server.settings.store import load_settings
 from onyx.server.usage_limits import check_llm_cost_limit_for_provider
-from onyx.server.utils import get_json_line
 from onyx.tools.constants import FILE_READER_TOOL_ID, SEARCH_TOOL_ID
 from onyx.tools.models import ChatFile, SearchToolUsage
 from onyx.tools.tool_constructor import (
@@ -1511,10 +1510,7 @@ def _run_models(
     def _publish(item: Packet | StreamingError) -> None:
         """Fan one outbound item to the stream buffer and, while attached, the reader."""
         if stream_buffer is not None:
-            try:
-                stream_buffer.append_line(get_json_line(item.model_dump()))
-            except Exception:
-                logger.exception("stream buffer append failed")
+            stream_buffer.append_packet(item)
         # Non-blocking put: a slow reader can't stall the writer.
         if not reader_gone.is_set():
             tee.put(item)
@@ -1815,7 +1811,7 @@ def _stream_chat_turn(
             ),
         )
         for pre_run_packet in pre_run_packets:
-            stream_buffer.append_line(get_json_line(pre_run_packet.model_dump()))
+            stream_buffer.append_packet(pre_run_packet)
         # _run_models starts the writer thread before returning; from that point
         # the writer owns the fence reset.
         run_stream = _run_models(

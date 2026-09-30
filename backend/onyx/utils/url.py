@@ -3,7 +3,7 @@ import socket
 import unicodedata
 from collections.abc import Iterator
 from typing import Any
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlsplit, urlunparse
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -418,6 +418,7 @@ def _make_ssrf_safe_request(
     block_loopback_and_link_local: bool = True,
     block_link_local_only: bool = False,
     https_only: bool = False,
+    blocked_hosts: set[str] | None = None,
     **kwargs: Any,
 ) -> requests.Response:
     """
@@ -436,6 +437,8 @@ def _make_ssrf_safe_request(
     it to ``block_link_local_only`` so loopback services are reachable while
     cloud-metadata stays blocked.
     """
+    if blocked_hosts and normalized_url_hostname(url) in blocked_hosts:
+        raise SSRFException("Destination requires indexed access")
     if https_only and urlparse(url).scheme != "https":
         raise SSRFException(
             f"Invalid URL scheme '{urlparse(url).scheme}'. Only https is allowed."
@@ -480,6 +483,7 @@ def ssrf_safe_get(
     block_loopback_and_link_local: bool = True,
     block_link_local_only: bool = False,
     https_only: bool = False,
+    blocked_hosts: set[str] | None = None,
     **kwargs: Any,
 ) -> requests.Response:
     """
@@ -494,6 +498,7 @@ def ssrf_safe_get(
         headers: Optional headers to include in the request
         timeout: Request timeout in seconds
         follow_redirects: Whether to follow redirects (each redirect URL is validated)
+        blocked_hosts: Normalized hostnames denied on the initial request and every redirect.
         allow_private_network: If True, allow URLs that resolve to private/internal
             IPs. Use only when the operator has explicitly opted in (e.g. trusted
             self-hosted deployment fetching internal docs). Scheme, credential, and
@@ -516,6 +521,7 @@ def ssrf_safe_get(
         block_loopback_and_link_local=block_loopback_and_link_local,
         block_link_local_only=block_link_local_only,
         https_only=https_only,
+        blocked_hosts=blocked_hosts,
         **kwargs,
     )
 
@@ -557,6 +563,7 @@ def ssrf_safe_get(
                 block_loopback_and_link_local=block_loopback_and_link_local,
                 block_link_local_only=block_link_local_only,
                 https_only=https_only,
+                blocked_hosts=blocked_hosts,
                 **kwargs,
             )
 
@@ -595,6 +602,11 @@ def normalize_url(url: str) -> str:
     )
 
     return normalized
+
+
+def normalized_url_hostname(url: str) -> str:
+    hostname = unquote(urlsplit(url).hostname or "").rstrip(".")
+    return hostname.encode("idna").decode("ascii").lower()
 
 
 def add_url_params(url: str, params: dict) -> str:

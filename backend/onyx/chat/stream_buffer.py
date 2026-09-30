@@ -17,11 +17,22 @@ from uuid import UUID
 from pydantic import BaseModel, ValidationError
 
 from onyx.cache.interface import CacheBackend
+from onyx.chat.models import AnswerStreamPart
 from onyx.configs.chat_configs import (
     CHAT_STREAM_BUFFER_DONE_TTL_S,
     CHAT_STREAM_BUFFER_MAX_BYTES,
     CHAT_STREAM_BUFFER_TTL_S,
 )
+from onyx.context.search.models import SearchDoc
+from onyx.db.chat import record_chat_wiki_sources
+from onyx.db.engine.sql_engine import get_session_with_current_tenant
+from onyx.server.query_and_chat.streaming_models import (
+    AgentResponseStart,
+    OpenUrlDocuments,
+    Packet,
+    SearchToolDocumentsDelta,
+)
+from onyx.server.utils import get_json_line
 from onyx.utils.logger import setup_logger
 
 logger = setup_logger()
@@ -36,6 +47,7 @@ class StreamBufferMeta(BaseModel):
     chunk_count: int = 0
     done: bool = False
     truncated: bool = False
+    has_wiki_documents: bool | None = None
 
 
 class StreamChunkRead(BaseModel):
@@ -46,6 +58,7 @@ class StreamChunkRead(BaseModel):
     next_cursor: int
     done: bool
     gap: bool
+    has_wiki_documents: bool | None = None
 
 
 def _chunk_key(chat_session_id: UUID, run_id: int, chunk_n: int) -> str:
@@ -62,8 +75,8 @@ def stream_buffer_key_pattern(chat_session_id: UUID) -> str:
 
 
 class StreamBufferWriter:
-    """Append-only writer for one run. Errors never propagate into the stream
-    path — a broken cache downgrades the run to non-resumable (truncated)."""
+    """Record source access before buffering a run. Cache failures disable replay;
+    source access failures stop the stream."""
 
     def __init__(
         self,
@@ -84,7 +97,7 @@ class StreamBufferWriter:
         # writing answer chunks behind it, which then live out the buffer TTL
         # if the run never reaches completion.
         self._session_ended = session_ended
-        self._meta = StreamBufferMeta()
+        self._meta = StreamBufferMeta(has_wiki_documents=False)
         self._pending: list[str] = []
         self._pending_bytes = 0
         self._compressed_total = 0
@@ -93,7 +106,31 @@ class StreamBufferWriter:
     def run_id(self) -> int:
         return self._run_id
 
+    def append_packet(self, packet: AnswerStreamPart) -> None:
+        documents: list[SearchDoc] = []
+        if isinstance(packet, Packet):
+            if isinstance(packet.obj, (SearchToolDocumentsDelta, OpenUrlDocuments)):
+                documents = packet.obj.documents
+            elif isinstance(packet.obj, AgentResponseStart):
+                documents = packet.obj.final_documents or []
+        if documents:
+            previous = self._meta.has_wiki_documents
+            self._meta.has_wiki_documents = None
+            with get_session_with_current_tenant() as db_session:
+                self._meta.has_wiki_documents = (
+                    record_chat_wiki_sources(
+                        db_session, self._chat_session_id, self._run_id, documents
+                    )
+                    or previous
+                )
+        self._append_line(get_json_line(packet.model_dump()))
+
     def append_line(self, line: str) -> None:
+        # Raw or legacy producers have no source provenance.
+        self._meta.has_wiki_documents = None
+        self._append_line(line)
+
+    def _append_line(self, line: str) -> None:
         if self._meta.truncated or self._meta.done:
             return
         self._pending.append(line)
@@ -247,4 +284,10 @@ def read_stream_chunks(
             break
         chunk_n += 1
 
-    return StreamChunkRead(blocks=blocks, next_cursor=chunk_n, done=meta.done, gap=gap)
+    return StreamChunkRead(
+        blocks=blocks,
+        next_cursor=chunk_n,
+        done=meta.done,
+        gap=gap,
+        has_wiki_documents=meta.has_wiki_documents,
+    )

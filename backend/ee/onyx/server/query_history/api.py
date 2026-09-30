@@ -158,7 +158,7 @@ def snapshot_from_chat_session(
 @router.get("/admin/chat-sessions")
 def admin_get_chat_sessions(
     user_id: UUID,
-    _: User = Depends(require_permission(Permission.READ_QUERY_HISTORY)),
+    user: User = Depends(require_permission(Permission.READ_QUERY_HISTORY)),
     db_session: Session = Depends(get_session),
 ) -> ChatSessionsResponse:
     # we specifically don't allow this endpoint if "anonymized" since
@@ -179,6 +179,7 @@ def admin_get_chat_sessions(
             db_session=db_session,
             limit=0,
             exclude_content_free=True,
+            viewer_id=user.id,
         )
 
     except ValueError:
@@ -207,7 +208,7 @@ def get_chat_session_history(
     feedback_type: QAFeedbackType | None = None,
     start_time: datetime | None = None,
     end_time: datetime | None = None,
-    _: User = Depends(require_permission(Permission.READ_QUERY_HISTORY)),
+    user: User = Depends(require_permission(Permission.READ_QUERY_HISTORY)),
     db_session: Session = Depends(get_session),
 ) -> PaginatedReturn[ChatSessionMinimal]:
     query_history_type = ensure_query_history_is_enabled(
@@ -221,6 +222,7 @@ def get_chat_session_history(
         start_time=start_time,
         end_time=end_time,
         feedback_filter=feedback_type,
+        viewer_id=user.id,
     )
 
     total_filtered_chat_sessions_count = get_total_filtered_chat_sessions_count(
@@ -228,6 +230,7 @@ def get_chat_session_history(
         start_time=start_time,
         end_time=end_time,
         feedback_filter=feedback_type,
+        viewer_id=user.id,
     )
 
     minimal_chat_sessions: list[ChatSessionMinimal] = []
@@ -247,7 +250,7 @@ def get_chat_session_history(
 @router.get("/admin/chat-session-history/{chat_session_id}")
 def get_chat_session_admin(
     chat_session_id: UUID,
-    _: User = Depends(require_permission(Permission.READ_QUERY_HISTORY)),
+    user: User = Depends(require_permission(Permission.READ_QUERY_HISTORY)),
     db_session: Session = Depends(get_session),
 ) -> ChatSessionSnapshot:
     query_history_type = ensure_query_history_is_enabled(
@@ -258,12 +261,10 @@ def get_chat_session_admin(
         chat_session = fetch_persisting_chat_session_by_id(
             chat_session_id=chat_session_id,
             db_session=db_session,
+            viewer_id=user.id,
         )
     except ValueError:
-        raise HTTPException(
-            HTTPStatus.BAD_REQUEST,
-            f"Chat session with id '{chat_session_id}' does not exist.",
-        )
+        raise OnyxError(OnyxErrorCode.NOT_FOUND, "Chat session not found")
     snapshot = snapshot_from_chat_session(
         chat_session=chat_session, db_session=db_session
     )

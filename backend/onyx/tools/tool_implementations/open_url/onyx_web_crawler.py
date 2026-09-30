@@ -237,12 +237,16 @@ class OnyxWebCrawler(WebContentProvider):
         playwright_fallback_enabled: bool = OPEN_URL_PLAYWRIGHT_FALLBACK_ENABLED,
         validate_ssrf: bool | None = None,
         body_deadline_seconds: float | None = None,
+        blocked_hosts: set[str] | None = None,
     ) -> None:
         self._read_timeout_seconds = timeout_seconds
         self._connect_timeout_seconds = connect_timeout_seconds
         self._max_pdf_size_bytes = max_pdf_size_bytes
         self._max_html_size_bytes = max_html_size_bytes
-        self._playwright_fallback_enabled = playwright_fallback_enabled
+        self._blocked_hosts = blocked_hosts
+        self._playwright_fallback_enabled = (
+            playwright_fallback_enabled and not blocked_hosts
+        )
         # Per-read timeouts alone let a slow-drip server hold the worker.
         self._body_deadline_seconds = (
             body_deadline_seconds
@@ -303,6 +307,11 @@ class OnyxWebCrawler(WebContentProvider):
                 timeout=(self._connect_timeout_seconds, self._read_timeout_seconds),
                 allow_private_network=not self._should_validate_ssrf(),
                 stream=True,
+                **(
+                    {"blocked_hosts": self._blocked_hosts}
+                    if self._blocked_hosts
+                    else {}
+                ),
             )
         except SSRFException as exc:
             logger.error(

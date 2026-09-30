@@ -15,10 +15,13 @@ from onyx.configs.constants import (
     DocumentSource,
     FileOrigin,
 )
-from onyx.connectors.wikijs import wiki_visibility_group
+from onyx.connectors.wikijs import WIKI_ACL_PREFIX, wiki_visibility_group
 from onyx.db.connector import get_wikijs_role_visibilities
 from onyx.db.document import get_access_info_for_documents
-from onyx.db.document_access import get_wikijs_document_groups
+from onyx.db.document_access import (
+    build_chat_document_access_filter,
+    get_wikijs_document_groups,
+)
 from onyx.db.models import (
     ChatMessage,
     ChatSession,
@@ -38,6 +41,7 @@ from onyx.utils.variable_functionality import (
     fetch_ee_implementation_or_noop,
     fetch_versioned_implementation,
 )
+from shared_configs.contextvars import CURRENT_CONTENT_FREE_SESSION_ID_CONTEXTVAR
 
 
 def _get_access_for_document(
@@ -153,7 +157,12 @@ def get_acl_for_user(user: User, db_session: Session | None = None) -> set[str]:
     versioned_acl_for_user_fn = fetch_versioned_implementation(
         "onyx.access.access", "_get_acl_for_user"
     )
-    return versioned_acl_for_user_fn(user, db_session)
+    acl = versioned_acl_for_user_fn(user, db_session)
+    # ponytail: content-free chats cannot retain source ACLs; add ephemeral provenance to enable Wiki.
+    if CURRENT_CONTENT_FREE_SESSION_ID_CONTEXTVAR.get() is not None:
+        wiki_prefix = prefix_external_group(WIKI_ACL_PREFIX)
+        return {entry for entry in acl if not entry.startswith(wiki_prefix)}
+    return acl
 
 
 def source_should_fetch_permissions_during_indexing(source: DocumentSource) -> bool:
@@ -267,6 +276,7 @@ def user_can_access_chat_file(file_id: str, user: User, db_session: Session) -> 
         select(ChatMessage.id)
         .join(ChatSession, ChatMessage.chat_session_id == ChatSession.id)
         .where(ChatMessage.files.op("@>")([{"id": file_id}]))
+        .where(build_chat_document_access_filter(db_session, user.id))
         .where(
             or_(
                 ChatSession.user_id == user.id,
@@ -318,6 +328,7 @@ def _user_can_access_chat_image_gen_file(
     stmt = (
         select(ChatSession.id)
         .where(ChatSession.id == chat_session_id)
+        .where(build_chat_document_access_filter(db_session, user.id))
         .where(
             or_(
                 ChatSession.user_id == user.id,

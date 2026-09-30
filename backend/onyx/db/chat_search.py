@@ -5,6 +5,7 @@ from sqlalchemy import ColumnElement, column, desc, func, select
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql.expression import ColumnClause
 
+from onyx.db.document_access import build_chat_document_access_filter
 from onyx.db.models import ChatMessage, ChatSession
 
 
@@ -33,6 +34,7 @@ def search_chat_sessions(
             select(ChatSession)
             .where(ChatSession.onyxbot_flow.is_(False))
             .where(ChatSession.incognito_record_mode.is_(None))
+            .where(build_chat_document_access_filter(db_session, user_id))
             .order_by(desc(ChatSession.time_created))
             .offset(offset_val)
             .limit(page_size + 1)
@@ -59,6 +61,7 @@ def search_chat_sessions(
     base_conditions: list[ColumnElement[bool]] = [
         ChatSession.onyxbot_flow.is_(False),
         ChatSession.incognito_record_mode.is_(None),
+        build_chat_document_access_filter(db_session, user_id),
     ]
     if user_id is not None:
         base_conditions.append(ChatSession.user_id == user_id)
