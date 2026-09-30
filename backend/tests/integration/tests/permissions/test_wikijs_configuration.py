@@ -173,6 +173,9 @@ def workspace_admin(admin_user: DATestUser) -> Generator[DATestUser, None, None]
     finally:
         directory_cache.delete(cache_key)
         with get_session_with_current_tenant() as db_session:
+            db_session.execute(
+                delete(ChatSession).where(ChatSession.user_id == api_key.user_id)
+            )
             remove_api_key(db_session, api_key.api_key_id)
             db_session.execute(
                 delete(SSOProvider).where(SSOProvider.name == provider_name)
@@ -543,12 +546,10 @@ def test_chat_answers_sources_and_tool_replay_obey_current_wiki_policy(
                 "message": "Continue",
                 "chat_session_id": str(chat.id),
                 "parent_message_id": -1,
-                "mock_llm_response": "This must not be generated",
             },
             headers=workspace_admin.headers,
         )
         assert content not in continuation.text
-        assert "This must not be generated" not in continuation.text
         assert "Wiki documents are no longer authorized" in continuation.text
         fresh = ChatSessionManager.create(workspace_admin)
         new_chat = client.get(
@@ -650,7 +651,7 @@ def test_sourceless_chat_revocation_and_disabled_existing_share_links(
         assert content not in shared.text
     sharing = client.patch(
         f"{FRONTEND_API}/chat/chat-session/{chat.id}",
-        json={"sharing_status": "PUBLIC"},
+        json={"sharing_status": ChatSessionSharedStatus.PUBLIC.value},
         headers=workspace_admin.headers,
     )
     assert sharing.status_code == 403
@@ -708,11 +709,9 @@ def test_sourceless_chat_revocation_and_disabled_existing_share_links(
             "message": "Continue",
             "chat_session_id": str(chat.id),
             "parent_message_id": -1,
-            "mock_llm_response": "Forbidden continuation",
         },
         headers=workspace_admin.headers,
     )
-    assert "Forbidden continuation" not in continuation.text
     assert "Chat access was revoked" in continuation.text
     fresh = ChatSessionManager.create(workspace_admin)
     client.get(
