@@ -40,21 +40,21 @@ def seed_saved_project_chat(
             incognito_session_id=chat.id if record_mode is not None else None,
         )
         db_session.add(user_file)
-        project_id, chat_id, file_id = project.id, chat.id, user_file.id
+        project_id, chat_id, user_file_id = project.id, chat.id, user_file.id
         db_session.commit()
 
     try:
-        yield project_id, chat_id, file_id
+        yield project_id, chat_id, user_file_id
     finally:
         with get_session_with_current_tenant() as db_session:
-            db_session.execute(delete(UserFile).where(UserFile.id == file_id))
+            db_session.execute(delete(UserFile).where(UserFile.id == user_file_id))
             db_session.execute(delete(ChatSession).where(ChatSession.id == chat_id))
             db_session.execute(delete(UserProject).where(UserProject.id == project_id))
             db_session.commit()
 
 
 def assert_saved_project_chat_preserved(
-    project_id: int, chat_id: UUID, file_id: UUID
+    project_id: int, chat_id: UUID, user_file_id: UUID
 ) -> None:
     """Check stored rows even though the Project API must deny access."""
     with get_session_with_current_tenant() as db_session:
@@ -62,6 +62,6 @@ def assert_saved_project_chat_preserved(
         assert saved_chat is not None and not saved_chat.deleted
         assert saved_chat.project_id == project_id
         assert db_session.get(UserProject, project_id) is not None
-        saved_file = db_session.get(UserFile, file_id)
+        saved_file = db_session.get(UserFile, user_file_id)
         assert saved_file is not None
         assert saved_file.status == UserFileStatus.COMPLETED

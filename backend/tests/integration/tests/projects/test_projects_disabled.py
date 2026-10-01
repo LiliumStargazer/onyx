@@ -26,7 +26,7 @@ def test_saved_project_chats_are_unavailable(
     with seed_saved_project_chat(UUID(user.id), record_mode) as (
         project_id,
         chat_id,
-        file_id,
+        user_file_id,
     ):
         with httpx.Client(
             base_url=os.environ.get("WEB_DOMAIN", "http://localhost:3000"),
@@ -71,4 +71,4 @@ def test_saved_project_chats_are_unavailable(
             assert response.status_code == 403, response.text
             response = frontend.delete("/api/chat/delete-all-chat-sessions")
             assert response.status_code == 200, response.text
-        assert_saved_project_chat_preserved(project_id, chat_id, file_id)
+        assert_saved_project_chat_preserved(project_id, chat_id, user_file_id)
