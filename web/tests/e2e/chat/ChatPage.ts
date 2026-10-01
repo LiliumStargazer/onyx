@@ -83,6 +83,11 @@ export class ChatPage {
         .getByText("Simulated Wiki page", { exact: true })
         .first()
     ).toBeVisible();
+    const sourcesDialog = this.page.getByRole("dialog");
+    if (await sourcesDialog.count()) {
+      await this.page.keyboard.press("Escape");
+      await expect(sourcesDialog).toBeHidden();
+    }
   }
 
   async gotoAgentUrl(path: string): Promise<void> {

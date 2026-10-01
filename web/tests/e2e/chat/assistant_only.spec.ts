@@ -257,8 +257,6 @@ for (const viewport of [
         await chat.gotoAgentUrl(path);
         await chat.expectAssistantOnly();
       }
-      await chat.expectAdminAgentsHidden();
-
       for (const personaId of [23, 0]) {
         const delayedSessionId =
           personaId === 0
@@ -300,6 +298,7 @@ for (const viewport of [
           expect(chatRequests).toHaveLength(4);
         }
       }
+      await chat.expectAdminAgentsHidden();
     }
   });
 }
