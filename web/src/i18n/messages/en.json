@@ -9775,6 +9775,12 @@
           "searchPlaceholder": "Search connected sources",
           "speakingPlaceholder": "{appName} is speaking..."
         },
+        "modelLoadError": {
+          "retryButton": {
+            "label": "Try again"
+          },
+          "title": "Could not load the Admin chat model."
+        },
         "sendButton": {
           "processingFilesTooltip": "Waiting for attached file(s) to finish processing"
         },

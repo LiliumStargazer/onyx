@@ -53,6 +53,27 @@ export class ChatPage {
     ).toHaveCount(0);
   }
 
+  async expectModelLoadError(): Promise<void> {
+    await expect(this.page.getByRole("alert")).toContainText(
+      "Could not load the Admin chat model."
+    );
+    await expect(this.inputBar.textbox).toHaveAttribute(
+      "contenteditable",
+      "false"
+    );
+  }
+
+  async retryModelLoad(): Promise<void> {
+    await this.page
+      .getByRole("button", { name: "Try again", exact: true })
+      .click();
+    await expect(this.page.getByRole("alert")).toHaveCount(0);
+    await expect(this.inputBar.textbox).toHaveAttribute(
+      "contenteditable",
+      "true"
+    );
+  }
+
   async regenerate(index = 0): Promise<void> {
     await this.aiMessage(index).hover();
     await this.aiMessage(index).getByTestId("AgentMessage/regenerate").click();

@@ -9775,6 +9775,12 @@
           "searchPlaceholder": "Buscar en las fuentes conectadas",
           "speakingPlaceholder": "{appName} está hablando..."
         },
+        "modelLoadError": {
+          "retryButton": {
+            "label": "Volver a intentar"
+          },
+          "title": "No se pudo cargar el modelo de chat definido por el administrador."
+        },
         "sendButton": {
           "processingFilesTooltip": "Esperando a que terminen de procesarse los archivos adjuntos"
         },

@@ -9773,6 +9773,12 @@
           "searchPlaceholder": "البحث في المصادر المتصلة",
           "speakingPlaceholder": "{appName} يتحدث..."
         },
+        "modelLoadError": {
+          "retryButton": {
+            "label": "حاول مرة أخرى"
+          },
+          "title": "تعذر تحميل نموذج المحادثة الذي حدده المسؤول."
+        },
         "sendButton": {
           "processingFilesTooltip": "في انتظار انتهاء معالجة الملفات المرفقة"
         },

@@ -53,6 +53,7 @@ import {
 import {
   Button,
   LineItemButton,
+  MessageCard,
   Popover,
   SelectButton,
   Spacer,
@@ -823,6 +824,32 @@ const AppInputBar = React.memo(
 
     return (
       <>
+        {!USER_MODEL_SELECTION_ENABLED &&
+          !llmManager.isLoadingProviders &&
+          !llmManager.currentLlm.modelName && (
+            <div role="alert">
+              <MessageCard
+                variant="error"
+                title={t("appInputBar.modelLoadError.title")}
+                rightChildren={
+                  <Button
+                    onClick={() => {
+                      void llmManager
+                        .refetchProviders()
+                        .catch((error: unknown) =>
+                          console.error(
+                            "Failed to reload chat model providers",
+                            error
+                          )
+                        );
+                    }}
+                  >
+                    {t("appInputBar.modelLoadError.retryButton.label")}
+                  </Button>
+                }
+              />
+            </div>
+          )}
         <QueuedMessageBar
           messages={queuedMessages}
           highlightedIndex={queueNav.highlightedIndex}

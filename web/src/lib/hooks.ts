@@ -274,6 +274,7 @@ export interface LlmManager {
   hasTemperatureOverride: boolean;
   llmProviders: LLMProviderDescriptor[] | undefined;
   isLoadingProviders: boolean;
+  refetchProviders: () => Promise<void>;
   hasAnyProvider: boolean;
 }
 
@@ -474,6 +475,7 @@ export function useLlmManager(
     llmProviders: allUserProviders,
     defaultText: allUserDefaultText,
     isLoading: isLoadingAllProviders,
+    refetch: refetchAllProviders,
   } = useLanguageModels();
   // Fetch persona-specific providers to enforce RBAC restrictions per assistant
   // Only fetch if we have an agent selected
@@ -482,6 +484,7 @@ export function useLlmManager(
     llmProviders: personaProviders,
     defaultText: personaDefaultText,
     isLoading: isLoadingPersonaProviders,
+    refetch: refetchPersonaProviders,
   } = useLanguageModelsForAgent(personaId);
 
   const llmProviders =
@@ -554,7 +557,7 @@ export function useLlmManager(
       return getValidLlmDescriptorForProviders(
         null,
         llmProviders?.filter(
-          (provider) => !defaultText || provider.id === defaultText.provider_id
+          (provider) => provider.id === defaultText?.provider_id
         ),
         defaultText
       );
@@ -912,6 +915,10 @@ export function useLlmManager(
     isLoadingProviders:
       isLoadingAllProviders ||
       (personaId !== undefined && isLoadingPersonaProviders),
+    refetchProviders: async () => {
+      await refetchAllProviders();
+      if (personaId !== undefined) await refetchPersonaProviders();
+    },
     hasAnyProvider,
   };
 }

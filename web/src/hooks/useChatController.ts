@@ -421,6 +421,12 @@ export default function useChatController({
       additionalContext,
       selectedModels,
     }: OnSubmitProps) => {
+      if (
+        !USER_MODEL_SELECTION_ENABLED &&
+        (llmManager.isLoadingProviders || !llmManager.currentLlm.modelName)
+      ) {
+        return;
+      }
       // Read at submit time so no caller can capture a stale value.
       const incognito = incognitoEnabledRef.current ?? false;
       const isMultiModel =
@@ -1514,6 +1520,7 @@ export default function useChatController({
       // Narrow to stable fields from managers to avoid re-creation
       selectedSearchSources,
       llmManager.currentLlm,
+      llmManager.isLoadingProviders,
       llmManager.temperature,
       llmManager.hasTemperatureOverride,
       llmManager.persistOverrides,

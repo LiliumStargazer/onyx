@@ -9773,6 +9773,12 @@
           "searchPlaceholder": "Verbundene Quellen durchsuchen",
           "speakingPlaceholder": "{appName} spricht..."
         },
+        "modelLoadError": {
+          "retryButton": {
+            "label": "Erneut versuchen"
+          },
+          "title": "Das vom Administrator festgelegte Chat-Modell konnte nicht geladen werden."
+        },
         "sendButton": {
           "processingFilesTooltip": "Warten, bis die angehängten Dateien verarbeitet sind"
         },

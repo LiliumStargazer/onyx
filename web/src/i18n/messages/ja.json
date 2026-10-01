@@ -9773,6 +9773,12 @@
           "searchPlaceholder": "接続済みのソースを検索",
           "speakingPlaceholder": "{appName} が話しています..."
         },
+        "modelLoadError": {
+          "retryButton": {
+            "label": "再試行"
+          },
+          "title": "管理者が設定したチャットモデルを読み込めませんでした。"
+        },
         "sendButton": {
           "processingFilesTooltip": "添付ファイルの処理が完了するのを待っています"
         },

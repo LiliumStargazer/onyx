@@ -9773,6 +9773,12 @@
           "searchPlaceholder": "搜索已连接的来源",
           "speakingPlaceholder": "{appName} 正在朗读..."
         },
+        "modelLoadError": {
+          "retryButton": {
+            "label": "重试"
+          },
+          "title": "无法加载管理员设置的聊天模型。"
+        },
         "sendButton": {
           "processingFilesTooltip": "正在等待附件处理完成"
         },

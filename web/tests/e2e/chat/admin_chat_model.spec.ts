@@ -15,10 +15,12 @@ const ADMIN_MODEL = {
   model_configuration_id: 501,
 };
 
-for (const existingChat of [false, true]) {
-  test(`${existingChat ? "existing" : "new"} chat and regeneration use the Admin model despite saved choices`, async ({
+for (const scenario of ["new", "existing", "retry"] as const) {
+  test(`${scenario} chat and regeneration use the Admin model despite saved choices`, async ({
     page,
   }) => {
+    const existingChat = scenario === "existing";
+    let failProviderRequest = scenario === "retry";
     resetTurnCounter();
     const chat = new ChatPage(page);
     const capturedOverrides: (LLMOverride | undefined)[] = [];
@@ -75,7 +77,12 @@ for (const existingChat of [false, true]) {
       default_craft: null,
     };
     await page.route("**/api/llm/provider", (route) =>
-      route.fulfill({ json: providerResponse })
+      route.fulfill({
+        status: failProviderRequest ? 500 : 200,
+        json: failProviderRequest
+          ? { detail: "Temporary provider error" }
+          : providerResponse,
+      })
     );
     await page.route("**/api/llm/persona/*/providers", (route) =>
       route.fulfill({
@@ -96,7 +103,7 @@ for (const existingChat of [false, true]) {
     await page.route("**/api/chat/create-chat-session", (route) =>
       route.fulfill({ json: { chat_session_id: SESSION_ID } })
     );
-    await page.route(`**/api/chat/chat-session/${SESSION_ID}`, (route) =>
+    await page.route(`**/api/chat/get-chat-session/${SESSION_ID}`, (route) =>
       route.fulfill({ json: session })
     );
     await page.route("**/api/chat/update-chat-session-*", (route) =>
@@ -119,6 +126,12 @@ for (const existingChat of [false, true]) {
     });
 
     await chat.goto(existingChat ? SESSION_ID : undefined);
+    if (failProviderRequest) {
+      await chat.expectModelLoadError();
+      expect(capturedOverrides).toHaveLength(0);
+      failProviderRequest = false;
+      await chat.retryModelLoad();
+    }
     await chat.expectNoModelSelectors();
     await chat.inputBar.fill("Use the Admin model");
     await chat.inputBar.send();

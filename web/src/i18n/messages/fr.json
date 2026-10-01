@@ -9773,6 +9773,12 @@
           "searchPlaceholder": "Rechercher dans les sources connectées",
           "speakingPlaceholder": "{appName} parle..."
         },
+        "modelLoadError": {
+          "retryButton": {
+            "label": "Réessayer"
+          },
+          "title": "Impossible de charger le modèle de chat défini par l’administrateur."
+        },
         "sendButton": {
           "processingFilesTooltip": "En attente de la fin du traitement des fichiers joints"
         },

@@ -9773,6 +9773,12 @@
           "searchPlaceholder": "연결된 소스 검색",
           "speakingPlaceholder": "{appName}가 말하는 중..."
         },
+        "modelLoadError": {
+          "retryButton": {
+            "label": "다시 시도"
+          },
+          "title": "관리자가 설정한 채팅 모델을 불러오지 못했습니다."
+        },
         "sendButton": {
           "processingFilesTooltip": "첨부 파일 처리가 끝나기를 기다리는 중"
         },
