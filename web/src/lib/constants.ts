@@ -6,6 +6,9 @@ export const CHAT_SHARING_ENABLED = false;
 // Frontend chats use the Admin default. Direct API overrides stay available.
 export const USER_MODEL_SELECTION_ENABLED = false;
 
+// Keep upstream chat features and APIs, but expose only Assistant, text and voice.
+export const SIMPLIFIED_CHAT_ENABLED = true;
+
 export const IS_DEV = process.env.NODE_ENV === "development";
 
 export const HOST_URL = process.env.WEB_DOMAIN || "http://localhost:3000";

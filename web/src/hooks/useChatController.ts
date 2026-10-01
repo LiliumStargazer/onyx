@@ -17,6 +17,7 @@ import {
 import { getMaxSelectedDocumentTokens } from "@/lib/projects/svc";
 import {
   DEFAULT_CONTEXT_TOKENS,
+  SIMPLIFIED_CHAT_ENABLED,
   USER_MODEL_SELECTION_ENABLED,
 } from "@/lib/constants";
 import { StreamStopInfo } from "@/lib/search/types";
@@ -540,7 +541,7 @@ export default function useChatController({
       }
 
       // Auto-pin the agent to sidebar when sending a message if not already pinned
-      if (activeAgent) {
+      if (!SIMPLIFIED_CHAT_ENABLED && activeAgent) {
         const isAlreadyPinned = pinnedAgents.some(
           (agent) => agent.id === activeAgent.id
         );
@@ -1546,6 +1547,7 @@ export default function useChatController({
 
   const handleMessageSpecificFileUpload = useCallback(
     async (acceptedFiles: File[]) => {
+      if (SIMPLIFIED_CHAT_ENABLED) return;
       const [_, llmModel] = getFinalLLM(
         llmManager.llmProviders || [],
         activeAgent || null,

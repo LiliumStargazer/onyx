@@ -73,7 +73,10 @@ import {
 } from "@/app/app/stores/useChatSessionStore";
 import QueuedMessageBar from "@/sections/input/QueuedMessageBar";
 import { handleInputNavKeys } from "@/sections/input/inputBarKeys";
-import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
+import {
+  SIMPLIFIED_CHAT_ENABLED,
+  USER_MODEL_SELECTION_ENABLED,
+} from "@/lib/constants";
 
 export interface AppInputBarHandle {
   reset: () => void;
@@ -428,7 +431,10 @@ const AppInputBar = React.memo(
 
     // Animate attached files wrapper to its content height so CSS transitions
     // can interpolate between concrete pixel values (0px ↔ Npx).
-    const showFiles = !isSearchMode && currentMessageFiles.length > 0;
+    const showFiles =
+      !SIMPLIFIED_CHAT_ENABLED &&
+      !isSearchMode &&
+      currentMessageFiles.length > 0;
     useEffect(() => {
       const wrapper = filesWrapperRef.current;
       const content = filesContentRef.current;
@@ -448,7 +454,7 @@ const AppInputBar = React.memo(
       const pastedFiles = getPastedFilesIfNoText(event.clipboardData);
       if (pastedFiles.length > 0) {
         event.preventDefault();
-        handleFileUpload(pastedFiles);
+        if (!SIMPLIFIED_CHAT_ENABLED) handleFileUpload(pastedFiles);
         return;
       }
 
@@ -620,7 +626,8 @@ const AppInputBar = React.memo(
       <div
         {...(isSearchMode ? { inert: true } : {})}
         className={cn(
-          "flex justify-between items-center w-full",
+          "flex items-center w-full",
+          SIMPLIFIED_CHAT_ENABLED ? "justify-end" : "justify-between",
           isSearchMode
             ? "opacity-0 p-0 h-0 overflow-hidden pointer-events-none"
             : "opacity-100 p-1 h-11 pointer-events-auto",
@@ -628,119 +635,121 @@ const AppInputBar = React.memo(
         )}
       >
         {/* Bottom left controls */}
-        <div className="flex flex-row items-center">
-          {/* (+) button - always visible */}
-          <FilePickerPopover
-            onFileClick={handleFileClick}
-            onPickRecent={(file: ProjectFile) => {
-              // Check if file with same ID already exists
-              if (
-                !currentMessageFiles.some(
-                  (existingFile) => existingFile.file_id === file.file_id
-                )
-              ) {
-                setCurrentMessageFiles((prev) => [...prev, file]);
-              }
-            }}
-            onUnpickRecent={(file: ProjectFile) => {
-              setCurrentMessageFiles((prev) =>
-                prev.filter(
-                  (existingFile) => existingFile.file_id !== file.file_id
-                )
-              );
-            }}
-            handleUploadChange={handleUploadChange}
-            trigger={(open) => (
-              <Button
-                disabled={disabled}
-                icon={SvgPaperclip}
-                tooltip={t("appInputBar.attachFilesButton.tooltip")}
-                interaction={open ? "hover" : "rest"}
-                prominence="tertiary"
-              />
-            )}
-            selectedFileIds={currentMessageFiles.map((f) => f.id)}
-          />
+        {!SIMPLIFIED_CHAT_ENABLED && (
+          <div className="flex flex-row items-center">
+            {/* (+) button - always visible */}
+            <FilePickerPopover
+              onFileClick={handleFileClick}
+              onPickRecent={(file: ProjectFile) => {
+                // Check if file with same ID already exists
+                if (
+                  !currentMessageFiles.some(
+                    (existingFile) => existingFile.file_id === file.file_id
+                  )
+                ) {
+                  setCurrentMessageFiles((prev) => [...prev, file]);
+                }
+              }}
+              onUnpickRecent={(file: ProjectFile) => {
+                setCurrentMessageFiles((prev) =>
+                  prev.filter(
+                    (existingFile) => existingFile.file_id !== file.file_id
+                  )
+                );
+              }}
+              handleUploadChange={handleUploadChange}
+              trigger={(open) => (
+                <Button
+                  disabled={disabled}
+                  icon={SvgPaperclip}
+                  tooltip={t("appInputBar.attachFilesButton.tooltip")}
+                  interaction={open ? "hover" : "rest"}
+                  prominence="tertiary"
+                />
+              )}
+              selectedFileIds={currentMessageFiles.map((f) => f.id)}
+            />
 
-          {/* Controls that load in when data is ready */}
-          <div
-            data-testid="actions-container"
-            className={cn(
-              "flex flex-row items-center",
-              controlsLoading && "invisible"
-            )}
-          >
-            {activeAgent && (
-              // Keyed, so switching agents starts clean rather than carrying
-              // the previous agent's open panel and search term across.
-              <ToolsPopover
-                key={activeAgent.id}
-                agent={activeAgent}
-                toolConfiguration={toolConfiguration}
-                deepResearchEnabled={deepResearchEnabled}
-                disabled={disabled}
-              />
-            )}
-            {onToggleTabReading ? (
-              <SelectButton
-                disabled={disabled}
-                icon={SvgGlobe}
-                onClick={onToggleTabReading}
-                state={tabReadingEnabled ? "selected" : "empty"}
-              >
-                {tabReadingEnabled
-                  ? currentTabUrl
-                    ? (() => {
-                        try {
-                          return new URL(currentTabUrl).hostname;
-                        } catch {
-                          return currentTabUrl;
-                        }
-                      })()
-                    : t("appInputBar.tabReadingButton.readingLabel")
-                  : t("appInputBar.tabReadingButton.readLabel")}
-              </SelectButton>
-            ) : (
-              showDeepResearch && (
+            {/* Controls that load in when data is ready */}
+            <div
+              data-testid="actions-container"
+              className={cn(
+                "flex flex-row items-center",
+                controlsLoading && "invisible"
+              )}
+            >
+              {activeAgent && (
+                // Keyed, so switching agents starts clean rather than carrying
+                // the previous agent's open panel and search term across.
+                <ToolsPopover
+                  key={activeAgent.id}
+                  agent={activeAgent}
+                  toolConfiguration={toolConfiguration}
+                  deepResearchEnabled={deepResearchEnabled}
+                  disabled={disabled}
+                />
+              )}
+              {onToggleTabReading ? (
                 <SelectButton
-                  disabled={disabled || isMultiModelActive}
-                  variant="select-light"
-                  icon={SvgHourglass}
-                  onClick={toggleDeepResearch}
-                  state={deepResearchEnabled ? "selected" : "empty"}
-                  foldable={!deepResearchEnabled}
-                  tooltip={
-                    isMultiModelActive
-                      ? t("appInputBar.deepResearchButton.disabledTooltip")
-                      : undefined
-                  }
+                  disabled={disabled}
+                  icon={SvgGlobe}
+                  onClick={onToggleTabReading}
+                  state={tabReadingEnabled ? "selected" : "empty"}
                 >
-                  {t("appInputBar.deepResearchButton.label")}
+                  {tabReadingEnabled
+                    ? currentTabUrl
+                      ? (() => {
+                          try {
+                            return new URL(currentTabUrl).hostname;
+                          } catch {
+                            return currentTabUrl;
+                          }
+                        })()
+                      : t("appInputBar.tabReadingButton.readingLabel")
+                    : t("appInputBar.tabReadingButton.readLabel")}
                 </SelectButton>
-              )
-            )}
-
-            {(() => {
-              if (!activeAgent || forcedToolId === null) return null;
-              const tool = activeAgent.tools.find(
-                (tool) => tool.id === forcedToolId
-              );
-              if (!tool) return null;
-              return (
-                <Disabled disabled={disabled}>
+              ) : (
+                showDeepResearch && (
                   <SelectButton
+                    disabled={disabled || isMultiModelActive}
                     variant="select-light"
-                    icon={getIconForAction(tool)}
-                    onClick={clearForcedTool}
-                    state="selected"
+                    icon={SvgHourglass}
+                    onClick={toggleDeepResearch}
+                    state={deepResearchEnabled ? "selected" : "empty"}
+                    foldable={!deepResearchEnabled}
+                    tooltip={
+                      isMultiModelActive
+                        ? t("appInputBar.deepResearchButton.disabledTooltip")
+                        : undefined
+                    }
                   >
-                    {tool.display_name}
+                    {t("appInputBar.deepResearchButton.label")}
                   </SelectButton>
-                </Disabled>
-              );
-            })()}
+                )
+              )}
+
+              {(() => {
+                if (!activeAgent || forcedToolId === null) return null;
+                const tool = activeAgent.tools.find(
+                  (tool) => tool.id === forcedToolId
+                );
+                if (!tool) return null;
+                return (
+                  <Disabled disabled={disabled}>
+                    <SelectButton
+                      variant="select-light"
+                      icon={getIconForAction(tool)}
+                      onClick={clearForcedTool}
+                      state="selected"
+                    >
+                      {tool.display_name}
+                    </SelectButton>
+                  </Disabled>
+                );
+              })()}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Bottom right controls */}
         <div className="flex flex-row items-center gap-1">

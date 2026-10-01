@@ -18,7 +18,7 @@ import type { ChatSession } from "@/app/app/interfaces";
 import { useUser } from "@/providers/UserProvider";
 import { useSearchParams } from "next/navigation";
 import { SEARCH_PARAM_NAMES } from "@/app/app/services/searchParams";
-import { DEFAULT_AGENT_ID } from "@/lib/constants";
+import { DEFAULT_AGENT_ID, SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { useSettings } from "@/lib/settings/hooks";
 import useChatSessions from "@/hooks/useChatSessions";
 
@@ -218,6 +218,7 @@ export function usePinChatAgent() {
 
   return useCallback(
     async (chatSession: ChatSession) => {
+      if (SIMPLIFIED_CHAT_ENABLED) return;
       const agent = agents.find((a) => a.id === chatSession.persona_id);
       if (!agent || agent.id === DEFAULT_AGENT_ID) return;
       if (pinnedAgents.some((a) => a.id === agent.id)) return;
@@ -241,7 +242,7 @@ export function usePinChatAgent() {
  * available, and `undefined` means the list has not loaded or nothing is
  * eligible, not "no agent".
  *
- * Resolution, first match wins:
+ * Simplified chat resolves only Assistant. Upstream resolution, first match wins:
  *
  * 1. the agent the location names — the open session's, or the URL's. These
  *    are disjoint in practice: `AGENT_ID` is stripped from the URL the moment
@@ -283,6 +284,10 @@ export function useActiveAgent(): MinimalAgent | undefined {
   const sessionAgentId = currentChatSession?.persona_id;
 
   return useMemo(() => {
+    if (SIMPLIFIED_CHAT_ENABLED) {
+      return agents.find((agent) => agent.id === DEFAULT_AGENT_ID);
+    }
+
     // The constraint leaves the candidate set before anything is resolved, so
     // no later step can reach the Assistant by another route.
     const eligible = assistantDisabled

@@ -50,6 +50,47 @@ export class ChatPage {
     await this.inputBar.textbox.waitFor({ state: "visible", timeout: 15000 });
   }
 
+  async expectAssistantOnly(): Promise<void> {
+    await expect(this.page.getByTestId("AppSidebar/more-agents")).toHaveCount(
+      0
+    );
+    await expect(this.page.getByTestId("agent-name-display")).toHaveCount(0);
+    await expect(this.page.getByLabel("Change app mode")).toHaveCount(0);
+    await expect(
+      this.page.getByText("Simulated custom agent", { exact: true })
+    ).toHaveCount(0);
+    await this.inputBar.expectSimpleControls();
+  }
+
+  async openChatHistorySearch(): Promise<void> {
+    await this.page
+      .getByRole("button", { name: "Search Chats", exact: true })
+      .click();
+    await expect(this.page.getByRole("dialog")).toBeVisible();
+    await this.page.keyboard.press("Escape");
+  }
+
+  async expectCitedSources(): Promise<void> {
+    await expect(
+      this.aiMessage().getByRole("button", { name: "Wiki.js", exact: true })
+    ).toBeVisible();
+    await this.aiMessage()
+      .getByRole("button", { name: "Sources", exact: true })
+      .click();
+    await expect(
+      this.page
+        .locator("#onyx-chat-sidebar")
+        .getByText("Simulated Wiki page", { exact: true })
+        .first()
+    ).toBeVisible();
+  }
+
+  async gotoAgentUrl(path: string): Promise<void> {
+    await this.page.goto(path);
+    await expect(this.page).toHaveURL(/\/app$/);
+    await this.inputBar.textbox.waitFor({ state: "visible" });
+  }
+
   async expectNoModelSelectors(): Promise<void> {
     await expect(this.page.getByTestId("model-selector")).toHaveCount(0);
     await expect(

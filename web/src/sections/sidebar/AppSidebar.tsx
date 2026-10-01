@@ -87,7 +87,7 @@ import { dismissNotification } from "@/lib/notifications/api";
 import AccountPopover from "@/sections/sidebar/AccountPopover";
 import ChatSearchCommandMenu from "@/sections/sidebar/ChatSearchCommandMenu";
 import { useQueryController } from "@/providers/QueryControllerProvider";
-import { DEFAULT_AGENT_ID } from "@/lib/constants";
+import { DEFAULT_AGENT_ID, SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 
 // Visible-agents = pinned-agents + current-agent (if current-agent not in pinned-agents)
 // OR Visible-agents = pinned-agents (if current-agent in pinned-agents)
@@ -631,7 +631,7 @@ export default function AppSidebar() {
               </SidebarTab>
             </div>
           )}
-          {folded && moreAgentsButton}
+          {!SIMPLIFIED_CHAT_ENABLED && folded && moreAgentsButton}
           {folded && <FoldedProjectsPopover />}
         </SidebarLayouts.Header>
 
@@ -639,23 +639,28 @@ export default function AppSidebar() {
           {isLoadingDynamicContent ? null : (
             <>
               {/* Agents */}
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleAgentDragEnd}
-              >
-                <SidebarLayouts.Section title={t("appSidebar.agents.title")}>
-                  <SortableContext
-                    items={visibleAgentIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {visibleAgents.map((visibleAgent) => (
-                      <AgentButton key={visibleAgent.id} agent={visibleAgent} />
-                    ))}
-                  </SortableContext>
-                  {moreAgentsButton}
-                </SidebarLayouts.Section>
-              </DndContext>
+              {!SIMPLIFIED_CHAT_ENABLED && (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleAgentDragEnd}
+                >
+                  <SidebarLayouts.Section title={t("appSidebar.agents.title")}>
+                    <SortableContext
+                      items={visibleAgentIds}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {visibleAgents.map((visibleAgent) => (
+                        <AgentButton
+                          key={visibleAgent.id}
+                          agent={visibleAgent}
+                        />
+                      ))}
+                    </SortableContext>
+                    {moreAgentsButton}
+                  </SidebarLayouts.Section>
+                </DndContext>
+              )}
 
               {/* Wrap Projects and Recents in a shared DndContext for chat-to-project drag */}
               <DndContext

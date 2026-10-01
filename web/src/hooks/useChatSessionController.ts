@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
-import { ReadonlyURLSearchParams } from "next/navigation";
+import { ReadonlyURLSearchParams, useRouter } from "next/navigation";
+import { DEFAULT_AGENT_ID, SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import {
   nameChatSession,
   processRawChatHistory,
@@ -88,6 +89,7 @@ export default function useChatSessionController({
   refreshChatSessions,
   onSubmit,
 }: UseChatSessionControllerProps) {
+  const router = useRouter();
   const [currentSessionFileTokenCount, setCurrentSessionFileTokenCount] =
     useState<number>(0);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
@@ -226,6 +228,13 @@ export default function useChatSessionController({
 
       const session: BackendChatSession = await response.json();
       const chatSession = session;
+      if (
+        SIMPLIFIED_CHAT_ENABLED &&
+        chatSession.persona_id !== DEFAULT_AGENT_ID
+      ) {
+        router.replace("/app");
+        return;
+      }
       // Restore the incognito UI state on reload of a live incognito session.
       // The id must come back too, or a later upload would be sent with none
       // and land as an ordinary indexed file.

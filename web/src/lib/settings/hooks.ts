@@ -13,7 +13,7 @@ import {
   QueryHistoryType,
   Settings,
 } from "@/lib/settings/types";
-import { APP_NAME, EE_ENABLED } from "@/lib/constants";
+import { APP_NAME, EE_ENABLED, SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 
 const SETTINGS_ERROR_RETRY_INTERVAL = 5_000;
 
@@ -117,5 +117,9 @@ export function useSettings(): AppSettings {
 export function useIsSearchModeAvailable(): boolean {
   const { vectorDbEnabled, search_ui_enabled } = useSettings();
   const { ccPairs } = useCCPairs(vectorDbEnabled);
-  return search_ui_enabled !== false && ccPairs.length > 0;
+  return (
+    !SIMPLIFIED_CHAT_ENABLED &&
+    search_ui_enabled !== false &&
+    ccPairs.length > 0
+  );
 }

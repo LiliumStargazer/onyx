@@ -100,6 +100,49 @@ export class InputBar {
     }, text);
   }
 
+  async pasteFile(): Promise<void> {
+    await this.textbox.evaluate((element) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.items.add(
+        new File(["simulated file"], "blocked.txt", { type: "text/plain" })
+      );
+      element.dispatchEvent(
+        new ClipboardEvent("paste", {
+          clipboardData,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+  }
+
+  async dropFile(): Promise<void> {
+    await this.textbox.evaluate((element) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(
+        new File(["simulated file"], "blocked.txt", { type: "text/plain" })
+      );
+      for (const type of ["dragenter", "dragover", "drop"]) {
+        element.dispatchEvent(
+          new DragEvent(type, {
+            dataTransfer,
+            bubbles: true,
+            cancelable: true,
+          })
+        );
+      }
+    });
+  }
+
+  async expectSimpleControls(): Promise<void> {
+    await expect(this.container.getByRole("button")).toHaveCount(2);
+    await expect(
+      this.container.getByRole("button", { name: "Start recording" })
+    ).toBeVisible();
+    await expect(this.sendButton).toBeVisible();
+    await expect(this.container.locator('input[type="file"]')).toHaveCount(0);
+  }
+
   async pastePlain(text: string): Promise<void> {
     await this.page.evaluate((t) => {
       const el = document.getElementById("onyx-chat-input-textbox")!;
