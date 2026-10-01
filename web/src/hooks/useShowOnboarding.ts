@@ -31,10 +31,13 @@ function useOnboardingState(activeAgent?: MinimalAgent): {
   // Get provider data from ProviderContext instead of duplicating the call
   const {
     llmProviders,
-    isLoadingProviders,
+    isLoadingProviders: isLoadingProviderRequest,
     hasProviders: hasLlmProviders,
     refreshProviderInfo,
   } = useProviderStatus();
+  // A failed request does not mean no providers are configured.
+  const isLoadingProviders =
+    isLoadingProviderRequest || llmProviders === undefined;
 
   // Only fetch persona-specific providers (different endpoint)
   const { refetch: refreshPersonaProviders } = useLanguageModelsForAgent(

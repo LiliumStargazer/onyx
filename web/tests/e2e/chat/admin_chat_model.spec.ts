@@ -48,6 +48,7 @@ for (const scenario of ["new", "existing", "retry"] as const) {
         response,
         json: {
           ...user,
+          personalization: { ...user.personalization, name: "Test User" },
           preferences: { ...user.preferences, default_model: SAVED_MODEL },
         },
       });

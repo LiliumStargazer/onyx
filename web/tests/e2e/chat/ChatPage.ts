@@ -21,6 +21,7 @@ export class ChatPage {
   readonly humanMessages: Locator;
   readonly aiMessages: Locator;
   readonly usageLimitBanner: Locator;
+  readonly modelLoadError: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -30,6 +31,9 @@ export class ChatPage {
     this.humanMessages = page.locator("#onyx-human-message");
     this.aiMessages = page.getByTestId("onyx-ai-message");
     this.usageLimitBanner = page.getByText(/you've reached the usage budget/i);
+    this.modelLoadError = page.getByRole("alert").filter({
+      hasText: "Could not load the Admin chat model.",
+    });
   }
 
   humanMessage(index = 0): Locator {
@@ -54,9 +58,7 @@ export class ChatPage {
   }
 
   async expectModelLoadError(): Promise<void> {
-    await expect(this.page.getByRole("alert")).toContainText(
-      "Could not load the Admin chat model."
-    );
+    await expect(this.modelLoadError).toBeVisible();
     await expect(this.inputBar.textbox).toHaveAttribute(
       "contenteditable",
       "false"
@@ -64,10 +66,10 @@ export class ChatPage {
   }
 
   async retryModelLoad(): Promise<void> {
-    await this.page
+    await this.modelLoadError
       .getByRole("button", { name: "Try again", exact: true })
       .click();
-    await expect(this.page.getByRole("alert")).toHaveCount(0);
+    await expect(this.modelLoadError).toHaveCount(0);
     await expect(this.inputBar.textbox).toHaveAttribute(
       "contenteditable",
       "true"
