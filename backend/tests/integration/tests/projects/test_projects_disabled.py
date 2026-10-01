@@ -5,34 +5,29 @@ from uuid import UUID
 
 import httpx
 import pytest
-from sqlalchemy import delete
 
-from onyx.db.engine.sql_engine import get_session_with_current_tenant
-from onyx.db.models import ChatSession, UserProject
+from onyx.db.enums import IncognitoRecordMode
+from onyx.db.seeding.project_chat_seeding import (
+    assert_saved_project_chat_preserved,
+    seed_saved_project_chat,
+)
 from tests.integration.common_utils.test_models import DATestUser
 
 
 @pytest.mark.parametrize("is_admin", [False, True])
+@pytest.mark.parametrize("record_mode", [None, *IncognitoRecordMode])
 def test_saved_project_chats_are_unavailable(
-    basic_user: DATestUser, admin_user: DATestUser, is_admin: bool
+    basic_user: DATestUser,
+    admin_user: DATestUser,
+    is_admin: bool,
+    record_mode: IncognitoRecordMode | None,
 ) -> None:
     user = admin_user if is_admin else basic_user
-    # Simulate saved data from before Projects was disabled. No indexing needed.
-    with get_session_with_current_tenant() as db_session:
-        project = UserProject(name="Simulated saved Project", user_id=UUID(user.id))
-        db_session.add(project)
-        db_session.flush()
-        chat = ChatSession(
-            user_id=UUID(user.id),
-            persona_id=0,
-            description="Simulated saved Project chat",
-            project_id=project.id,
-        )
-        db_session.add(chat)
-        db_session.commit()
-        project_id, chat_id = project.id, chat.id
-
-    try:
+    with seed_saved_project_chat(UUID(user.id), record_mode) as (
+        project_id,
+        chat_id,
+        file_id,
+    ):
         with httpx.Client(
             base_url=os.environ.get("WEB_DOMAIN", "http://localhost:3000"),
             cookies=user.cookies,
@@ -76,13 +71,4 @@ def test_saved_project_chats_are_unavailable(
             assert response.status_code == 403, response.text
             response = frontend.delete("/api/chat/delete-all-chat-sessions")
             assert response.status_code == 200, response.text
-        with get_session_with_current_tenant() as db_session:
-            saved_chat = db_session.get(ChatSession, chat_id)
-            assert saved_chat is not None and not saved_chat.deleted
-            assert saved_chat.project_id == project_id
-            assert db_session.get(UserProject, project_id) is not None
-    finally:
-        with get_session_with_current_tenant() as db_session:
-            db_session.execute(delete(ChatSession).where(ChatSession.id == chat_id))
-            db_session.execute(delete(UserProject).where(UserProject.id == project_id))
-            db_session.commit()
+        assert_saved_project_chat_preserved(project_id, chat_id, file_id)

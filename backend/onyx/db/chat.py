@@ -180,14 +180,14 @@ def get_chat_sessions_by_slack_thread_id(
 def get_incognito_session_ids_for_user(
     user_id: UUID, db_session: Session
 ) -> list[UUID]:
-    return list(
-        db_session.scalars(
-            select(ChatSession.id).where(
-                ChatSession.user_id == user_id,
-                ChatSession.incognito_record_mode.is_not(None),
-            )
-        )
+    """Exclude disabled Project chats from bulk incognito cleanup."""
+    stmt = select(ChatSession.id).where(
+        ChatSession.user_id == user_id,
+        ChatSession.incognito_record_mode.is_not(None),
     )
+    if not PROJECTS_ENABLED:
+        stmt = stmt.where(ChatSession.project_id.is_(None))
+    return list(db_session.scalars(stmt))
 
 
 def content_persisting_sessions_filter() -> ColumnElement[bool]:
