@@ -13879,7 +13879,7 @@
         "label": "最近会话"
       },
       "searchInput": {
-        "placeholder": "搜索对话会话、项目…"
+        "placeholder": "搜索对话会话…"
       },
       "sessionsFilter": {
         "label": "会话"

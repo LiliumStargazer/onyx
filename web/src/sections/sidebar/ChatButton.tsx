@@ -16,7 +16,11 @@ import {
 } from "@/lib/projects/svc";
 import { useProjectsContext } from "@/lib/projects/providers";
 import { MoveCustomAgentChatModal } from "@/lib/agents/components";
-import { CHAT_SHARING_ENABLED, UNNAMED_CHAT } from "@/lib/constants";
+import {
+  CHAT_SHARING_ENABLED,
+  PROJECTS_ENABLED,
+  UNNAMED_CHAT,
+} from "@/lib/constants";
 import ShareChatSessionModal from "@/sections/modals/ShareChatSessionModal";
 import { Button, LineItemButton, SidebarTab } from "@opal/components";
 import { InputTypeIn } from "@opal/components";
@@ -152,7 +156,7 @@ const ChatButton = memo(
         chatSession,
         projectId: project?.id,
       },
-      disabled: !draggable || renaming,
+      disabled: !PROJECTS_ENABLED || !draggable || renaming,
     });
 
     // Sync local name state when chatSession.name changes (e.g., after auto-naming)
@@ -189,7 +193,7 @@ const ChatButton = memo(
     }, [projects, searchTerm]);
 
     useEffect(() => {
-      if (!showMoveOptions) {
+      if (!PROJECTS_ENABLED || !showMoveOptions) {
         const popoverItems = [
           CHAT_SHARING_ENABLED ? (
             <LineItemButton
@@ -209,15 +213,17 @@ const ChatButton = memo(
             title={t("chatButton.rename.label")}
             onClick={noProp(() => setRenaming(true))}
           />,
-          <LineItemButton
-            key="move"
-            sizePreset="main-ui"
-            rounding={2}
-            icon={SvgFolderIn}
-            title={t("chatButton.moveToProject.label")}
-            onClick={noProp(() => setShowMoveOptions(true))}
-          />,
-          project && (
+          PROJECTS_ENABLED && (
+            <LineItemButton
+              key="move"
+              sizePreset="main-ui"
+              rounding={2}
+              icon={SvgFolderIn}
+              title={t("chatButton.moveToProject.label")}
+              onClick={noProp(() => setShowMoveOptions(true))}
+            />
+          ),
+          PROJECTS_ENABLED && project && (
             <LineItemButton
               key="remove"
               sizePreset="main-ui"

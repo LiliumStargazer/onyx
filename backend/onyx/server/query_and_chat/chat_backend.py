@@ -113,6 +113,7 @@ from onyx.secondary_llm_flows.chat_session_naming import (
     get_fallback_chat_session_name,
 )
 from onyx.server.api_key_usage import check_api_key_usage
+from onyx.server.features.projects.access import require_projects_enabled
 from onyx.server.middleware.rate_limiting import get_feedback_rate_limiters
 from onyx.server.query_and_chat.chat_utils import (
     is_spreadsheet_mime_type,
@@ -211,6 +212,8 @@ def get_user_chat_sessions(
     page_size: int = Query(default=50, ge=1, le=100),
     before: str | None = Query(default=None),
 ) -> ChatSessionsResponse:
+    if project_id is not None:
+        require_projects_enabled()
     user_id = user.id
 
     try:
@@ -827,6 +830,21 @@ def handle_send_chat_message(
     logger.debug(
         "Received new chat message for session %s", chat_message_req.chat_session_id
     )
+
+    # Refuse before opening either a single-model or multi-model stream.
+    if (
+        chat_message_req.chat_session_info is not None
+        and chat_message_req.chat_session_info.project_id is not None
+    ):
+        require_projects_enabled()
+    if chat_message_req.chat_session_id is not None:
+        with get_session_with_current_tenant() as db_session:
+            try:
+                get_chat_session_by_id(
+                    chat_message_req.chat_session_id, user.id, db_session
+                )
+            except ValueError:
+                raise OnyxError(OnyxErrorCode.SESSION_NOT_FOUND)
 
     tenant_id = get_current_tenant_id()
     mt_cloud_telemetry(

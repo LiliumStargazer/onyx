@@ -8,6 +8,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql.elements import ColumnElement
 
+from onyx.configs.chat_configs import PROJECTS_ENABLED
 from onyx.configs.constants import DocumentSource
 from onyx.connectors.wikijs import VISIBILITIES, wiki_visibility_group
 from onyx.db.connector import get_wikijs_role_visibilities
@@ -150,7 +151,7 @@ def apply_document_access_filter(
 def build_chat_document_access_filter(
     db_session: Session, user_id: UUID | None
 ) -> ColumnElement[bool]:
-    """Deny the whole chat if a saved Wiki excerpt is no longer authorized.
+    """Deny disabled Project chats and chats with unauthorized Wiki excerpts.
 
     Removing citations alone cannot remove content from answers or tool outputs.
     Check both the saved classification and the current document ACL.
@@ -233,7 +234,12 @@ def build_chat_document_access_filter(
         .correlate(ChatSession)
         .exists()
     )
-    return ChatSession.access_revoked.is_(False) & ~(denied_messages | denied_tools)
+    access_filter = ChatSession.access_revoked.is_(False) & ~(
+        denied_messages | denied_tools
+    )
+    if not PROJECTS_ENABLED:
+        access_filter &= ChatSession.project_id.is_(None)
+    return access_filter
 
 
 def require_chat_document_access(

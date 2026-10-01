@@ -5,6 +5,9 @@ NUM_RETURNED_HITS = 50
 # Keep sharing code and saved links, but deny access in Wiki Agent Rag.
 CHAT_SHARING_ENABLED = False
 
+# Keep Projects code and data, but deny access in Wiki Agent Rag.
+PROJECTS_ENABLED = False
+
 # May be less depending on model
 MAX_CHUNKS_FED_TO_CHAT = int(os.environ.get("MAX_CHUNKS_FED_TO_CHAT") or 25)
 

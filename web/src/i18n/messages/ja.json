@@ -13879,7 +13879,7 @@
         "label": "最近のセッション"
       },
       "searchInput": {
-        "placeholder": "チャットセッションやプロジェクトを検索..."
+        "placeholder": "チャットセッションを検索..."
       },
       "sessionsFilter": {
         "label": "セッション"

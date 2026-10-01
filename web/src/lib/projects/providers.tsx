@@ -46,6 +46,7 @@ import { useAppPosition } from "@/lib/position/hooks";
 import { ChatFileType } from "@/app/app/interfaces";
 import { toast } from "@opal/layouts";
 import { useProjects } from "@/lib/projects/hooks";
+import { PROJECTS_ENABLED } from "@/lib/constants";
 import { useSettings } from "@/lib/settings/hooks";
 import { useIncognitoOptional } from "@/providers/IncognitoProvider";
 
@@ -151,9 +152,10 @@ export function ProjectsProvider({ children }: ProjectsProviderProps) {
     useState<ProjectDetails | null>(null);
   const searchParams = useSearchParams();
   const currentProjectIdRaw = searchParams.get(SEARCH_PARAM_NAMES.PROJECT_ID);
-  const currentProjectId = currentProjectIdRaw
-    ? Number.parseInt(currentProjectIdRaw)
-    : null;
+  const currentProjectId =
+    PROJECTS_ENABLED && currentProjectIdRaw
+      ? Number.parseInt(currentProjectIdRaw)
+      : null;
   const [currentMessageFiles, setCurrentMessageFiles] = useState<ProjectFile[]>(
     []
   );

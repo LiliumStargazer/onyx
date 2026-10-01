@@ -90,6 +90,61 @@ export class ChatPage {
     }
   }
 
+  async gotoProjectUrl(path: string): Promise<void> {
+    await this.page.goto(path);
+    await this.expectAssistantRedirect();
+  }
+
+  async expectProjectsUnavailable(): Promise<void> {
+    if ((this.page.viewportSize()?.width ?? 1280) < 768) {
+      await this.page
+        .getByRole("banner")
+        .getByLabel("Open Sidebar", { exact: true })
+        .click();
+    }
+    await expect(this.page.getByTestId("AppSidebar/projects")).toHaveCount(0);
+    await expect(
+      this.page.getByRole("button", { name: "New Project", exact: true })
+    ).toHaveCount(0);
+    await this.page
+      .getByRole("button", { name: "Search Chats", exact: true })
+      .click();
+    const dialog = this.page.getByRole("dialog");
+    await expect(dialog.getByText("Projects", { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText("New Project", { exact: true })).toHaveCount(
+      0
+    );
+    await dialog.getByRole("textbox").fill("Simulated");
+    await expect(dialog.getByText(/Create.*project/i)).toHaveCount(0);
+    await this.page.keyboard.press("Escape");
+  }
+
+  async expectNoProjectChatActions(): Promise<void> {
+    await this.page.getByTestId("AppChrome/chat-options").click();
+    await expect(
+      this.page.getByRole("button", { name: /move to project/i })
+    ).toHaveCount(0);
+    await expect(
+      this.page.getByRole("button", { name: /export as/i })
+    ).toBeVisible();
+    await this.page.keyboard.press("Escape");
+    const row = this.page
+      .getByTestId("ChatButton")
+      .filter({ hasText: "Ordinary browser chat" });
+    await row.hover();
+    await row.getByTestId("ChatButton/options").click();
+    await expect(
+      this.page.getByRole("button", { name: /move to project/i })
+    ).toHaveCount(0);
+    await expect(
+      this.page.getByRole("button", { name: "Rename", exact: true })
+    ).toBeVisible();
+    await this.page.keyboard.press("Escape");
+    await this.page.getByLabel("Close Sidebar", { exact: true }).click();
+    await expect(this.page.getByTestId("AppSidebar/projects")).toHaveCount(0);
+    await this.page.getByLabel("Open Sidebar", { exact: true }).click();
+  }
+
   async gotoAgentUrl(path: string): Promise<void> {
     await this.page.goto(path);
     await this.expectAssistantRedirect();

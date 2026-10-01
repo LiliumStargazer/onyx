@@ -87,7 +87,11 @@ import { dismissNotification } from "@/lib/notifications/api";
 import AccountPopover from "@/sections/sidebar/AccountPopover";
 import ChatSearchCommandMenu from "@/sections/sidebar/ChatSearchCommandMenu";
 import { useQueryController } from "@/providers/QueryControllerProvider";
-import { DEFAULT_AGENT_ID, SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
+import {
+  DEFAULT_AGENT_ID,
+  PROJECTS_ENABLED,
+  SIMPLIFIED_CHAT_ENABLED,
+} from "@/lib/constants";
 
 // Visible-agents = pinned-agents + current-agent (if current-agent not in pinned-agents)
 // OR Visible-agents = pinned-agents (if current-agent in pinned-agents)
@@ -537,11 +541,13 @@ export default function AppSidebar() {
 
   return (
     <>
-      <createProjectModal.Provider>
-        <CreateProjectModal />
-      </createProjectModal.Provider>
+      {PROJECTS_ENABLED && (
+        <createProjectModal.Provider>
+          <CreateProjectModal />
+        </createProjectModal.Provider>
+      )}
 
-      {showMoveCustomAgentModal && (
+      {PROJECTS_ENABLED && showMoveCustomAgentModal && (
         <MoveCustomAgentChatModal
           onCancel={() => {
             setShowMoveCustomAgentModal(false);
@@ -632,7 +638,7 @@ export default function AppSidebar() {
             </div>
           )}
           {!SIMPLIFIED_CHAT_ENABLED && folded && moreAgentsButton}
-          {folded && <FoldedProjectsPopover />}
+          {PROJECTS_ENABLED && folded && <FoldedProjectsPopover />}
         </SidebarLayouts.Header>
 
         <SidebarLayouts.Body scrollKey="app-sidebar">
@@ -670,26 +676,30 @@ export default function AppSidebar() {
                   restrictToFirstScrollableAncestor,
                   restrictToVerticalAxis,
                 ]}
-                onDragEnd={handleChatProjectDragEnd}
+                onDragEnd={
+                  PROJECTS_ENABLED ? handleChatProjectDragEnd : undefined
+                }
               >
                 {/* Projects */}
-                <SidebarLayouts.Section
-                  title={t("appSidebar.projects.title")}
-                  action={
-                    <OpalButton
-                      icon={SvgFolderPlus}
-                      prominence="tertiary"
-                      size="md"
-                      tooltip={t("appSidebar.newProject.tooltip")}
-                      onClick={() => createProjectModal.toggle(true)}
-                    />
-                  }
-                >
-                  {projects.map((project) => (
-                    <ProjectFolderButton key={project.id} project={project} />
-                  ))}
-                  {projects.length === 0 && newProjectButton}
-                </SidebarLayouts.Section>
+                {PROJECTS_ENABLED && (
+                  <SidebarLayouts.Section
+                    title={t("appSidebar.projects.title")}
+                    action={
+                      <OpalButton
+                        icon={SvgFolderPlus}
+                        prominence="tertiary"
+                        size="md"
+                        tooltip={t("appSidebar.newProject.tooltip")}
+                        onClick={() => createProjectModal.toggle(true)}
+                      />
+                    }
+                  >
+                    {projects.map((project) => (
+                      <ProjectFolderButton key={project.id} project={project} />
+                    ))}
+                    {projects.length === 0 && newProjectButton}
+                  </SidebarLayouts.Section>
+                )}
 
                 {/* Recents */}
                 <RecentsSection

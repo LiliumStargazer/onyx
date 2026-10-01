@@ -13879,7 +13879,7 @@
         "label": "최근 세션"
       },
       "searchInput": {
-        "placeholder": "채팅 세션, 프로젝트 검색..."
+        "placeholder": "채팅 세션 검색..."
       },
       "sessionsFilter": {
         "label": "세션"

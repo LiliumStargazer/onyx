@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SEARCH_PARAM_NAMES } from "@/app/app/services/searchParams";
 import { routeWithQuery } from "@/lib/routes";
+import { PROJECTS_ENABLED } from "@/lib/constants";
 
 // "AppPosition" is where in the main application the user currently is. It is
 // derived from the URL and nothing else, so any flow that needs to put the user
@@ -51,6 +52,7 @@ function hrefFor(value: AppPositionType): Route {
         [SEARCH_PARAM_NAMES.AGENT_ID]: value.id,
       });
     case "project":
+      if (!PROJECTS_ENABLED) return "/app";
       return routeWithQuery("/app", {
         [SEARCH_PARAM_NAMES.PROJECT_ID]: value.id,
       });
@@ -210,7 +212,9 @@ export function useAppPosition(): AppPosition {
   // Parsed here so every reader gets the id as what it is. Text that is not a
   // row id names nothing, and reads the same as the parameter being absent.
   const agentId = rowId(searchParams.get(SEARCH_PARAM_NAMES.AGENT_ID));
-  const projectId = rowId(searchParams.get(SEARCH_PARAM_NAMES.PROJECT_ID));
+  const projectId = PROJECTS_ENABLED
+    ? rowId(searchParams.get(SEARCH_PARAM_NAMES.PROJECT_ID))
+    : null;
 
   // Memoize on the values that determine which AppPosition is constructed.
   // AppPosition is immutable, so same inputs → same instance.

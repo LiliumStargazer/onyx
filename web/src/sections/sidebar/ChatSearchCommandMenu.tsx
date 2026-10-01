@@ -24,6 +24,7 @@ import {
   SvgKeystroke,
 } from "@opal/icons";
 import TextSeparator from "@/refresh-components/TextSeparator";
+import { PROJECTS_ENABLED } from "@/lib/constants";
 
 /**
  * Dynamic footer that shows contextual action labels based on highlighted item type
@@ -301,58 +302,60 @@ export default function ChatSearchCommandMenu({
               )}
 
             {/* Projects section - show if filter is 'all' or 'projects' */}
-            {(activeFilter === "all" || activeFilter === "projects") && (
-              <>
-                <CommandMenu.Filter
-                  value="projects"
-                  onSelect={() => setActiveFilter("projects")}
-                  isApplied={
-                    activeFilter === "projects" ||
-                    filteredProjects.length <= PREVIEW_PROJECTS_LIMIT
-                  }
-                >
-                  {t("chatSearch.projectsFilter.label")}
-                </CommandMenu.Filter>
-                {/* New Project action - shown after Projects filter when no search term */}
-                {!hasSearchValue && activeFilter === "all" && (
-                  <CommandMenu.Action
-                    value="new-project"
-                    icon={SvgFolderPlus}
-                    onSelect={() => handleNewProject()}
-                  >
-                    {t("chatSearch.newProject.label")}
-                  </CommandMenu.Action>
-                )}
-                {displayedProjects.map((project) => (
-                  <CommandMenu.Item
-                    key={project.id}
-                    value={`project-${project.id}`}
-                    icon={SvgFolder}
-                    rightContent={({ isHighlighted }) =>
-                      isHighlighted ? (
-                        <Text figureKeystroke text02>
-                          ↵
-                        </Text>
-                      ) : (
-                        <Text
-                          secondaryBody
-                          text03
-                          data-testid="command-menu-timestamp"
-                        >
-                          {timeAgo(project.time, locale)}
-                        </Text>
-                      )
+            {PROJECTS_ENABLED &&
+              (activeFilter === "all" || activeFilter === "projects") && (
+                <>
+                  <CommandMenu.Filter
+                    value="projects"
+                    onSelect={() => setActiveFilter("projects")}
+                    isApplied={
+                      activeFilter === "projects" ||
+                      filteredProjects.length <= PREVIEW_PROJECTS_LIMIT
                     }
-                    onSelect={() => handleProjectSelect(project.id)}
                   >
-                    {highlightMatch(project.label, searchValue)}
-                  </CommandMenu.Item>
-                ))}
-              </>
-            )}
+                    {t("chatSearch.projectsFilter.label")}
+                  </CommandMenu.Filter>
+                  {/* New Project action - shown after Projects filter when no search term */}
+                  {!hasSearchValue && activeFilter === "all" && (
+                    <CommandMenu.Action
+                      value="new-project"
+                      icon={SvgFolderPlus}
+                      onSelect={() => handleNewProject()}
+                    >
+                      {t("chatSearch.newProject.label")}
+                    </CommandMenu.Action>
+                  )}
+                  {displayedProjects.map((project) => (
+                    <CommandMenu.Item
+                      key={project.id}
+                      value={`project-${project.id}`}
+                      icon={SvgFolder}
+                      rightContent={({ isHighlighted }) =>
+                        isHighlighted ? (
+                          <Text figureKeystroke text02>
+                            ↵
+                          </Text>
+                        ) : (
+                          <Text
+                            secondaryBody
+                            text03
+                            data-testid="command-menu-timestamp"
+                          >
+                            {timeAgo(project.time, locale)}
+                          </Text>
+                        )
+                      }
+                      onSelect={() => handleProjectSelect(project.id)}
+                    >
+                      {highlightMatch(project.label, searchValue)}
+                    </CommandMenu.Item>
+                  ))}
+                </>
+              )}
 
             {/* Create New Project with search term - shown at bottom when searching */}
-            {hasSearchValue &&
+            {PROJECTS_ENABLED &&
+              hasSearchValue &&
               (activeFilter === "all" || activeFilter === "projects") && (
                 <CommandMenu.Action
                   value="create-project-with-name"
@@ -386,9 +389,11 @@ export default function ChatSearchCommandMenu({
       </CommandMenu>
 
       {/* Project creation modal */}
-      <createProjectModal.Provider>
-        <CreateProjectModal initialProjectName={initialProjectName} />
-      </createProjectModal.Provider>
+      {PROJECTS_ENABLED && (
+        <createProjectModal.Provider>
+          <CreateProjectModal initialProjectName={initialProjectName} />
+        </createProjectModal.Provider>
+      )}
     </>
   );
 }

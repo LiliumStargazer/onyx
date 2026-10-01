@@ -5,12 +5,12 @@ import useSWR from "swr";
 import { Project, ProjectSearchMatch } from "@/lib/projects/types";
 import { errorHandlingFetcher } from "@/lib/fetcher";
 import { SWR_KEYS } from "@/lib/swr-keys";
-import { UNNAMED_CHAT } from "@/lib/constants";
+import { PROJECTS_ENABLED, UNNAMED_CHAT } from "@/lib/constants";
 import { useAppPosition } from "@/lib/position/hooks";
 
 export function useProjects() {
   const { data, error, mutate } = useSWR<Project[]>(
-    SWR_KEYS.userProjects,
+    PROJECTS_ENABLED ? SWR_KEYS.userProjects : null,
     errorHandlingFetcher,
     {
       revalidateOnFocus: false,
@@ -20,8 +20,8 @@ export function useProjects() {
   );
 
   return {
-    projects: data ?? [],
-    isLoading: !error && !data,
+    projects: PROJECTS_ENABLED ? (data ?? []) : [],
+    isLoading: PROJECTS_ENABLED && !error && !data,
     error,
     refreshProjects: mutate,
   };

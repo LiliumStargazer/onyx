@@ -64,6 +64,7 @@ from onyx.prompts.chat_prompts import (
     TOOL_CALL_RESPONSE_CROSS_MESSAGE,
 )
 from onyx.prompts.tool_prompts import TOOL_CALL_FAILURE_PROMPT
+from onyx.server.features.projects.access import require_projects_enabled
 from onyx.server.query_and_chat.models import ChatSessionCreationRequest
 from onyx.server.query_and_chat.streaming_models import CitationInfo
 from onyx.tools.models import ChatFile, ToolCallKickoff
@@ -192,6 +193,8 @@ def create_chat_session_from_request(
         Exception: If the persona is invalid
     """
     project_id = chat_session_request.project_id
+    if project_id is not None:
+        require_projects_enabled()
     if project_id:
         if not check_project_ownership(project_id, user.id, db_session):
             raise ValueError("User does not have access to project")

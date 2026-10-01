@@ -1,6 +1,8 @@
 import AppPage from "@/views/AppPage";
 import { defaultAgentRedirectTarget } from "@/lib/app/utils";
 import { redirect } from "next/navigation";
+import { PROJECTS_ENABLED } from "@/lib/constants";
+import { SEARCH_PARAM_NAMES } from "@/app/app/services/searchParams";
 
 export interface PageProps {
   searchParams: Promise<{ [key: string]: string }>;
@@ -8,6 +10,9 @@ export interface PageProps {
 
 export default async function Page(props: PageProps) {
   const searchParams = await props.searchParams;
+  if (!PROJECTS_ENABLED && SEARCH_PARAM_NAMES.PROJECT_ID in searchParams) {
+    redirect("/app");
+  }
 
   const redirectTarget = defaultAgentRedirectTarget(searchParams);
   if (redirectTarget) redirect(redirectTarget);

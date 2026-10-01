@@ -25,6 +25,7 @@ from onyx.configs.constants import (
     OnyxCeleryQueues,
     OnyxCeleryTask,
 )
+from onyx.db.chat import get_chat_session_by_id
 from onyx.db.engine.sql_engine import get_session
 from onyx.db.enums import Permission, UserFileStatus
 from onyx.db.incognito import mark_incognito_user_files_deleting
@@ -37,6 +38,7 @@ from onyx.db.projects import (
 )
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
+from onyx.server.features.projects.access import require_projects_enabled
 from onyx.server.features.projects.models import (
     CategorizedFilesSnapshot,
     ChatSessionRequest,
@@ -143,7 +145,7 @@ def _trigger_user_file_project_sync(
     logger.info("Triggered project sync for user_file_id=%s", user_file_id)
 
 
-@router.get("", tags=PUBLIC_API_TAGS)
+@router.get("", tags=PUBLIC_API_TAGS, dependencies=[Depends(require_projects_enabled)])
 def get_projects(
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
     db_session: Session = Depends(get_session),
@@ -155,7 +157,9 @@ def get_projects(
     return [UserProjectSnapshot.from_model(project) for project in projects]
 
 
-@router.post("/create", tags=PUBLIC_API_TAGS)
+@router.post(
+    "/create", tags=PUBLIC_API_TAGS, dependencies=[Depends(require_projects_enabled)]
+)
 def create_project(
     name: str,
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
@@ -181,6 +185,8 @@ def upload_user_files(
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> CategorizedFilesSnapshot:
+    if project_id is not None:
+        require_projects_enabled()
     # The file names its session before that session exists, so it is private
     # from the moment it lands and the id is what teardown finds it by.
     if incognito_session_id is not None:
@@ -234,7 +240,11 @@ def upload_user_files(
         _claim_upload_if_session_ended(db_session, incognito_session_id, user.id)
 
 
-@router.get("/{project_id}", tags=PUBLIC_API_TAGS)
+@router.get(
+    "/{project_id}",
+    tags=PUBLIC_API_TAGS,
+    dependencies=[Depends(require_projects_enabled)],
+)
 def get_project(
     project_id: int,
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
@@ -251,7 +261,11 @@ def get_project(
     return UserProjectSnapshot.from_model(project)
 
 
-@router.get("/files/{project_id}", tags=PUBLIC_API_TAGS)
+@router.get(
+    "/files/{project_id}",
+    tags=PUBLIC_API_TAGS,
+    dependencies=[Depends(require_projects_enabled)],
+)
 def get_files_in_project(
     project_id: int,
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
@@ -276,7 +290,11 @@ def get_files_in_project(
     return [UserFileSnapshot.from_model(user_file) for user_file in user_files]
 
 
-@router.delete("/{project_id}/files/{file_id}", tags=PUBLIC_API_TAGS)
+@router.delete(
+    "/{project_id}/files/{file_id}",
+    tags=PUBLIC_API_TAGS,
+    dependencies=[Depends(require_projects_enabled)],
+)
 def unlink_user_file_from_project(
     project_id: int,
     file_id: UUID,
@@ -319,6 +337,7 @@ def unlink_user_file_from_project(
 
 @router.post(
     "/{project_id}/files/{file_id}",
+    dependencies=[Depends(require_projects_enabled)],
     response_model=UserFileSnapshot,
     tags=PUBLIC_API_TAGS,
 )
@@ -368,6 +387,7 @@ class ProjectInstructionsResponse(BaseModel):
 
 @router.get(
     "/{project_id}/instructions",
+    dependencies=[Depends(require_projects_enabled)],
     response_model=ProjectInstructionsResponse,
     tags=PUBLIC_API_TAGS,
 )
@@ -395,6 +415,7 @@ class UpsertProjectInstructionsRequest(BaseModel):
 
 @router.post(
     "/{project_id}/instructions",
+    dependencies=[Depends(require_projects_enabled)],
     response_model=ProjectInstructionsResponse,
     tags=PUBLIC_API_TAGS,
 )
@@ -428,7 +449,10 @@ class ProjectPayload(BaseModel):
 
 
 @router.get(
-    "/{project_id}/details", response_model=ProjectPayload, tags=PUBLIC_API_TAGS
+    "/{project_id}/details",
+    response_model=ProjectPayload,
+    tags=PUBLIC_API_TAGS,
+    dependencies=[Depends(require_projects_enabled)],
 )
 def get_project_details(
     project_id: int,
@@ -458,7 +482,12 @@ class UpdateProjectRequest(BaseModel):
     description: str | None = None
 
 
-@router.patch("/{project_id}", response_model=UserProjectSnapshot, tags=PUBLIC_API_TAGS)
+@router.patch(
+    "/{project_id}",
+    response_model=UserProjectSnapshot,
+    tags=PUBLIC_API_TAGS,
+    dependencies=[Depends(require_projects_enabled)],
+)
 def update_project(
     project_id: int,
     body: UpdateProjectRequest,
@@ -486,7 +515,11 @@ def update_project(
     return UserProjectSnapshot.from_model(project)
 
 
-@router.delete("/{project_id}", tags=PUBLIC_API_TAGS)
+@router.delete(
+    "/{project_id}",
+    tags=PUBLIC_API_TAGS,
+    dependencies=[Depends(require_projects_enabled)],
+)
 def delete_project(
     project_id: int,
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
@@ -628,7 +661,9 @@ def get_user_file_statuses(
     return [UserFileSnapshot.from_model(user_file) for user_file in user_files]
 
 
-@router.post("/{project_id}/move_chat_session")
+@router.post(
+    "/{project_id}/move_chat_session", dependencies=[Depends(require_projects_enabled)]
+)
 def move_chat_session(
     project_id: int,
     body: ChatSessionRequest,
@@ -650,7 +685,7 @@ def move_chat_session(
     return Response(status_code=204)
 
 
-@router.post("/remove_chat_session")
+@router.post("/remove_chat_session", dependencies=[Depends(require_projects_enabled)])
 def remove_chat_session(
     body: ChatSessionRequest,
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
@@ -671,7 +706,7 @@ def remove_chat_session(
 
 @router.get("/session/{chat_session_id}/token-count", response_model=TokenCountResponse)
 def get_chat_session_project_token_count(
-    chat_session_id: str,
+    chat_session_id: UUID,
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> TokenCountResponse:
@@ -680,13 +715,10 @@ def get_chat_session_project_token_count(
     If the chat session has no project, returns 0.
     """
     user_id = user.id
-    chat_session = (
-        db_session.query(ChatSession)
-        .filter(ChatSession.id == chat_session_id, ChatSession.user_id == user_id)
-        .one_or_none()
-    )
-    if chat_session is None:
-        raise HTTPException(status_code=404, detail="Chat session not found")
+    try:
+        chat_session = get_chat_session_by_id(chat_session_id, user_id, db_session)
+    except ValueError:
+        raise OnyxError(OnyxErrorCode.SESSION_NOT_FOUND)
 
     total_tokens = get_project_token_count(
         project_id=chat_session.project_id,
@@ -699,7 +731,7 @@ def get_chat_session_project_token_count(
 
 @router.get("/session/{chat_session_id}/files", tags=PUBLIC_API_TAGS)
 def get_chat_session_project_files(
-    chat_session_id: str,
+    chat_session_id: UUID,
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> list[UserFileSnapshot]:
@@ -709,14 +741,10 @@ def get_chat_session_project_files(
     Only returns files owned by the current user and not FAILED.
     """
     user_id = user.id
-
-    chat_session = (
-        db_session.query(ChatSession)
-        .filter(ChatSession.id == chat_session_id, ChatSession.user_id == user_id)
-        .one_or_none()
-    )
-    if chat_session is None:
-        raise HTTPException(status_code=404, detail="Chat session not found")
+    try:
+        chat_session = get_chat_session_by_id(chat_session_id, user_id, db_session)
+    except ValueError:
+        raise OnyxError(OnyxErrorCode.SESSION_NOT_FOUND)
 
     if chat_session.project_id is None:
         return []
@@ -735,7 +763,11 @@ def get_chat_session_project_files(
     return [UserFileSnapshot.from_model(user_file) for user_file in user_files]
 
 
-@router.get("/{project_id}/token-count", response_model=TokenCountResponse)
+@router.get(
+    "/{project_id}/token-count",
+    response_model=TokenCountResponse,
+    dependencies=[Depends(require_projects_enabled)],
+)
 def get_project_total_token_count(
     project_id: int,
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),

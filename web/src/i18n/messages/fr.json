@@ -13879,7 +13879,7 @@
         "label": "Sessions récentes"
       },
       "searchInput": {
-        "placeholder": "Rechercher des sessions de discussion, des projets..."
+        "placeholder": "Rechercher des sessions de discussion..."
       },
       "sessionsFilter": {
         "label": "Sessions"

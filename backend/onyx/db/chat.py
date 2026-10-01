@@ -9,7 +9,11 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql.expression import ColumnElement
 
-from onyx.configs.chat_configs import CHAT_SHARING_ENABLED, HARD_DELETE_CHATS
+from onyx.configs.chat_configs import (
+    CHAT_SHARING_ENABLED,
+    HARD_DELETE_CHATS,
+    PROJECTS_ENABLED,
+)
 from onyx.configs.constants import ANONYMOUS_USER_UUID, DocumentSource, MessageType
 from onyx.context.search.models import InferenceSection, SavedSearchDoc
 from onyx.context.search.models import SearchDoc as ServerSearchDoc
@@ -35,6 +39,7 @@ from onyx.error_handling.exceptions import OnyxError
 from onyx.file_store.file_store import get_default_file_store
 from onyx.file_store.models import FileDescriptor
 from onyx.llm.override_models import LLMOverride, PromptOverride
+from onyx.server.features.projects.access import require_projects_enabled
 from onyx.server.query_and_chat.models import ChatMessageDetail
 from onyx.utils.logger import setup_logger
 from onyx.utils.postgres_sanitization import sanitize_string
@@ -332,6 +337,8 @@ def create_chat_session(
     incognito_record_mode: IncognitoRecordMode | None = None,
     session_id: UUID | None = None,
 ) -> ChatSession:
+    if project_id is not None:
+        require_projects_enabled()
     chat_session = ChatSession(
         # Caller-supplied only for incognito, where uploads name the session
         # before it exists so the server can verify them.
@@ -445,26 +452,22 @@ def delete_all_chat_sessions_for_user(
     user: User, db_session: Session, hard_delete: bool = HARD_DELETE_CHATS
 ) -> None:
     user_id = user.id
+    session_filters = [
+        ChatSession.user_id == user_id,
+        ChatSession.onyxbot_flow.is_(False),
+    ]
+    if not PROJECTS_ENABLED:
+        session_filters.append(ChatSession.project_id.is_(None))
 
-    chat_sessions = (
-        db_session.query(ChatSession)
-        .filter(ChatSession.user_id == user_id, ChatSession.onyxbot_flow.is_(False))
-        .all()
-    )
+    chat_sessions = db_session.query(ChatSession).filter(*session_filters).all()
 
     if hard_delete:
         for chat_session in chat_sessions:
             delete_messages_and_files_from_chat_session(chat_session.id, db_session)
-        db_session.execute(
-            delete(ChatSession).where(
-                ChatSession.user_id == user_id, ChatSession.onyxbot_flow.is_(False)
-            )
-        )
+        db_session.execute(delete(ChatSession).where(*session_filters))
     else:
         db_session.execute(
-            update(ChatSession)
-            .where(ChatSession.user_id == user_id, ChatSession.onyxbot_flow.is_(False))
-            .values(deleted=True)
+            update(ChatSession).where(*session_filters).values(deleted=True)
         )
 
     db_session.commit()

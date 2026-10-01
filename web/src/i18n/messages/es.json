@@ -13881,7 +13881,7 @@
         "label": "Sesiones recientes"
       },
       "searchInput": {
-        "placeholder": "Buscar sesiones de chat, proyectos..."
+        "placeholder": "Buscar sesiones de chat..."
       },
       "sessionsFilter": {
         "label": "Sesiones"

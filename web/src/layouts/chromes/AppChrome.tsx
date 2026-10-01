@@ -16,7 +16,7 @@ import { useAppBackground } from "@/providers/AppBackgroundProvider";
 import { useTheme } from "next-themes";
 import useBrowserInfo from "@/hooks/useBrowserInfo";
 import ShareChatSessionModal from "@/sections/modals/ShareChatSessionModal";
-import { CHAT_SHARING_ENABLED } from "@/lib/constants";
+import { CHAT_SHARING_ENABLED, PROJECTS_ENABLED } from "@/lib/constants";
 import { useProjectsContext } from "@/lib/projects/providers";
 import useChatSessions from "@/hooks/useChatSessions";
 import {
@@ -275,7 +275,7 @@ function Header() {
 
   useEffect(() => {
     let items: ReactNode[];
-    if (showMoveOptions) {
+    if (PROJECTS_ENABLED && showMoveOptions) {
       items = [
         <PopoverSearchInput
           key="search"
@@ -324,14 +324,16 @@ function Header() {
       ];
     } else {
       items = [
-        <LineItemButton
-          key="move"
-          sizePreset="main-ui"
-          rounding={2}
-          icon={SvgFolderIn}
-          title={t("moveToProject.label")}
-          onClick={noProp(() => setShowMoveOptions(true))}
-        />,
+        PROJECTS_ENABLED && (
+          <LineItemButton
+            key="move"
+            sizePreset="main-ui"
+            rounding={2}
+            icon={SvgFolderIn}
+            title={t("moveToProject.label")}
+            onClick={noProp(() => setShowMoveOptions(true))}
+          />
+        ),
         <LineItemButton
           key="export"
           sizePreset="main-ui"
@@ -373,7 +375,7 @@ function Header() {
         />
       )}
 
-      {showMoveCustomAgentModal && (
+      {PROJECTS_ENABLED && showMoveCustomAgentModal && (
         <MoveCustomAgentChatModal
           onCancel={resetMoveState}
           onConfirm={async (doNotShowAgain: boolean) => {
@@ -586,6 +588,7 @@ function Header() {
                         trigger={
                           <Button
                             icon={SvgMoreHorizontal}
+                            data-testid="AppChrome/chat-options"
                             prominence="tertiary"
                             interaction={popoverOpen ? "hover" : "rest"}
                           />
