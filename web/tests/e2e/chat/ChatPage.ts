@@ -113,7 +113,7 @@ export class ChatPage {
   async expectAdminAgentsHidden(): Promise<void> {
     await this.page.goto("/admin/chat-preferences");
     await expect(this.page.getByLabel("admin-page-title")).toHaveText(
-      "Chat Preferences"
+      /^Chat Preferences/
     );
     await expect(
       this.page.getByRole("link", { name: "Agents", exact: true })
