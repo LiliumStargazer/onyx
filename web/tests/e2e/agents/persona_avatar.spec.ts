@@ -1,4 +1,5 @@
 import { test, expect, Browser } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAs, loginAsWorkerUser } from "@tests/e2e/utils/auth";
 import { CHECKERED_PNG } from "@tests/e2e/fixtures/images";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
@@ -98,6 +99,7 @@ test.describe("Persona avatar", () => {
   });
 
   test("renders the persona avatar in the chat UI", async ({ page }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
     expect(agentId).not.toBeNull();
     await page.goto(`/app?agentId=${agentId}`);
     await page.waitForLoadState("networkidle");

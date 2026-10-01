@@ -8,6 +8,9 @@ import type { MinimalAgent } from "@/lib/agents/types";
 import type { User } from "@/lib/types";
 import { ChatSessionSharedStatus } from "@/app/app/interfaces";
 import type { BackendChatSession } from "@/app/app/interfaces";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
+
+test.skip(!SIMPLIFIED_CHAT_ENABLED, "Simplified chat is disabled");
 
 const SESSION_ID = "00000000-0000-4000-8000-000000000023";
 const assistant: MinimalAgent = {
@@ -221,6 +224,11 @@ for (const viewport of [
     expect(uploadRequests).toEqual([]);
     await chat.expectAssistantOnly();
     await chat.expectCitedSources();
+    await chat.inputBar.fill("Second question");
+    await chat.inputBar.send();
+    await chat.expectHumanMessage("Second question", 1);
+    await expect(chat.aiMessage(1)).toContainText("Simulated answer");
+    expect(chatRequests).toHaveLength(2);
 
     if (viewport.width === 1280) {
       await chat.openChatHistorySearch();
@@ -238,6 +246,8 @@ for (const viewport of [
           })
       );
       for (const path of [
+        "/admin/agents",
+        "/ee/agents/stats/23",
         "/app?agentId=23",
         "/app/agents",
         "/app/agents/create",
@@ -246,6 +256,49 @@ for (const viewport of [
       ]) {
         await chat.gotoAgentUrl(path);
         await chat.expectAssistantOnly();
+      }
+      await chat.expectAdminAgentsHidden();
+
+      for (const personaId of [23, 0]) {
+        const delayedSessionId =
+          personaId === 0
+            ? "00000000-0000-4000-8000-000000000024"
+            : "00000000-0000-4000-8000-000000000025";
+        const sessionRequested = Promise.withResolvers<void>();
+        const releaseSession = Promise.withResolvers<void>();
+        await page.route(
+          `**/api/chat/get-chat-session/${delayedSessionId}`,
+          async (route) => {
+            sessionRequested.resolve();
+            await releaseSession.promise;
+            await route.fulfill({
+              json: {
+                ...session,
+                chat_session_id: delayedSessionId,
+                persona_id: personaId,
+                persona_name:
+                  personaId === 0 ? assistant.name : customAgent.name,
+              },
+            });
+          }
+        );
+        await chat.gotoSessionPrompt(delayedSessionId, "Delayed question");
+        await sessionRequested.promise;
+        await chat.inputBar.expectDisabled();
+        expect(chatRequests).toHaveLength(2);
+        releaseSession.resolve();
+        if (personaId !== 0) {
+          await chat.expectAssistantRedirect();
+          expect(chatRequests).toHaveLength(2);
+        } else {
+          await chat.expectHumanMessage("Delayed question");
+          await expect(chat.aiMessage()).toContainText("Simulated answer");
+          expect(chatRequests).toHaveLength(3);
+          await chat.inputBar.fill("Follow-up question");
+          await chat.inputBar.send();
+          await chat.expectHumanMessage("Follow-up question", 1);
+          expect(chatRequests).toHaveLength(4);
+        }
       }
     }
   });

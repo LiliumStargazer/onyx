@@ -287,17 +287,21 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
   }, [setMessage, setCurrentMessageFiles]);
 
   // Chat controller for submitting messages
-  const { onSubmit, stopGenerating, handleMessageSpecificFileUpload } =
-    useChatController({
-      llmManager,
-      toolConfiguration,
-      availableAgents: availableAgents || [],
-      activeAgent,
-      existingChatSessionId,
-      selectedDocuments: [],
-      searchParams: searchParams!,
-      resetInputBar,
-    });
+  const {
+    onSubmit,
+    stopGenerating,
+    handleMessageSpecificFileUpload,
+    canSubmitMessage,
+  } = useChatController({
+    llmManager,
+    toolConfiguration,
+    availableAgents: availableAgents || [],
+    activeAgent,
+    existingChatSessionId,
+    selectedDocuments: [],
+    searchParams: searchParams!,
+    resetInputBar,
+  });
 
   // Chat session controller for loading sessions
   const { currentSessionFileTokenCount } = useChatSessionController({
@@ -582,7 +586,8 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
                 activeAgent={activeAgent}
                 handleFileUpload={handleFileUpload}
                 disabled={
-                  !llmManager.isLoadingProviders && !llmManager.hasAnyProvider
+                  !canSubmitMessage ||
+                  (!llmManager.isLoadingProviders && !llmManager.hasAnyProvider)
                 }
                 {...(isSidePanel && {
                   tabReadingEnabled,

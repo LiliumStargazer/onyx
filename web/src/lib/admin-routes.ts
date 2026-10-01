@@ -1,4 +1,5 @@
 import { Permission } from "@/lib/types";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { Tier } from "@/lib/settings/types";
 import { IconFunctionComponent } from "@opal/types";
 import {
@@ -207,7 +208,7 @@ export const ADMIN_ROUTES = {
     requiredPermission: Permission.MANAGE_AGENTS,
     section: "Agents & Actions",
     requiredTier: null,
-    visibleWhen: null,
+    visibleWhen: () => !SIMPLIFIED_CHAT_ENABLED,
   },
   MCP_ACTIONS: {
     path: "/admin/mcp-actions",

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAs, apiLogin } from "@tests/e2e/utils/auth";
 import { ensureOnboardingComplete } from "@tests/e2e/utils/chatActions";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
@@ -174,6 +175,7 @@ test.describe("MCP per-user API key auth (multi-field template)", () => {
   test("Basic user is prompted for every template field and can authenticate", async ({
     page,
   }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat tool controls are disabled");
     await page.context().clearCookies();
     await apiLogin(page, basicUserEmail, basicUserPassword);
 
@@ -214,6 +216,7 @@ test.describe("MCP per-user API key auth (multi-field template)", () => {
   test("Re-authenticate row exposes the multi-field modal with the same gating", async ({
     page,
   }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat tool controls are disabled");
     await page.context().clearCookies();
     await apiLogin(page, basicUserEmail, basicUserPassword);
 

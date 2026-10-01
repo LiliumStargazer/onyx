@@ -232,7 +232,10 @@ export default function useChatSessionController({
         SIMPLIFIED_CHAT_ENABLED &&
         chatSession.persona_id !== DEFAULT_AGENT_ID
       ) {
-        router.replace("/app");
+        setIsFetchingChatMessages(existingChatSessionId, false);
+        if (chatSessionIdRef.current === existingChatSessionId) {
+          router.replace("/app");
+        }
         return;
       }
       // Restore the incognito UI state on reload of a live incognito session.

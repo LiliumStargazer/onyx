@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAs, apiLogin } from "@tests/e2e/utils/auth";
 import {
   grantAddAgents,
@@ -174,6 +175,7 @@ test.describe("Default Agent MCP Integration", () => {
   test("Basic user can see and toggle MCP tools in the default agent", async ({
     page,
   }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat tool controls are disabled");
     await page.context().clearCookies();
     await apiLogin(page, basicUserEmail, basicUserPassword);
 
@@ -200,6 +202,7 @@ test.describe("Default Agent MCP Integration", () => {
   test("Basic user can create an assistant with MCP actions attached", async ({
     page,
   }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
     await page.context().clearCookies();
     await apiLogin(page, basicUserEmail, basicUserPassword);
 
@@ -289,6 +292,7 @@ test.describe("Default Agent MCP Integration", () => {
   });
 
   test("MCP tools appear in a basic user's chat actions", async ({ page }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat tool controls are disabled");
     await page.context().clearCookies();
     await apiLogin(page, basicUserEmail, basicUserPassword);
 

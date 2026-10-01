@@ -1,4 +1,5 @@
 import { test, expect, Page, Browser } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAs, loginAsWorkerUser } from "@tests/e2e/utils/auth";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
 import { expectElementScreenshot } from "@tests/e2e/utils/visualRegression";
@@ -119,6 +120,7 @@ const navigateToFilesView = async (page: Page) => {
 };
 
 test.describe("Assistant Creation and Edit Verification", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
   // Configure this entire suite to run serially
   test.describe.configure({ mode: "serial" });
 

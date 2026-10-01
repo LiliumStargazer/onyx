@@ -16,6 +16,7 @@ import type { ToolConfigurationHandle } from "@/lib/tools/hooks";
 interface UseSendChatMessageFromURLProps {
   /** From `useChatController`, which needs more than this hook can see. */
   onSubmit: (props: OnSubmitProps) => void;
+  canSubmitMessage: boolean;
   /** Resolved against the active project, so the page decides it, not this. */
   deepResearch: boolean;
   /** Where the filters a URL names are written: the chat's own configuration. */
@@ -54,6 +55,7 @@ interface UseSendChatMessageFromURLProps {
  */
 export function useSendChatMessageFromURL({
   onSubmit,
+  canSubmitMessage,
   deepResearch,
   toolConfiguration,
 }: UseSendChatMessageFromURLProps) {
@@ -84,17 +86,25 @@ export function useSendChatMessageFromURL({
   // window and queues the same prompt twice.
   const sentForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!searchParams?.get(SEARCH_PARAM_NAMES.SEND_ON_LOAD)) return;
+    if (
+      !canSubmitMessage ||
+      !searchParams?.get(SEARCH_PARAM_NAMES.SEND_ON_LOAD)
+    )
+      return;
     const query = searchParams.toString();
     if (sentForRef.current === query) return;
     sentForRef.current = query;
     setQueuedQuery(query);
-  }, [searchParams]);
+  }, [searchParams, canSubmitMessage]);
 
   // The extension navigating the embedded page without a reload.
   useEffect(() => {
     function onPageChange(event: MessageEvent) {
-      if (event.data.type !== SUBMIT_MESSAGE_TYPES.PAGE_CHANGE) return;
+      if (
+        !canSubmitMessage ||
+        event.data.type !== SUBMIT_MESSAGE_TYPES.PAGE_CHANGE
+      )
+        return;
       try {
         setQueuedQuery(new URL(event.data.href).searchParams.toString());
       } catch (error) {
@@ -104,13 +114,13 @@ export function useSendChatMessageFromURL({
 
     window.addEventListener("message", onPageChange);
     return () => window.removeEventListener("message", onPageChange);
-  }, []);
+  }, [canSubmitMessage]);
 
   // Processes the queued query once every dimension it names has settled.
   // Re-runs as the loading flags flip, so a query that arrived early waits
   // here instead of resolving names against half-fetched lists.
   useEffect(() => {
-    if (queuedQuery === null) return;
+    if (queuedQuery === null || !canSubmitMessage) return;
     // Writes are dropped until the composer's configuration binds to its
     // chat, so processing earlier would scope nothing and persist nothing.
     if (!toolConfiguration.ready) return;
@@ -179,6 +189,7 @@ export function useSendChatMessageFromURL({
     if (message) setPendingMessage(message);
   }, [
     queuedQuery,
+    canSubmitMessage,
     sourcesLoading,
     sourcesSettled,
     documentSetsLoading,
@@ -193,8 +204,14 @@ export function useSendChatMessageFromURL({
   // Submits one render after the filter write above landed, so `onSubmit`'s
   // closure reads the configuration the query scoped, not the previous one.
   useEffect(() => {
-    if (pendingMessage === null) return;
+    if (pendingMessage === null || !canSubmitMessage) return;
     setPendingMessage(null);
     onSubmit({ message: pendingMessage, currentMessageFiles, deepResearch });
-  }, [pendingMessage, onSubmit, currentMessageFiles, deepResearch]);
+  }, [
+    pendingMessage,
+    onSubmit,
+    canSubmitMessage,
+    currentMessageFiles,
+    deepResearch,
+  ]);
 }

@@ -87,8 +87,32 @@ export class ChatPage {
 
   async gotoAgentUrl(path: string): Promise<void> {
     await this.page.goto(path);
+    await this.expectAssistantRedirect();
+  }
+
+  async expectAssistantRedirect(): Promise<void> {
     await expect(this.page).toHaveURL(/\/app$/);
     await this.inputBar.textbox.waitFor({ state: "visible" });
+  }
+
+  async gotoSessionPrompt(sessionId: string, message: string): Promise<void> {
+    const params = new URLSearchParams({
+      chatId: sessionId,
+      "user-prompt": message,
+      "send-on-load": "true",
+    });
+    await this.page.goto(`/app?${params}`);
+    await this.inputBar.textbox.waitFor({ state: "visible" });
+  }
+
+  async expectAdminAgentsHidden(): Promise<void> {
+    await this.page.goto("/admin/chat-preferences");
+    await expect(this.page.getByLabel("admin-page-title")).toHaveText(
+      "Chat Preferences"
+    );
+    await expect(
+      this.page.getByRole("link", { name: "Agents", exact: true })
+    ).toHaveCount(0);
   }
 
   async expectNoModelSelectors(): Promise<void> {

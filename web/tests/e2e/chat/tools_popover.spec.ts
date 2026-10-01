@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAs } from "@tests/e2e/utils/auth";
 import {
   TOOL_IDS,
@@ -13,6 +14,7 @@ import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
 import { sendMessage } from "@tests/e2e/utils/chatActions";
 
 test.describe("ToolsPopover Tool Toggles", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat tool controls are disabled");
   test.describe.configure({ mode: "serial" });
 
   let ccPairId: number | null = null;

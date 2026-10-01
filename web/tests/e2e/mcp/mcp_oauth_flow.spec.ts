@@ -9,6 +9,7 @@ import {
   McpServerProcess,
 } from "@tests/e2e/utils/mcpServer";
 import { TEST_ADMIN_CREDENTIALS } from "@tests/e2e/constants";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { AdminMcpServersPage } from "@tests/e2e/pages/AdminMcpServersPage";
 import { ToolsPopover } from "@tests/e2e/pages/ToolsPopover";
 import {
@@ -160,6 +161,10 @@ async function verifyToolUsableFromChat(
 }
 
 test.describe("MCP OAuth flows", () => {
+  test.skip(
+    SIMPLIFIED_CHAT_ENABLED,
+    "Custom agents and chat tool controls are disabled"
+  );
   test.describe.configure({ mode: "serial" });
   test.setTimeout(MCP_OAUTH_FLOW_TEST_TIMEOUT_MS);
 

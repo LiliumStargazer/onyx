@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAs } from "@tests/e2e/utils/auth";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
 
 test.describe("Default App Mode", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Dedicated search is disabled");
   test("loads persisted Search mode after refresh", async ({ page }) => {
     await page.context().clearCookies();
     await loginAs(page, "admin");

@@ -1,7 +1,10 @@
 import { test } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAsRandomUser, loginAs } from "@tests/e2e/utils/auth";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
 import { AgentEditorPage } from "@tests/e2e/pages/AgentEditorPage";
+
+test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
 
 /**
  * This test verifies that LLM Provider RBAC works correctly in the assistant editor.

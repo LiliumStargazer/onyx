@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import type { Page, Locator } from "@playwright/test";
 import { loginAs } from "@tests/e2e/utils/auth";
 import {
@@ -526,6 +527,7 @@ test.describe("Chat Preferences Admin Page @exclusive", () => {
   });
 
   test("should toggle all tools and verify in chat", async ({ page }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat tool controls are disabled");
     // Providers are now created in beforeEach, so all tools should be available
 
     // Wait for ALL three tools to be visible in the UI

@@ -134,6 +134,11 @@ export class InputBar {
     });
   }
 
+  async expectDisabled(): Promise<void> {
+    await expect(this.textbox).toHaveAttribute("contenteditable", "false");
+    await expect(this.sendButton).toBeDisabled();
+  }
+
   async expectSimpleControls(): Promise<void> {
     await expect(this.container.getByRole("button")).toHaveCount(2);
     await expect(

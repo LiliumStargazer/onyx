@@ -1,4 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAsRandomUser } from "@tests/e2e/utils/auth";
 import {
   grantAddAgents,
@@ -237,6 +238,7 @@ async function selectFileByName(page: Page, fileName: string): Promise<void> {
 }
 
 test.describe("User File Attachment to Assistant", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
   const grantGroupIds: number[] = [];
 
   test.afterAll(async ({ browser }) => {

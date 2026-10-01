@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { USER_MODEL_SELECTION_ENABLED } from "@/lib/constants";
+import {
+  SIMPLIFIED_CHAT_ENABLED,
+  USER_MODEL_SELECTION_ENABLED,
+} from "@/lib/constants";
 import { loginAsRandomUser } from "@tests/e2e/utils/auth";
 import { sendMessage, switchModel } from "@tests/e2e/utils/chatActions";
 
@@ -221,6 +224,7 @@ test.describe("Message Edit and Regenerate Tests", () => {
   });
 
   test("Message editing with files", async ({ page }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat attachments are disabled");
     const testFileName = `test-edit-${Date.now()}.txt`;
     const testFileContent = "This is a test file for editing with attachments.";
     const buffer = Buffer.from(testFileContent, "utf-8");

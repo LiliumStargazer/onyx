@@ -424,6 +424,7 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
     stopGenerating,
     handleMessageSpecificFileUpload,
     availableContextTokens,
+    canSubmitMessage,
   } = useChatController({
     llmManager,
     toolConfiguration,
@@ -458,6 +459,7 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
   // because it submits, so it needs `onSubmit` above it.
   useSendChatMessageFromURL({
     onSubmit,
+    canSubmitMessage,
     deepResearch: deepResearchEnabledForCurrentWorkflow,
     toolConfiguration,
   });
@@ -1038,6 +1040,7 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
                         // Intentionally enabled during name-only onboarding (showOnboarding=false)
                         // since LLM providers are already configured and the user can chat.
                         disabled={
+                          !canSubmitMessage ||
                           (!llmManager.isLoadingProviders &&
                             llmManager.hasAnyProvider === false) ||
                           (showOnboarding &&

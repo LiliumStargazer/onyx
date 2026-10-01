@@ -1,4 +1,5 @@
 import { test, expect, Browser } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { ChatPage } from "@tests/e2e/chat/ChatPage";
 import { CHECKERED_PNG } from "@tests/e2e/fixtures/images";
 import { sendMessage } from "@tests/e2e/utils/chatActions";
@@ -13,6 +14,7 @@ const USER_MESSAGE = "Hi there";
 const AI_RESPONSE = "Hello, I'm a custom persona!";
 
 test.describe("Chatting with a custom persona", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
   test.describe.configure({ mode: "serial" });
 
   let agentId: number | null = null;

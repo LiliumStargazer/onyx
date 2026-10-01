@@ -785,6 +785,7 @@ const AppInputBar = React.memo(
 
           <Button
             disabled={
+              disabled ||
               (chatState === "input" &&
                 !isVoicePlaybackControllable &&
                 !message) ||

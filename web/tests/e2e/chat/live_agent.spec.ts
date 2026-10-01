@@ -1,4 +1,5 @@
 import { test } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAsRandomUser } from "@tests/e2e/utils/auth";
 import {
   grantAddAgents,
@@ -12,6 +13,7 @@ import {
 } from "@tests/e2e/utils/chatActions";
 
 test.describe("Live Agent Tests", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
   const grantGroupIds: number[] = [];
 
   test.afterAll(async ({ browser }) => {

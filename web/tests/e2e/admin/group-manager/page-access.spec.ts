@@ -10,6 +10,7 @@
 
 import { worldTest as test, expect, actAsManager } from "./fixtures";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 
 /**
  * Heading each page renders once its own content has loaded — the app has no <main>
@@ -28,7 +29,7 @@ const PAGE_HEADINGS: Record<string, string> = {
 const ALWAYS_PAGES = [
   ADMIN_ROUTES.MCP_ACTIONS.path,
   ADMIN_ROUTES.OPENAPI_ACTIONS.path,
-  ADMIN_ROUTES.AGENTS.path,
+  ...(SIMPLIFIED_CHAT_ENABLED ? [] : [ADMIN_ROUTES.AGENTS.path]),
 ];
 
 /** Also require `vectorDbEnabled`. */
@@ -53,6 +54,7 @@ const FORBIDDEN_PAGES = [
   ADMIN_ROUTES.LLM_MODELS.path,
   ADMIN_ROUTES.USERS.path,
   ADMIN_ROUTES.WEB_SEARCH.path,
+  ...(SIMPLIFIED_CHAT_ENABLED ? [ADMIN_ROUTES.AGENTS.path] : []),
 ];
 
 // seeding a whole scoped world plus several re-logins puts these well past the

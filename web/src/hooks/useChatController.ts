@@ -16,6 +16,7 @@ import {
 } from "@/app/app/message/multiModel";
 import { getMaxSelectedDocumentTokens } from "@/lib/projects/svc";
 import {
+  DEFAULT_AGENT_ID,
   DEFAULT_CONTEXT_TOKENS,
   SIMPLIFIED_CHAT_ENABLED,
   USER_MODEL_SELECTION_ENABLED,
@@ -238,6 +239,16 @@ export default function useChatController({
 
   const navigatingAway = useRef(false);
 
+  const canSubmitToCurrentSession = useCallback(() => {
+    const store = useChatSessionStore.getState();
+    const sessionId = existingChatSessionId ?? store.currentSessionId;
+    return (
+      !SIMPLIFIED_CHAT_ENABLED ||
+      !sessionId ||
+      store.sessions.get(sessionId)?.personaId === DEFAULT_AGENT_ID
+    );
+  }, [existingChatSessionId]);
+
   // Sync store state changes
   useEffect(() => {
     if (currentSessionId) {
@@ -279,7 +290,12 @@ export default function useChatController({
     if (!existingSession) {
       // Pinned here so vote suppression holds even before any backend
       // session fetch stores the flag.
-      createSession(newSessionId, { incognito });
+      createSession(newSessionId, {
+        incognito,
+        personaId: incognito
+          ? DEFAULT_AGENT_ID
+          : (activeAgent?.id ?? DEFAULT_AGENT_ID),
+      });
     }
 
     // Set as current session
@@ -422,6 +438,8 @@ export default function useChatController({
       additionalContext,
       selectedModels,
     }: OnSubmitProps) => {
+      // The resolved UI agent does not identify an existing backend session.
+      if (!canSubmitToCurrentSession()) return;
       if (
         !USER_MODEL_SELECTION_ENABLED &&
         (llmManager.isLoadingProviders || !llmManager.currentLlm.modelName)
@@ -1526,6 +1544,7 @@ export default function useChatController({
       llmManager.hasTemperatureOverride,
       llmManager.persistOverrides,
       // Others that affect logic
+      canSubmitToCurrentSession,
       activeAgent,
       availableAgents,
       existingChatSessionId,
@@ -1716,5 +1735,6 @@ export default function useChatController({
     handleMessageSpecificFileUpload,
     // data
     availableContextTokens,
+    canSubmitMessage: canSubmitToCurrentSession(),
   };
 }

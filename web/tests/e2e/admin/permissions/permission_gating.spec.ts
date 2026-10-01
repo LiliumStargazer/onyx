@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { Permission } from "@/lib/types";
 import { apiLogin, loginAs } from "@tests/e2e/utils/auth";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
@@ -16,6 +17,7 @@ async function cleanup(fn: () => Promise<void>): Promise<void> {
 }
 
 test.describe("Permission gating — ADD_AGENTS", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
   test("New Agent button is disabled without ADD_AGENTS and enabled after granting it", async ({
     page,
     adminClient,
@@ -87,6 +89,7 @@ test.describe("Permission gating — ADD_AGENTS", () => {
 });
 
 test.describe("Permission gating — MANAGE_AGENTS", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
   test("Admin panel and /admin/agents are gated behind MANAGE_AGENTS", async ({
     page,
     adminClient,

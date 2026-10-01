@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { expect, Page, test } from "@playwright/test";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { ChatPage } from "@tests/e2e/chat/ChatPage";
 import { CHECKERED_PNG } from "@tests/e2e/fixtures/images";
 import { loginAsWorkerUser } from "@tests/e2e/utils/auth";
@@ -102,6 +103,7 @@ test.describe("Chat File Uploads", () => {
   });
 
   test.describe("User-Uploaded Files", () => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat attachments are disabled");
     test("uploaded text file renders in user message", async ({ page }) => {
       await chat.goto();
       await mockChatEndpoint(page, buildMockStream(SHORT_AI_RESPONSE));
@@ -228,6 +230,7 @@ test.describe("Chat File Uploads", () => {
   });
 
   test.describe("Code Preview Modal", () => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat attachments are disabled");
     test("clicking expand on uploaded code file opens preview modal", async ({
       page,
     }) => {
@@ -285,6 +288,7 @@ test.describe("Chat File Uploads", () => {
   });
 
   test.describe("Docx Preview Modal", () => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat attachments are disabled");
     // Exercises the full pipeline: a real .docx is uploaded and stored, then
     // previewed by fetching the *actually stored* bytes from /api/chat/file —
     // deliberately NOT mocked, unlike file_preview_modal.spec.ts which serves a

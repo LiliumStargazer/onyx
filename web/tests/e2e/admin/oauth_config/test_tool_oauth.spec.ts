@@ -1,8 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { Page, Browser } from "@playwright/test";
 import { loginAs } from "@tests/e2e/utils/auth";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
+
+test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
 
 // --- Locator Helper Functions ---
 const getAuthorizationUrlInput = (page: Page) =>

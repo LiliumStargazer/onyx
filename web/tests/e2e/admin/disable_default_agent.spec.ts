@@ -1,5 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { loginAs } from "@tests/e2e/utils/auth";
 import { createAgent } from "@tests/e2e/utils/agentUtils";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
@@ -125,6 +126,7 @@ test.describe("Disable Default Agent Setting @exclusive", () => {
   test("new session button uses current agent when setting is enabled", async ({
     page,
   }) => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
     // Create the agent before enabling the setting, not after. With the setting
     // on and nothing but the default agent available, there is no agent to chat
     // with and /app correctly refuses to render one - which puts the UI that

@@ -1,4 +1,5 @@
 import { GREETING_MESSAGES } from "@/lib/chat/greetingMessages";
+import { SIMPLIFIED_CHAT_ENABLED } from "@/lib/constants";
 import { test, expect } from "@playwright/test";
 import { loginAsRandomUser, loginAs } from "@tests/e2e/utils/auth";
 import {
@@ -108,6 +109,7 @@ test.describe("Default Agent Tests", () => {
     });
 
     test("greeting should only appear for default agent", async ({ page }) => {
+      test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
       // First verify greeting appears for default agent
       const greetingElement = await page.waitForSelector(
         '[data-testid="onyx-logo"]',
@@ -158,6 +160,7 @@ test.describe("Default Agent Tests", () => {
     test("custom agents should show name and icon instead of logo", async ({
       page,
     }) => {
+      test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
       // Create a custom agent
       await page.getByTestId("AppSidebar/more-agents").click();
       await page.getByLabel("AgentsPage/new-agent-button").click();
@@ -204,6 +207,7 @@ test.describe("Default Agent Tests", () => {
     });
 
     test("custom agents should display starter messages", async ({ page }) => {
+      test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
       // Create a custom agent with starter messages
       await page.getByTestId("AppSidebar/more-agents").click();
       await page.getByLabel("AgentsPage/new-agent-button").click();
@@ -249,6 +253,7 @@ test.describe("Default Agent Tests", () => {
     test("default agent should NOT appear in agent selector", async ({
       page,
     }) => {
+      test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
       // Open agent selector
       await page.getByTestId("AppSidebar/more-agents").click();
 
@@ -280,6 +285,7 @@ test.describe("Default Agent Tests", () => {
     test("should be able to switch from default to custom agent", async ({
       page,
     }) => {
+      test.skip(SIMPLIFIED_CHAT_ENABLED, "Custom agents are disabled");
       // Create a custom agent
       await page.getByTestId("AppSidebar/more-agents").click();
       await page.getByLabel("AgentsPage/new-agent-button").click();
@@ -313,6 +319,7 @@ test.describe("Default Agent Tests", () => {
   // and competing default-assistant PATCHes clobber toggle state. Serializing via the
   // isolated `exclusive` project removes the race.
   test.describe("Action Management Toggle @exclusive", () => {
+    test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat tool controls are disabled");
     let imageGenConfigId: string | null = null;
 
     test.beforeAll(async ({ browser }) => {
@@ -557,6 +564,7 @@ test.describe("Default Agent Tests", () => {
 });
 
 test.describe("End-to-End Default Agent Flow", () => {
+  test.skip(SIMPLIFIED_CHAT_ENABLED, "Chat tool controls are disabled");
   let imageGenConfigId: string | null = null;
 
   test.beforeAll(async ({ browser }) => {
