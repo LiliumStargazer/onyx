@@ -47,43 +47,6 @@ export class PwaPage {
     }
   }
 
-  async visitAfterWikiCopilot(): Promise<void> {
-    // Simulate Wiki Copilot's root worker and cached documents on this origin.
-    await this.page.context().route("**/sw.js?legacy=1", (route) =>
-      route.fulfill({
-        contentType: "application/javascript",
-        body: `
-          self.addEventListener('install', () => self.skipWaiting());
-          self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
-          self.addEventListener('fetch', event => {
-            event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
-          });
-        `,
-      })
-    );
-    await this.page.goto("/offline.html");
-    await this.page.evaluate(async () => {
-      const cache = await caches.open("wikicopilot-v1");
-      await cache.put("/app", new Response("Simulated cached private answer"));
-      await cache.put(
-        "/api/chat/document/simulated",
-        new Response("Simulated cached private document")
-      );
-      await caches.open("unrelated-app");
-      await navigator.serviceWorker.register("/sw.js?legacy=1");
-      await navigator.serviceWorker.ready;
-    });
-    await expect
-      .poll(() =>
-        this.page.evaluate(() => navigator.serviceWorker.controller?.scriptURL)
-      )
-      .toMatch(/\/sw\.js\?legacy=1$/);
-    await this.launch();
-    await expect
-      .poll(() => this.page.evaluate(async () => (await caches.keys()).sort()))
-      .toEqual(["unrelated-app", "wiki-agent-rag-offline-v1"]);
-  }
-
   async waitForWorker(): Promise<void> {
     await this.page.evaluate(async () => {
       await navigator.serviceWorker.ready;
@@ -107,6 +70,7 @@ export class PwaPage {
     await expect(this.page.locator("#onyx-human-message")).toHaveCount(0);
     await expect(this.page.getByTestId("agent-name-display")).toHaveCount(0);
     await this.waitForWorker();
+    await this.page.waitForLoadState("networkidle");
   }
 
   async expectOnline(): Promise<void> {
@@ -114,11 +78,12 @@ export class PwaPage {
     await expect(this.page).toHaveURL(/\/app$/);
   }
 
-  async detectConnectionLoss(): Promise<void> {
-    await this.page.evaluate(() => {
-      // A request fails even when Wi-Fi stays connected but the Internet is unavailable.
-      void fetch("/api/health").catch(() => {});
-    });
+  async visit(path: string): Promise<void> {
+    await this.page.goto(path);
+  }
+
+  async reload(): Promise<void> {
+    await this.page.reload();
   }
 
   async expectOffline(): Promise<void> {

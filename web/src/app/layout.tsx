@@ -26,6 +26,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { DirectionProvider } from "@radix-ui/react-direction";
 import { cookies } from "next/headers";
 import { htmlDirForLocale, messageLocale, type HtmlDir } from "@/i18n/config";
+import { SWR_KEYS } from "@/lib/swr-keys";
 
 // No generic at the end of either fallback list: the generic comes last in
 // the composed --font-* variables on <html> below, after the per-locale CJK
@@ -157,6 +158,18 @@ export default async function Layout({ children }: LayoutProps) {
                   if (event.data === 'wiki-agent-rag-offline') showOfflinePage();
                 });
                 navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+                  .then(() => navigator.serviceWorker.ready)
+                  .then(() => {
+                    // Wi-Fi can stay connected after Internet access fails, even during a chat stream.
+                    const connectionCheckIntervalMs = 5000;
+                    window.setInterval(() => {
+                      if (document.documentElement.hidden) return;
+                      fetch('${SWR_KEYS.health}', {
+                        cache: 'no-store',
+                        signal: AbortSignal.timeout(connectionCheckIntervalMs),
+                      }).catch(showOfflinePage);
+                    }, connectionCheckIntervalMs);
+                  })
                   .catch(error => console.error('PWA registration failed', error));
               }
             `,

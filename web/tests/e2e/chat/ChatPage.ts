@@ -250,6 +250,10 @@ export class ChatPage {
     await expect(this.humanMessages).toHaveCount(0);
   }
 
+  async expectAnswer(text: string): Promise<void> {
+    await expect(this.container.getByText(text, { exact: true })).toBeVisible();
+  }
+
   async sendUntilUsageLimit(maxTurns: number): Promise<void> {
     for (
       let turn = 0;
