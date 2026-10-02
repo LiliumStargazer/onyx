@@ -1,9 +1,11 @@
 import json
+import re
 from unittest.mock import patch
 
 import httpx
 import pytest
 
+from onyx.configs.app_configs import INDEX_BATCH_SIZE
 from onyx.configs.constants import DocumentSource
 from onyx.connectors.models import ConnectorMissingCredentialError, Document
 from onyx.connectors.wikijs import WikiJsConnector
@@ -33,6 +35,90 @@ def _graphql(data: dict[str, object]) -> httpx.Response:
         json={"data": {"pages": data}},
         request=httpx.Request("POST", "https://wiki.example.test/graphql"),
     )
+
+
+def test_verification_and_snapshot_without_protected_publication_field() -> None:
+    page = _page(1, "Help")
+    identity = {field: value for field, value in page.items() if field != "isPublished"}
+
+    def wiki_response(request: httpx.Request) -> httpx.Response:
+        query = json.loads(request.content)["query"]
+        if "list(" in query:
+            return _graphql({"list": [page]})
+        if "isPublished" in query:
+            return httpx.Response(
+                200,
+                json={
+                    "errors": [
+                        {
+                            "message": "Forbidden",
+                            "path": ["pages", "single", "isPublished"],
+                        }
+                    ]
+                },
+            )
+        return _graphql({"single": {**identity, "content": "Published text"}})
+
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with (
+        httpx.Client(transport=httpx.MockTransport(wiki_response)) as client,
+        patch("httpx.post", side_effect=client.post),
+    ):
+        assert connector.confirm_removed_pages({"/it/Help": 1}) == []
+        docs = [
+            doc
+            for batch in connector.load_from_state()
+            for doc in batch
+            if isinstance(doc, Document)
+        ]
+
+    assert len(docs) == 1
+    assert docs[0].id == "/it/Help"
+    assert docs[0].get_text_content() == "Published text"
+    assert docs[0].doc_metadata == {"wikijs_page_id": 1, "visibility": "public"}
+
+
+@pytest.mark.parametrize("publication_after_read", [False, None])
+@pytest.mark.parametrize("page_count", [1, INDEX_BATCH_SIZE + 1])
+def test_each_batch_requires_fresh_publication_proof(
+    publication_after_read: bool | None, page_count: int
+) -> None:
+    last_page_read = False
+
+    def wiki_response(request: httpx.Request) -> httpx.Response:
+        nonlocal last_page_read
+        query = json.loads(request.content)["query"]
+        if "list(" in query:
+            pages = [
+                _page(page_id, f"Help{page_id}") for page_id in range(1, page_count + 1)
+            ]
+            if last_page_read:
+                if publication_after_read is None:
+                    pages.pop()
+                else:
+                    pages[-1]["isPublished"] = publication_after_read
+            return _graphql({"list": pages})
+        match = re.search(r"single\s*\(\s*id:\s*(\d+)\s*\)", query)
+        assert match is not None
+        page_id = int(match.group(1))
+        if page_id == page_count:
+            last_page_read = True
+        identity = _page(page_id, f"Help{page_id}")
+        del identity["isPublished"]
+        return _graphql({"single": {**identity, "content": "Published text"}})
+
+    connector = WikiJsConnector(**CONFIG)
+    connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    with (
+        httpx.Client(transport=httpx.MockTransport(wiki_response)) as client,
+        patch("httpx.post", side_effect=client.post),
+    ):
+        stream = connector.load_from_state()
+        if page_count > INDEX_BATCH_SIZE:
+            assert len(next(stream)) == INDEX_BATCH_SIZE
+        with pytest.raises(ValueError, match="publication"):
+            next(stream)
 
 
 def test_initial_snapshot_preserves_paths_visibility_and_section_links() -> None:
@@ -71,6 +157,15 @@ def test_initial_snapshot_preserves_paths_visibility_and_section_links() -> None
                         **_page(5, "Help/Other"),
                         "content": "Altro",
                     }
+                }
+            ),
+            _graphql(
+                {
+                    "list": [
+                        _page(1, "Help"),
+                        _page(2, "Riservato/Manuale"),
+                        _page(5, "Help/Other"),
+                    ]
                 }
             ),
         ]
@@ -117,6 +212,7 @@ def test_next_snapshot_emits_changed_content_and_visibility_at_same_path() -> No
                         }
                     }
                 ),
+                _graphql({"list": [_page(7, path)]}),
             ],
         ):
             return next(
@@ -194,17 +290,24 @@ def test_unproven_removal_is_not_confirmed(failure: object) -> None:
             assert connector.confirm_removed_pages({"/it/Missing": 8}) == []
 
 
-def test_unpublished_single_confirms_removal_from_partial_inventory() -> None:
+def test_missing_publication_proof_neither_removes_nor_reloads_page() -> None:
     connector = WikiJsConnector(**CONFIG)
     connector.load_credentials({"wikijs_api_token": "fixture-token"})
+    identity = {
+        field: value
+        for field, value in _page(7, "Old").items()
+        if field != "isPublished"
+    }
     with patch(
         "httpx.post",
         side_effect=[
             _graphql({"list": []}),
-            _graphql({"single": _page(7, "Old", False)}),
+            _graphql({"single": identity}),
+            _graphql({"list": []}),
         ],
     ):
-        assert connector.confirm_removed_pages({"/it/Old": 7}) == ["/it/Old"]
+        assert connector.confirm_removed_pages({"/it/Old": 7}) == []
+        assert list(connector.load_from_state()) == []
 
 
 def test_verified_move_and_exit_from_scope_remove_old_paths() -> None:
@@ -250,6 +353,7 @@ def test_verified_rename_indexes_new_path_from_stale_inventory() -> None:
                     }
                 }
             ),
+            _graphql({"list": [_page(7, "Riservato/New"), _page(8, "Other")]}),
         ],
     ):
         assert connector.confirm_removed_pages({"/it/Old": 7}) == ["/it/Old"]
@@ -284,8 +388,9 @@ def test_same_path_uses_title_read_with_content_when_inventory_is_stale() -> Non
                     }
                 }
             ),
+            _graphql({"list": [_page(7, "Old")]}),
         ],
-    ) as post:
+    ):
         assert connector.confirm_removed_pages({"/it/Old": 7}) == []
         doc = next(
             doc
@@ -294,7 +399,6 @@ def test_same_path_uses_title_read_with_content_when_inventory_is_stale() -> Non
             if isinstance(doc, Document)
         )
 
-    assert "title isPublished content" in post.call_args.kwargs["json"]["query"]
     assert doc.title == "Current title"
 
 
@@ -395,6 +499,7 @@ def test_explicit_heading_anchor_is_preserved_and_code_fence_is_not_a_heading() 
                     }
                 }
             ),
+            _graphql({"list": [_page(1, "Help")]}),
         ],
     ):
         docs = [

@@ -7,7 +7,6 @@ from urllib.parse import quote, urlsplit
 
 import httpx
 from markdown_it import MarkdownIt
-from pydantic import BaseModel, ConfigDict
 
 from onyx.configs.app_configs import INDEX_BATCH_SIZE
 from onyx.configs.constants import DocumentSource
@@ -17,6 +16,8 @@ from onyx.connectors.models import (
     Document,
     HierarchyNode,
     TextSection,
+    WikiJsPage,
+    WikiJsPageIdentity,
 )
 
 _LIST_PAGES = "{ pages { list(orderBy: TITLE) { id path locale title isPublished } } }"
@@ -31,27 +32,6 @@ _MAX_PAGE_BYTES = 10 * 1024 * 1024
 
 class _WikiPageNotFound(ValueError):
     pass
-
-
-class _WikiPage(BaseModel):
-    model_config = ConfigDict(strict=True)
-
-    id: int
-    path: str
-    locale: str
-    title: str
-    isPublished: bool
-
-    @property
-    def page_path(self) -> str:
-        if (
-            not self.locale
-            or "/" in self.locale
-            or not self.path
-            or any(part in ("", ".", "..") for part in self.path.split("/"))
-        ):
-            raise ValueError("Invalid Wiki.js page path")
-        return f"/{self.locale}/{self.path}"
 
 
 def _folder_match(segment: str, folder: str) -> bool:
@@ -209,7 +189,7 @@ class WikiJsConnector(LoadConnector):
         parse_role_visibility_map(role_visibility_map)
         self.api_token: str | None = None
         # Reconcile the later snapshot with per-ID proof, even if the inventory is stale.
-        self._verified_pages: dict[int, _WikiPage | None] = {}
+        self._verified_pages: dict[int, WikiJsPageIdentity | None] = {}
 
     def load_credentials(self, credentials: dict[str, Any]) -> None:
         token = credentials.get("wikijs_api_token")
@@ -275,16 +255,16 @@ class WikiJsConnector(LoadConnector):
             raise ValueError(f"Conflicting Wiki.js visibility for {page_path}")
         return next(iter(matched)) if matched else "public"
 
-    def _list_pages(self) -> list[_WikiPage]:
+    def _list_pages(self) -> list[WikiJsPage]:
         # Wiki.js pages.list has no page/offset argument.
         listing = self._query(_LIST_PAGES).get("list")
         if not isinstance(listing, list) or len(listing) > _MAX_INVENTORY_PAGES:
             raise ValueError("Incomplete or oversized Wiki.js inventory")
         seen_paths: set[str] = set()
         seen_ids: set[int] = set()
-        pages: list[_WikiPage] = []
+        pages: list[WikiJsPage] = []
         for item in listing:
-            page = _WikiPage.model_validate(item)
+            page = WikiJsPage.model_validate(item)
             page_path = page.page_path
             if page_path in seen_paths or page.id in seen_ids:
                 raise ValueError("Conflicting Wiki.js page identity")
@@ -293,13 +273,15 @@ class WikiJsConnector(LoadConnector):
             pages.append(page)
         return pages
 
-    def _snapshot_pages(self) -> list[tuple[_WikiPage, str]]:
+    def _snapshot_pages(self) -> list[tuple[WikiJsPage, str]]:
         pages_by_id = {page.id: page for page in self._list_pages()}
         for page_id, verified_page in self._verified_pages.items():
             if verified_page is None:
                 pages_by_id.pop(page_id, None)
-            else:
-                pages_by_id[page_id] = verified_page
+            elif page_id in pages_by_id:
+                pages_by_id[page_id] = pages_by_id[page_id].model_copy(
+                    update=verified_page.model_dump()
+                )
         pages = list(pages_by_id.values())
         if len({page.page_path for page in pages}) != len(pages):
             raise ValueError("Conflicting Wiki.js page identity")
@@ -316,14 +298,16 @@ class WikiJsConnector(LoadConnector):
             page.id for page in self._list_pages() if not page.isPublished
         }
         removed_paths: list[str] = []
-        verified_pages: dict[int, _WikiPage | None] = dict.fromkeys(unpublished_ids)
+        verified_pages: dict[int, WikiJsPageIdentity | None] = dict.fromkeys(
+            unpublished_ids
+        )
         for page_path, page_id in indexed_pages.items():
             if page_id in unpublished_ids:
                 removed_paths.append(page_path)
                 continue
             try:
                 details = self._query(
-                    f"{{ pages {{ single(id: {page_id}) {{ id path locale title isPublished }} }} }}"
+                    f"{{ pages {{ single(id: {page_id}) {{ id path locale title }} }} }}"
                 ).get("single")
             except _WikiPageNotFound:
                 verified_pages[page_id] = None
@@ -333,35 +317,34 @@ class WikiJsConnector(LoadConnector):
                 continue  # A null response is not structured PageNotFound proof.
             if not isinstance(details, dict):
                 raise ValueError("Incomplete Wiki.js page verification")
-            page = _WikiPage.model_validate(details)
+            page = WikiJsPageIdentity.model_validate(details)
             if page.id != page_id:
                 raise ValueError("Mismatched Wiki.js page verification")
             verified_pages[page_id] = page
-            if (
-                not page.isPublished
-                or page.page_path != page_path
-                or self._visibility(page.page_path) is None
-            ):
+            if page.page_path != page_path or self._visibility(page.page_path) is None:
                 removed_paths.append(page_path)
         self._verified_pages = verified_pages
         return removed_paths
 
+    def _validate_published_pages(self, page_ids: set[int]) -> None:
+        # ponytail: unpaged status per batch; use per-ID status if Wiki.js adds it.
+        published_ids = {page.id for page in self._list_pages() if page.isPublished}
+        if not page_ids.issubset(published_ids):
+            raise ValueError("Unconfirmed Wiki.js publication state")
+
     def load_from_state(self) -> GenerateDocumentsOutput:
         batch: list[Document | HierarchyNode] = []
+        batch_page_ids: set[int] = set()
         for page, visibility in self._snapshot_pages():
             details = self._query(
-                f"{{ pages {{ single(id: {page.id}) {{ id path locale title isPublished content }} }} }}"
+                f"{{ pages {{ single(id: {page.id}) {{ id path locale title content }} }} }}"
             ).get("single")
             if not isinstance(details, dict) or not isinstance(
                 details.get("content"), str
             ):
                 raise ValueError(f"Incomplete Wiki.js page: {page.page_path}")
-            current_page = _WikiPage.model_validate(details)
-            if (
-                current_page.id != page.id
-                or current_page.page_path != page.page_path
-                or not current_page.isPublished
-            ):
+            current_page = WikiJsPageIdentity.model_validate(details)
+            if current_page.id != page.id or current_page.page_path != page.page_path:
                 raise ValueError(f"Changed Wiki.js page: {page.page_path}")
             url = f"{self.wiki_url}{quote(page.page_path, safe='/')}"
             batch.append(
@@ -375,8 +358,12 @@ class WikiJsConnector(LoadConnector):
                     doc_metadata={"wikijs_page_id": page.id, "visibility": visibility},
                 )
             )
+            batch_page_ids.add(page.id)
             if len(batch) >= INDEX_BATCH_SIZE:
+                self._validate_published_pages(batch_page_ids)
                 yield batch
                 batch = []
+                batch_page_ids.clear()
         if batch:
+            self._validate_published_pages(batch_page_ids)
             yield batch

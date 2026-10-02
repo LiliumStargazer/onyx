@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Literal, cast
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from onyx.access.models import ExternalAccess
 from onyx.configs.constants import INDEX_SEPARATOR, RETURN_SEPARATOR, DocumentSource
@@ -590,3 +590,31 @@ class DocIndexingContext(BaseModel):
     total_failures: int
     net_doc_change: int
     total_chunks: int
+
+
+class WikiJsPageIdentity(BaseModel):
+    """Wiki.js single-page metadata without protected publication fields."""
+
+    model_config = ConfigDict(strict=True)
+
+    id: int
+    path: str
+    locale: str
+    title: str
+
+    @property
+    def page_path(self) -> str:
+        if (
+            not self.locale
+            or "/" in self.locale
+            or not self.path
+            or any(part in ("", ".", "..") for part in self.path.split("/"))
+        ):
+            raise ValueError("Invalid Wiki.js page path")
+        return f"/{self.locale}/{self.path}"
+
+
+class WikiJsPage(WikiJsPageIdentity):
+    """Validated Wiki.js inventory entry."""
+
+    isPublished: bool

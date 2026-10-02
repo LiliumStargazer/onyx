@@ -169,6 +169,7 @@ def test_rename_removes_old_link_and_updates_existing_new_path() -> None:
                         }
                     }
                 ),
+                response({"list": [new_page]}),
             ],
         ),
         patch(
