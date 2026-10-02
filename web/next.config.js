@@ -47,6 +47,10 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: "/:path(sw.js|offline.html)",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      },
+      {
         source: "/(.*)",
         headers: [
           {

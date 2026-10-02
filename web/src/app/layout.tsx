@@ -57,7 +57,9 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: APP_NAME,
-  icons: { icon: "/wiki-agent-rag.png" },
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/wiki-agent-rag.png", apple: "/pwa/icon-180.png" },
+  appleWebApp: { capable: true, title: APP_NAME },
 };
 
 interface LayoutProps {
@@ -129,6 +131,33 @@ export default async function Layout({ children }: LayoutProps) {
                 navigator.platform.startsWith('Mac')
               ) {
                 document.documentElement.classList.add('onyx-desktop');
+              }
+            `,
+          }}
+        />
+
+        <Script
+          id="wiki-agent-rag-pwa"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              function showOfflinePage() {
+                if (document.documentElement.hidden) return;
+                document.documentElement.hidden = true;
+                window.location.reload();
+              }
+              function reloadWhenOffline() {
+                if (!navigator.onLine) showOfflinePage();
+              }
+              window.addEventListener('offline', reloadWhenOffline);
+              window.addEventListener('pageshow', reloadWhenOffline);
+              reloadWhenOffline();
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.addEventListener('message', event => {
+                  if (event.data === 'wiki-agent-rag-offline') showOfflinePage();
+                });
+                navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+                  .catch(error => console.error('PWA registration failed', error));
               }
             `,
           }}
