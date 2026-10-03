@@ -128,3 +128,17 @@ Before writing your plan, make sure to do research. Explore the relevant section
 In addition to the other content in this file, best practices for contributing
 to the codebase can be found in the "Engineering Best Practices" section of
 `CONTRIBUTING.md`. Understand its contents and follow them.
+
+## Agent skills
+
+### Issue tracker
+
+Track issues in GitHub Issues for `LiliumStargazer/wiki-agent-rag`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use a single-context layout. See `docs/agents/domain.md`.
