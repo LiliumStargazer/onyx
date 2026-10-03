@@ -6,78 +6,154 @@ concurrency:
 
 on:
   pull_request:
-    branches: ["**"]
     paths:
+      - "web/**/package.json"
       - "web/bun.lock"
-      - "web/package.json"
-      - "bun.lock"
       - "pyproject.toml"
       - "uv.lock"
+      - "backend/requirements/*.txt"
       - ".github/dependabot.yml"
-      # Any workflow or composite-action change can bump a pinned action to a
-      # vulnerable version, so gate the PR that makes the change (not just nightly).
       - ".github/workflows/**"
       - ".github/actions/**"
-      - "tools/ods/**"
-      - "tools/ods-audit/**"
+      - "tools/wiki_copilot_security.py"
+      - "tools/test_wiki_copilot_security.py"
   schedule:
-    # Nightly at 09:00 UTC.
     - cron: "0 9 * * *"
+    - cron: "0 10 * * 0"
   workflow_dispatch:
+  workflow_call:
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   audit:
-    name: audit
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read # checkout + read lockfiles
-      id-token: write # OIDC for fetching the S3 allowlist
-      security-events: write # SARIF upload (nightly) + read Dependabot alerts
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # ratchet:astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: "0.11.25"
           enable-cache: false
-
-      - name: Install ods from uv.lock
+      - name: Install locked audit tools
         run: uv sync --frozen --no-install-project --only-group ods
-
-      - name: Configure AWS credentials
-        id: aws
-        continue-on-error: true # the audit still runs (with no suppressions) if creds are unavailable
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # ratchet:aws-actions/configure-aws-credentials@v6.2.3
-        with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: us-east-2
-
-      # PR runs gate on criticals; nightly/dispatch runs upload a SARIF report.
-      - name: Run audit (gate)
-        if: github.event_name == 'pull_request'
+      - name: Scan dependencies and Actions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run --no-sync ods audit --fail-on=critical
-
-      - name: Run audit (SARIF report)
-        if: github.event_name != 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Don't fail the report job on findings; the SARIF upload surfaces them.
-        # SARIF goes to stdout (the uploaded file); the text report goes to stderr
-        # so the run's findings are also readable in the log.
-        run: uv run --no-sync ods audit --format=sarif,text > audit.sarif || true
-
-      - name: Upload SARIF file
-        if: github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@ba454b8ab46733eb6145342877cd148270bb77ab # ratchet:github/codeql-action/upload-sarif@codeql-bundle-v2.23.5
+          GH_REPO: LiliumStargazer/wiki-copilot
+        run: |
+          dependencies_status=0
+          actions_status=0
+          uv run --no-sync ods audit --python --web --ignore-url '' --format=json > dependencies.raw.json 2> dependencies.raw.log || dependencies_status=$?
+          uv run --no-sync ods audit --actions --ignore-url '' --format=json > actions.raw.json 2> actions.raw.log || actions_status=$?
+          if (( dependencies_status > 1 || actions_status > 1 )); then
+            exit 1
+          fi
+          uv run --no-sync python tools/wiki_copilot_security.py filter audit.json dependencies.raw.json actions.raw.json > audit.md
+      - name: Publish scoped summary
+        if: always()
+        run: |
+          if [[ -f audit.md ]]; then cat audit.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Save audit reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
-          sarif_file: audit.sarif
-          category: ods-audit
+          name: dependency-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            audit.json
+            audit.md
+            dependencies.raw.json
+            actions.raw.json
+            dependencies.raw.log
+            actions.raw.log
+          retention-days: 14
+
+  sync-dependabot:
+    if: github.workflow == 'Dependency Audit' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.25"
+          enable-cache: false
+      - run: uv sync --frozen --no-install-project --only-group ods
+      - name: Synchronize native alerts with the active scope
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
+          GH_REPO: LiliumStargazer/wiki-copilot
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo '::warning::Set DEPENDABOT_ALERTS_TOKEN to filter native Dependabot alerts.'
+            exit 1
+          fi
+          uv run --no-sync python tools/wiki_copilot_security.py sync-dependabot
+
+  deployed-images:
+    if: github.workflow == 'Dependency Audit' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '0 10 * * 0')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      images: ${{ steps.images.outputs.images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: List active deployment images without starting services
+        id: images
+        env:
+          IMAGE_TAG: ${{ vars.DEPLOYED_IMAGE_TAG }}
+          POSTGRES_PASSWORD: not-used-for-rendering
+          USER_AUTH_SECRET: not-used-for-rendering
+          WEB_DOMAIN: https://example.invalid
+          OPENSEARCH_ADMIN_PASSWORD: not-used-for-rendering
+        run: |
+          : "${IMAGE_TAG:?Set DEPLOYED_IMAGE_TAG to the version running in Portainer}"
+          docker compose -f deployment/docker_compose/docker-compose.yml -f deployment/docker_compose/docker-compose.portainer-wikijs.yml config --format=json > compose.json
+          images=$(jq -c '[.services[] | select(((.profiles // []) | length) == 0) | .image] | unique' compose.json)
+          echo "images=$images" >> "$GITHUB_OUTPUT"
+
+  image-audit:
+    if: needs.deployed-images.result == 'success'
+    needs: deployed-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        image: ${{ fromJSON(needs.deployed-images.outputs.images) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.25"
+          enable-cache: false
+      - run: uv sync --frozen --no-install-project --only-group ods
+      - uses: docker/login-action@c99871dec2022cc055c062a10cc1a1310835ceb4 # v4.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Audit a deployed image
+        env:
+          AUDIT_IMAGE: ${{ matrix.image }}
+        run: uv run --no-sync ods audit image "$AUDIT_IMAGE" --ignore-url '' --format=json,text > image-audit.json
+      - name: Save image report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        with:
+          name: image-audit-${{ strategy.job-index }}
+          path: image-audit.json
+          retention-days: 14

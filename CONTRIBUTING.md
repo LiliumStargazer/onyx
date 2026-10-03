@@ -423,7 +423,6 @@ Add clear comments:
 - Prefer self-contained correctness — don't rely on callers to "use it right" if you can make misuse hard.
 - Avoid redundancies: if a function takes an arg, it shouldn't also take a state object that contains that same arg.
 - No dead code (unless there's a very good reason).
-- No commented-out code in main or feature branches (unless there's a very good reason).
 - No duplicate logic:
   - Don't copy/paste into branches when shared logic can live above the conditional.
   - If you're afraid to touch the original, you don't understand it well enough.

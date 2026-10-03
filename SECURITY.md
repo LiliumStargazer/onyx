@@ -1,73 +1,29 @@
-# Security Policy
+# Wiki Copilot Security Policy
 
-We take the security of Onyx and our users seriously. Thank you for helping
-keep Onyx and its community safe by practicing responsible disclosure.
+## Supported versions
 
-## Supported Versions
+Security maintenance targets `main` and the latest Wiki Copilot release.
+Passing application tests does not mean that a release has no known vulnerabilities.
 
-Security fixes are applied to the `main` branch and the latest tagged release.
-We strongly recommend running the most recent release of Onyx. Older releases
-are not guaranteed to receive backported security patches.
+## Reporting vulnerabilities
 
-## Reporting a Vulnerability
+Do not publish vulnerabilities or credentials in public issues, pull requests, or discussions.
 
-**Please do not report security vulnerabilities through public GitHub issues,
-pull requests, or discussions.** Public reports give attackers a head start
-and put other users at risk before a fix is available.
+While this repository is public, use its private vulnerability reporting page:
+<https://github.com/LiliumStargazer/wiki-copilot/security/advisories/new>.
 
-Instead, please use **GitHub Private Vulnerability Reporting** to file a
-report at
-<https://github.com/onyx-dot-app/onyx/security/advisories/new>. This
-creates a private advisory visible only to the maintainers and ensures
-your report is tracked rather than landing in an individual inbox.
+After the repository becomes private, report issues through its private issue tracker.
+Verify that the repository is private before you submit sensitive information.
 
-Please include as much of the following as you can — it helps us triage
-faster:
+Include the affected version, deployment details, impact, and reproduction steps.
+Remove credentials, user data, and restricted Wiki content from examples and logs.
+Rotate exposed credentials before you discuss their replacement.
 
-- A description of the issue and the impact you believe it has.
-- The Onyx version, deployment type (self-hosted, Onyx Cloud, Docker, Helm,
-  etc.), and any relevant configuration.
-- Step-by-step reproduction instructions or a proof-of-concept.
-- Any logs, screenshots, or sample payloads that demonstrate the issue.
-- Your name and a way to credit you in the advisory, if desired.
+Report upstream-only vulnerabilities to the relevant upstream maintainers.
 
-## Response Expectations
+## Security checks
 
-After you report a vulnerability:
+Wiki Copilot audits its deployed services and its build, test, and CI dependencies.
+Desktop, widget, mobile, and disabled upstream workflow manifests are outside this deployment scope.
 
-- We will work with you to validate the issue and agree on a disclosure
-  timeline. Typical investigations take **up to 90 days**, though many issues
-  are resolved sooner.
-- We will keep you informed of progress and let you know when a fix is
-  released.
-- Once a fix is available, we will coordinate public disclosure (release
-  notes, GitHub Security Advisory, and CVE if applicable) and are happy to
-  credit reporters who would like recognition.
-
-## Scope
-
-In scope:
-
-- The Onyx application code in this repository (backend, web, desktop, CLI,
-  connectors, deployment manifests).
-- Official Onyx-published Docker images and Helm charts.
-
-Out of scope:
-
-- Third-party services and integrations (please report those to the
-  respective vendors).
-- Findings that require access to a user's account or device, social
-  engineering, or physical attacks.
-- Denial-of-service issues caused solely by sending high volumes of traffic.
-- Automated scanner output without a demonstrated, exploitable impact.
-
-## Safe Harbor
-
-We will not pursue or support legal action against researchers who:
-
-- Make a good-faith effort to follow this policy.
-- Avoid privacy violations, data destruction, or service degradation.
-- Give us a reasonable opportunity to remediate before any public
-  disclosure.
-
-Thank you for helping keep Onyx and our community secure.
+See [the security setup](docs/security.md) for the checks, credentials, and known limits.

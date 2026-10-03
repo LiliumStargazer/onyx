@@ -14,6 +14,13 @@ permissions:
   contents: read
 
 jobs:
+  dependency-audit:
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/audit.yml
+    permissions:
+      contents: read
+      packages: read
+
   test-backend:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
@@ -46,9 +53,13 @@ jobs:
       - name: Install locked Python dependencies
         run: uv sync --frozen
       - name: Check Python types
-        run: uv run --no-sync ty check --output-format github
+        run: |
+          uv run --no-sync ty check --output-format github
+          uv run --no-sync ty check --extra-search-path tools tools/wiki_copilot_security.py tools/test_wiki_copilot_security.py --output-format github
       - name: Test project backend
-        run: uv run --no-sync pytest --rootdir=. -c backend/pytest.ini
+        run: |
+          uv run --no-sync pytest --rootdir=. -c backend/pytest.ini
+          uv run --no-sync pytest --rootdir=. -c backend/pytest.ini tools/test_wiki_copilot_security.py
       - name: Apply database migrations
         working-directory: ./backend
         env:
@@ -78,7 +89,7 @@ jobs:
           bun run test:ci
 
   publish:
-    needs: [test-backend, test-web]
+    needs: [dependency-audit, test-backend, test-web]
     if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -125,5 +136,31 @@ jobs:
           context: ${{ matrix.context }}
           target: ${{ matrix.target }}
           platforms: linux/amd64
-          push: true
+          load: true
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.25"
+          enable-cache: false
+      - run: uv sync --frozen --no-install-project --only-group ods
+      - name: Audit the built image before publication
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          first_tag=${IMAGE_TAGS%%$'\n'*}
+          uv run --no-sync ods audit image "$first_tag" --ignore-url '' --format=json,text > image-audit.json
+      - name: Save image audit
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        with:
+          name: release-image-audit-${{ matrix.image }}
+          path: image-audit.json
+          retention-days: 14
+      - name: Publish audited images
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          while IFS= read -r image; do
+            docker push "$image"
+          done <<< "$IMAGE_TAGS"

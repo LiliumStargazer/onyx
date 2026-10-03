@@ -1,11 +1,7 @@
 version: 2
 
-# Base image digests are NOT managed here. Dependabot's Docker parser rejects any
-# `FROM` line that interpolates a variable, and every Dockerfile in this repo
-# prefixes its base with the `${BASE_IMAGE_REGISTRY}` build arg, so a `docker`
-# entry finds no dependencies and opens no pull requests. The
-# .github/workflows/update-base-image-digests.yml job covers them instead, by
-# running `ods update-base-digests`.
+# Docker FROM arguments prevent Dependabot from resolving the base images.
+# Publication and weekly image audits check the images actually used instead.
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -16,6 +12,54 @@ updates:
     open-pull-requests-limit: 3
     labels:
       - "dependabot:actions"
+    exclude-paths:
+      - ".github/actions/**"
+      - ".github/workflows/deployment.yml"
+      - ".github/workflows/docker-tag-beta.yml"
+      - ".github/workflows/docker-tag-latest.yml"
+      - ".github/workflows/helm-chart-releases.yml"
+      - ".github/workflows/merge-group.yml"
+      - ".github/workflows/nightly-close-stale-issues.yml"
+      - ".github/workflows/nightly-external-dependency-unit-tests.yml"
+      - ".github/workflows/nightly-llm-provider-chat.yml"
+      - ".github/workflows/post-merge-beta-cherry-pick.yml"
+      - ".github/workflows/pr-connector-filter-eval.yml"
+      - ".github/workflows/pr-craft-compose-integration.yml"
+      - ".github/workflows/pr-craft-compose-tests.yml"
+      - ".github/workflows/pr-craft-k8s-tests.yml"
+      - ".github/workflows/pr-database-tests.yml"
+      - ".github/workflows/pr-desktop-build.yml"
+      - ".github/workflows/pr-ee-ownership-check.yml"
+      - ".github/workflows/pr-external-dependency-unit-tests.yml"
+      - ".github/workflows/pr-golang-tests.yml"
+      - ".github/workflows/pr-helm-chart-testing.yml"
+      - ".github/workflows/pr-helm-chart-version.yml"
+      - ".github/workflows/pr-integration-tests.yml"
+      - ".github/workflows/pr-jest-tests.yml"
+      - ".github/workflows/pr-labeler.yml"
+      - ".github/workflows/pr-linear-check.yml"
+      - ".github/workflows/pr-playwright-tests.yml"
+      - ".github/workflows/pr-python-checks.yml"
+      - ".github/workflows/pr-python-connector-tests.yml"
+      - ".github/workflows/pr-python-model-tests.yml"
+      - ".github/workflows/pr-python-tests.yml"
+      - ".github/workflows/pr-recommended-models-chat-test.yml"
+      - ".github/workflows/pr-storybook-build.yml"
+      - ".github/workflows/pr-terraform-provider-tests.yml"
+      - ".github/workflows/preview.yml"
+      - ".github/workflows/release-cli.yml"
+      - ".github/workflows/release-devcontainer.yml"
+      - ".github/workflows/release-devtools.yml"
+      - ".github/workflows/release-opal.yml"
+      - ".github/workflows/release-terraform-provider.yml"
+      - ".github/workflows/reusable-nightly-llm-provider-chat.yml"
+      - ".github/workflows/storybook-deploy.yml"
+      - ".github/workflows/sync_foss.yml"
+      - ".github/workflows/tag-nightly.yml"
+      - ".github/workflows/update-base-image-digests.yml"
+      - ".github/workflows/update-recommended-models.yml"
+      - ".github/workflows/update-vendored-skills.yml"
+      - ".github/workflows/weekly-models-dev-price-sync.yml"
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
@@ -25,17 +69,6 @@ updates:
     open-pull-requests-limit: 3
     labels:
       - "dependabot:python"
-    ignore:
-      - dependency-name: "types-*"
-  - package-ecosystem: "bun"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 3
-    labels:
-      - "dependabot:javascript"
   - package-ecosystem: "bun"
     directory: "/web"
     schedule:
@@ -45,15 +78,3 @@ updates:
     open-pull-requests-limit: 3
     labels:
       - "dependabot:javascript"
-  - package-ecosystem: "bun"
-    directory: "/backend/onyx/server/features/build/sandbox/image/templates/outputs/web"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 3
-    assignees:
-      - "wenxi-onyx"
-    labels:
-      - "dependabot:javascript"
-      - "dependabot:sandbox"
