@@ -28,7 +28,7 @@ export function Logo({ size, className, style, onyxBranded }: LogoProps) {
   return (
     <Image
       alt={APP_NAME}
-      src="/wiki-agent-rag.png"
+      src="/wiki-copilot.png"
       width={resolvedSize}
       height={resolvedSize}
       className={cn("shrink-0", className)}

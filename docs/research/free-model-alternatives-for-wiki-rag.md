@@ -1,4 +1,4 @@
-# Alternative gratuite a GPT-6 Luna per Wiki Agent Rag
+# Alternative gratuite a GPT-6 Luna per Wiki Copilot
 
 Ricognizione del 3 ottobre 2026. Fonti: documentazione e cataloghi ufficiali.
 Non abbiamo eseguito altre chiamate ai modelli, creato account o modificato la configurazione del servizio.

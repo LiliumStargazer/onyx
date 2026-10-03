@@ -5916,7 +5916,7 @@
         },
         "requestSentBody": "参加リクエストを送信しました。{domain} の管理者が承認するまで、自分のチームで操作を試すことができます。",
         "tryOnyxButton": {
-          "label": "待っている間に Wiki Agent Rag を試す"
+          "label": "待っている間に Wiki Copilot を試す"
         }
       },
       "newTenant": {
@@ -9052,7 +9052,7 @@
         "label": "新しい組織を作成"
       },
       "createTeamOption": {
-        "text": "新しい Wiki Agent Rag チームを作成する"
+        "text": "新しい Wiki Copilot チームを作成する"
       },
       "differentEmailPrompt": {
         "text": "別のメールアドレスのアカウントをお持ちですか？"
@@ -9061,10 +9061,10 @@
         "title": "アカウントが見つかりません"
       },
       "inviteOption": {
-        "text": "既存の Wiki Agent Rag チームに招待してもらう"
+        "text": "既存の Wiki Copilot チームに招待してもらう"
       },
       "notFound": {
-        "description": "お客様のアカウントが記録内に見つかりませんでした。Wiki Agent Rag を利用するには、次のいずれかが必要です："
+        "description": "お客様のアカウントが記録内に見つかりませんでした。Wiki Copilot を利用するには、次のいずれかが必要です："
       },
       "signInLink": {
         "label": "サインイン"

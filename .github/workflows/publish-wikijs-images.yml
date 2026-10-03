@@ -1,4 +1,4 @@
-name: Publish Wiki Agent Rag images
+name: Publish Wiki Copilot images
 
 # Keep this workflow, quality checks, and dependency audit enabled.
 # Disable the other upstream workflows in repository Actions settings.

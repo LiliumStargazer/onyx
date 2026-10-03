@@ -5918,7 +5918,7 @@
         },
         "requestSentBody": "Sua solicitação de entrada foi enviada. Você pode explorar como sua própria equipe enquanto espera que um administrador de {domain} aprove sua solicitação.",
         "tryOnyxButton": {
-          "label": "Testar o Wiki Agent Rag enquanto espera"
+          "label": "Testar o Wiki Copilot enquanto espera"
         }
       },
       "newTenant": {
@@ -9054,7 +9054,7 @@
         "label": "Criar nova organização"
       },
       "createTeamOption": {
-        "text": "Criar uma nova equipe do Wiki Agent Rag"
+        "text": "Criar uma nova equipe do Wiki Copilot"
       },
       "differentEmailPrompt": {
         "text": "Tem uma conta com outro e-mail?"
@@ -9063,10 +9063,10 @@
         "title": "Conta não encontrada"
       },
       "inviteOption": {
-        "text": "Ser convidado para uma equipe do Wiki Agent Rag existente"
+        "text": "Ser convidado para uma equipe do Wiki Copilot existente"
       },
       "notFound": {
-        "description": "Não encontramos sua conta em nossos registros. Para acessar o Wiki Agent Rag, você precisa de uma destas opções:"
+        "description": "Não encontramos sua conta em nossos registros. Para acessar o Wiki Copilot, você precisa de uma destas opções:"
       },
       "signInLink": {
         "label": "Entrar"

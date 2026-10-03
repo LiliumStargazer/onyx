@@ -5916,7 +5916,7 @@
         },
         "requestSentBody": "您的加入请求已发送。在等待 {domain} 管理员批准期间，您可以先以自己的团队身份浏览体验。",
         "tryOnyxButton": {
-          "label": "等待期间先试用 Wiki Agent Rag"
+          "label": "等待期间先试用 Wiki Copilot"
         }
       },
       "newTenant": {
@@ -9052,7 +9052,7 @@
         "label": "创建新组织"
       },
       "createTeamOption": {
-        "text": "创建新的 Wiki Agent Rag 团队"
+        "text": "创建新的 Wiki Copilot 团队"
       },
       "differentEmailPrompt": {
         "text": "拥有使用其他邮箱的账户？"
@@ -9061,10 +9061,10 @@
         "title": "未找到账户"
       },
       "inviteOption": {
-        "text": "受邀加入现有的 Wiki Agent Rag 团队"
+        "text": "受邀加入现有的 Wiki Copilot 团队"
       },
       "notFound": {
-        "description": "我们在记录中找不到您的账户。要访问 Wiki Agent Rag，您需要执行以下操作之一："
+        "description": "我们在记录中找不到您的账户。要访问 Wiki Copilot，您需要执行以下操作之一："
       },
       "signInLink": {
         "label": "登录"

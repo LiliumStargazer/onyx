@@ -59,7 +59,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: APP_NAME,
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/wiki-agent-rag.png", apple: "/pwa/icon-180.png" },
+  icons: { icon: "/wiki-copilot.png", apple: "/pwa/icon-180.png" },
   appleWebApp: { capable: true, title: APP_NAME },
 };
 
@@ -138,7 +138,7 @@ export default async function Layout({ children }: LayoutProps) {
         />
 
         <Script
-          id="wiki-agent-rag-pwa"
+          id="wiki-copilot-pwa"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
@@ -155,7 +155,7 @@ export default async function Layout({ children }: LayoutProps) {
               reloadWhenOffline();
               if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.addEventListener('message', event => {
-                  if (event.data === 'wiki-agent-rag-offline') showOfflinePage();
+                  if (event.data === 'wiki-copilot-offline') showOfflinePage();
                 });
                 navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
                   .then(() => navigator.serviceWorker.ready)

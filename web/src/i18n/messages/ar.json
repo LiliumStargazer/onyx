@@ -5916,7 +5916,7 @@
         },
         "requestSentBody": "أُرسل طلب انضمامك. يمكنك الاستكشاف كفريق خاص بك بينما تنتظر موافقة مسؤول {domain} على طلبك.",
         "tryOnyxButton": {
-          "label": "جرّب Wiki Agent Rag أثناء الانتظار"
+          "label": "جرّب Wiki Copilot أثناء الانتظار"
         }
       },
       "newTenant": {
@@ -9052,7 +9052,7 @@
         "label": "إنشاء مؤسسة جديدة"
       },
       "createTeamOption": {
-        "text": "إنشاء فريق Wiki Agent Rag جديد"
+        "text": "إنشاء فريق Wiki Copilot جديد"
       },
       "differentEmailPrompt": {
         "text": "هل لديك حساب ببريد إلكتروني مختلف؟"
@@ -9061,10 +9061,10 @@
         "title": "الحساب غير موجود"
       },
       "inviteOption": {
-        "text": "تلقّي دعوة إلى فريق Wiki Agent Rag موجود"
+        "text": "تلقّي دعوة إلى فريق Wiki Copilot موجود"
       },
       "notFound": {
-        "description": "لم نتمكن من العثور على حسابك في سجلاتنا. للوصول إلى Wiki Agent Rag، تحتاج إلى أحد الخيارين:"
+        "description": "لم نتمكن من العثور على حسابك في سجلاتنا. للوصول إلى Wiki Copilot، تحتاج إلى أحد الخيارين:"
       },
       "signInLink": {
         "label": "تسجيل الدخول"

@@ -1,9 +1,9 @@
-export const APP_NAME = "Wiki Agent Rag";
+export const APP_NAME = "Wiki Copilot";
 
-// Keep sharing code, but do not expose it in Wiki Agent Rag.
+// Keep sharing code, but do not expose it in Wiki Copilot.
 export const CHAT_SHARING_ENABLED = false;
 
-// Keep Projects code and data, but do not expose it in Wiki Agent Rag.
+// Keep Projects code and data, but do not expose it in Wiki Copilot.
 export const PROJECTS_ENABLED = false;
 
 // Frontend chats use the Admin default. Direct API overrides stay available.

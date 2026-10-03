@@ -12,7 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#ffffff",
     theme_color: "#168bf0",
     icons: [
-      { src: "/wiki-agent-rag.png", sizes: "192x192", type: "image/png" },
+      { src: "/wiki-copilot.png", sizes: "192x192", type: "image/png" },
       { src: "/pwa/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
   };

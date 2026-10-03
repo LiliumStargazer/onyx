@@ -1,8 +1,8 @@
 // @ts-check
-// This URL replaces Wiki Copilot's root worker. Only the public offline page is cached.
+// This URL replaces Wiki Copilot legacy's root worker. Only the public offline page is cached.
 // SAFETY: browsers execute this file as a service worker, not a dedicated worker.
 const worker = /** @type {ServiceWorkerGlobalScope & typeof self} */ (self);
-const OFFLINE_CACHE = "wiki-agent-rag-offline-v1";
+const OFFLINE_CACHE = "wiki-copilot-offline-v1";
 const OFFLINE_URL = "/offline.html";
 
 worker.addEventListener("install", (event) => {
@@ -25,7 +25,7 @@ worker.addEventListener("activate", (event) => {
           .filter(
             (name) =>
               name.startsWith("wikicopilot-") ||
-              (name.startsWith("wiki-agent-rag-offline-") &&
+              (name.startsWith("wiki-copilot-offline-") &&
                 name !== OFFLINE_CACHE)
           )
           .map((name) => caches.delete(name))
@@ -46,7 +46,7 @@ worker.addEventListener("fetch", (event) => {
             !(error instanceof DOMException && error.name === "AbortError")
           ) {
             const client = await worker.clients.get(event.clientId);
-            client?.postMessage("wiki-agent-rag-offline");
+            client?.postMessage("wiki-copilot-offline");
           }
           throw error;
         }

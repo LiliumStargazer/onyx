@@ -26,10 +26,7 @@ async function openShareModal(page: Page) {
 }
 
 test.describe("Share Chat Session Modal", () => {
-  test.skip(
-    !CHAT_SHARING_ENABLED,
-    "Chat sharing is disabled in Wiki Agent Rag"
-  );
+  test.skip(!CHAT_SHARING_ENABLED, "Chat sharing is disabled in Wiki Copilot");
   test.describe.configure({ mode: "serial" });
 
   let page: Page;

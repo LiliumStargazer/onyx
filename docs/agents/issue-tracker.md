@@ -1,7 +1,7 @@
 # Issue tracker: GitHub
 
-Issues and specs live in `LiliumStargazer/wiki-agent-rag`. Use the `gh` CLI.
-Set `GH_REPO=LiliumStargazer/wiki-agent-rag` for every `gh` command. Do not rely on the repo that `gh` selects from remotes.
+Issues and specs live in `LiliumStargazer/wiki-copilot`. Use the `gh` CLI.
+Set `GH_REPO=LiliumStargazer/wiki-copilot` for every `gh` command. Do not rely on the repo that `gh` selects from remotes.
 
 ## Conventions
 
@@ -27,6 +27,6 @@ When set to `yes`, use `gh pr` equivalents. Read a PR with `gh pr view <number> 
 
 Use one issue labelled `wayfinder:map` for the map. Link child issues as GitHub sub-issues. If sub-issues are unavailable, add children to a task list in the map and put `Part of #<map>` in each child. Label children `wayfinder:<type>` (`research`, `prototype`, `grilling`, or `task`).
 
-Use native issue dependencies for blocking. Call `gh api --method POST repos/LiliumStargazer/wiki-agent-rag/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`. Get the database ID with `gh api repos/LiliumStargazer/wiki-agent-rag/issues/<n> --jq .id`. If dependencies are unavailable, put `Blocked by: #<n>` in the child body.
+Use native issue dependencies for blocking. Call `gh api --method POST repos/LiliumStargazer/wiki-copilot/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`. Get the database ID with `gh api repos/LiliumStargazer/wiki-copilot/issues/<n> --jq .id`. If dependencies are unavailable, put `Blocked by: #<n>` in the child body.
 
 For the frontier, take the first open, unassigned child without an open blocker, in map order. Claim it with `gh issue edit <n> --add-assignee @me`. To resolve it, comment with the answer, close it, and add a context pointer to the map's Decisions-so-far.

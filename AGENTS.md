@@ -133,7 +133,7 @@ to the codebase can be found in the "Engineering Best Practices" section of
 
 ### Issue tracker
 
-Track issues in GitHub Issues for `LiliumStargazer/wiki-agent-rag`. See `docs/agents/issue-tracker.md`.
+Track issues in GitHub Issues for `LiliumStargazer/wiki-copilot`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

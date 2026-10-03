@@ -117,8 +117,8 @@ export const test = base.extend<{ pwaNetwork: PwaNetwork }>({
   baseURL: async ({ pwaNetwork }, use) => use(pwaNetwork.baseURL),
 });
 
-export async function prepareWikiCopilot(page: Page): Promise<void> {
-  // Simulate Wiki Copilot's root worker and cached documents on this origin.
+export async function prepareWikiCopilotLegacy(page: Page): Promise<void> {
+  // Simulate Wiki Copilot legacy's root worker and cached documents on this origin.
   await page.context().route("**/sw.js?legacy=1", (route) =>
     route.fulfill({
       contentType: "application/javascript",

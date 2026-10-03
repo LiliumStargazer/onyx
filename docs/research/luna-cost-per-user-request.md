@@ -1,7 +1,7 @@
 # Costo di una richiesta utente con GPT-6 Luna
 
 Ricognizione del 3 ottobre 2026. Esempio: «fammi vedere i listini della Athena».
-Questa nota riguarda la nuova pipeline Onyx in `wiki-agent-rag`, non quella del vecchio `wiki-copilot`.
+Questa nota riguarda la nuova pipeline Onyx in `wiki-copilot`, non quella del vecchio `wiki-copilot-legacy`.
 La prima ricognizione conteneva solo stime. Il primo test utente è stato interrotto.
 Il secondo test, «Listino Athena», ha prodotto una risposta completa con ragionamento Low.
 I consumi dei due test sono separati sotto.

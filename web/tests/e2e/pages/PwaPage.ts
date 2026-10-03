@@ -7,6 +7,11 @@ export class PwaPage {
 
   async expectInstallable(): Promise<void> {
     await this.page.goto("/auth/error");
+    await expect(this.page).toHaveTitle("Wiki Copilot");
+    await expect(this.page.locator('link[rel="icon"]')).toHaveAttribute(
+      "href",
+      "/wiki-copilot.png"
+    );
     await expect(this.page.locator('link[rel="manifest"]')).toHaveAttribute(
       "href",
       "/manifest.webmanifest"
@@ -18,13 +23,13 @@ export class PwaPage {
     expect(response.ok()).toBe(true);
     const manifest: MetadataRoute.Manifest = await response.json();
     expect(manifest).toMatchObject({
-      name: "Wiki Agent Rag",
-      short_name: "Wiki Agent Rag",
+      name: "Wiki Copilot",
+      short_name: "Wiki Copilot",
       start_url: "/app",
       scope: "/",
       display: "standalone",
       icons: [
-        { src: "/wiki-agent-rag.png", sizes: "192x192", type: "image/png" },
+        { src: "/wiki-copilot.png", sizes: "192x192", type: "image/png" },
         { src: "/pwa/icon-512.png", sizes: "512x512", type: "image/png" },
       ],
     });

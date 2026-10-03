@@ -1,15 +1,11 @@
 import { expect } from "@playwright/test";
-import { prepareWikiCopilot, test } from "@tests/e2e/pwa/network";
+import { prepareWikiCopilotLegacy, test } from "@tests/e2e/pwa/network";
 import { PwaPage } from "@tests/e2e/pages/PwaPage";
 import { ChatPage } from "@tests/e2e/chat/ChatPage";
 
-test(
-  "browser can install Wiki Agent Rag",
-  { tag: "@pwa" },
-  async ({ page }) => {
-    await new PwaPage(page).expectInstallable();
-  }
-);
+test("browser can install Wiki Copilot", { tag: "@pwa" }, async ({ page }) => {
+  await new PwaPage(page).expectInstallable();
+});
 
 test(
   "launch opens Assistant and offline never exposes cached content",
@@ -69,15 +65,15 @@ test(
 );
 
 test(
-  "replaces Wiki Copilot's worker and removes only its caches",
+  "replaces Wiki Copilot legacy's worker and removes only its caches",
   { tag: "@pwa" },
   async ({ page, pwaNetwork }) => {
     const pwa = new PwaPage(page);
-    await prepareWikiCopilot(page);
+    await prepareWikiCopilotLegacy(page);
     await pwa.launch();
     await expect
       .poll(() => page.evaluate(async () => (await caches.keys()).sort()))
-      .toEqual(["unrelated-app", "wiki-agent-rag-offline-v1"]);
+      .toEqual(["unrelated-app", "wiki-copilot-offline-v1"]);
     pwaNetwork.setOffline(true);
     await pwa.expectOffline();
     await pwa.visit("/app");

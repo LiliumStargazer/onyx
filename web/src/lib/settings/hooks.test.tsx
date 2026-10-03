@@ -62,7 +62,7 @@ describe("useSettings enterprise-settings 404 handling", () => {
     const { result } = renderHook(() => useSettings());
     expect(result.current.error).toBeUndefined();
     expect(result.current.enterprise).toBeNull();
-    expect(result.current.appName).toBe("Wiki Agent Rag");
+    expect(result.current.appName).toBe("Wiki Copilot");
     expect(enterpriseRetryPolicy()(missing)).toBe(false);
   });
 
@@ -73,7 +73,7 @@ describe("useSettings enterprise-settings 404 handling", () => {
         : swrResult()
     );
     const { result } = renderHook(() => useSettings());
-    expect(result.current.appName).toBe("Wiki Agent Rag");
+    expect(result.current.appName).toBe("Wiki Copilot");
   });
 
   test("a 404 off the auth path is not surfaced either", () => {

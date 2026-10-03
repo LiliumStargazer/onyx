@@ -2,10 +2,10 @@ import os
 
 NUM_RETURNED_HITS = 50
 
-# Keep sharing code and saved links, but deny access in Wiki Agent Rag.
+# Keep sharing code and saved links, but deny access in Wiki Copilot.
 CHAT_SHARING_ENABLED = False
 
-# Keep Projects code and data, but deny access in Wiki Agent Rag.
+# Keep Projects code and data, but deny access in Wiki Copilot.
 PROJECTS_ENABLED = False
 
 # May be less depending on model
