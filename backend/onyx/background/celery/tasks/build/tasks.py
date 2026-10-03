@@ -10,9 +10,14 @@ from onyx.background.celery.apps.app_base import task_logger
 from onyx.configs.constants import OnyxCeleryTask, OnyxRedisLocks
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.models import Sandbox
+from onyx.feature_flags.factory import get_default_feature_flag_provider
+from onyx.feature_flags.interface import NoOpFeatureFlagProvider
 from onyx.redis.redis_pool import get_redis_client
 from onyx.redis.redis_tenant_work_gating import maybe_mark_tenant_active
-from onyx.server.features.build.configs import SANDBOX_IDLE_TIMEOUT_SECONDS
+from onyx.server.features.build.configs import (
+    ENABLE_CRAFT,
+    SANDBOX_IDLE_TIMEOUT_SECONDS,
+)
 from onyx.server.features.build.db.sandbox import (
     get_latest_snapshot_for_session,
     get_running_sandboxes,
@@ -47,6 +52,12 @@ def cleanup_idle_sandboxes_task(self: Task, *, tenant_id: str) -> None:  # noqa:
     fail-closed: snapshot failure on a reachable pod keeps the sandbox
     RUNNING for retry next sweep.
     """
+    # Feature flags can enable Craft independently of the environment fallback.
+    if not ENABLE_CRAFT and isinstance(
+        get_default_feature_flag_provider(), NoOpFeatureFlagProvider
+    ):
+        return
+
     from onyx.server.features.build.session.locks import get_session_creation_lock
     from onyx.server.features.build.session.sandbox_lifecycle import (
         create_session_snapshot_keep_latest,
