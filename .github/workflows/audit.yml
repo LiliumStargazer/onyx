@@ -43,10 +43,12 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: tools/ods/go.mod
-          cache-dependency-path: tools/ods/go.sum
-      - name: Build the repository audit scanner
+          cache: false
+      - name: Test and build the repository audit scanner
         working-directory: tools/ods
-        run: go build -mod=readonly -o "$RUNNER_TEMP/ods-audit" ./odsaudit
+        run: |
+          go test -mod=readonly ./internal/audit ./internal/auditcmd
+          go build -mod=readonly -o "$RUNNER_TEMP/ods-audit" ./odsaudit
       - name: Scan dependencies and Actions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -147,11 +149,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
-          version: "0.11.25"
-          enable-cache: false
-      - run: uv sync --frozen --no-install-project --only-group ods
+          go-version-file: tools/ods/go.mod
+          cache: false
+      - name: Build the repository audit scanner
+        working-directory: tools/ods
+        run: go build -mod=readonly -o "$RUNNER_TEMP/ods-audit" ./odsaudit
       - uses: docker/login-action@c99871dec2022cc055c062a10cc1a1310835ceb4 # v4.3.0
         with:
           registry: ghcr.io
@@ -160,7 +164,8 @@ jobs:
       - name: Audit a deployed image
         env:
           AUDIT_IMAGE: ${{ matrix.image }}
-        run: uv run --no-sync ods audit image "$AUDIT_IMAGE" --ignore-url '' --format=json,text > image-audit.json
+        run: |
+          "$RUNNER_TEMP/ods-audit" image "$AUDIT_IMAGE" --ignore-url '' --format=json,text > image-audit.json
       - name: Save image report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4

@@ -139,17 +139,19 @@ jobs:
           load: true
           push: false
           tags: ${{ steps.meta.outputs.tags }}
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
-          version: "0.11.25"
-          enable-cache: false
-      - run: uv sync --frozen --no-install-project --only-group ods
+          go-version-file: tools/ods/go.mod
+          cache: false
+      - name: Build the repository audit scanner
+        working-directory: tools/ods
+        run: go build -mod=readonly -o "$RUNNER_TEMP/ods-audit" ./odsaudit
       - name: Audit the built image before publication
         env:
           IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           first_tag=${IMAGE_TAGS%%$'\n'*}
-          uv run --no-sync ods audit image "$first_tag" --ignore-url '' --format=json,text > image-audit.json
+          "$RUNNER_TEMP/ods-audit" image "$first_tag" --ignore-url '' --format=json,text > image-audit.json
       - name: Save image audit
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4

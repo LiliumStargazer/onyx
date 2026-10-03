@@ -6,19 +6,38 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/google/osv-scanner/v2/pkg/models"
 	"github.com/google/osv-scanner/v2/pkg/osvscanner"
 	"github.com/ossf/osv-schema/bindings/go/osvschema"
 )
 
-func init() {
-	// osv-scanner logs via slog. Route it to stderr at Warn+ so failures it only
-	// reports through its logger (e.g. the docker stderr behind a "failed to run
-	// docker command" image-pull error) stay visible, while findings still flow
-	// to stdout via our own reporters. Warn+ keeps routine Info scan chatter out
-	// and never collides with a --format=json/sarif report on stdout.
-	osvscanner.SetLogger(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+// ponytail: the SDK has a global logger; serialize scans until it supports per-scan loggers.
+var sdkScanMutex sync.Mutex
+
+func scanOSV(actions osvscanner.ScannerActions, scan func(osvscanner.ScannerActions) (models.VulnerabilityResults, error)) (models.VulnerabilityResults, error) {
+	sdkScanMutex.Lock()
+	defer sdkScanMutex.Unlock()
+	var loggedError atomic.Bool
+	osvscanner.SetLogger(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+		ReplaceAttr: func(_ []string, attribute slog.Attr) slog.Attr {
+			if level, ok := attribute.Value.Any().(slog.Level); attribute.Key == slog.LevelKey && ok && level >= slog.LevelError {
+				loggedError.Store(true)
+			}
+			return attribute
+		},
+	}))
+	result, err := scan(actions)
+	if errors.Is(err, osvscanner.ErrVulnerabilitiesFound) || errors.Is(err, osvscanner.ErrNoPackagesFound) {
+		err = nil
+	}
+	if err == nil && loggedError.Load() {
+		return models.VulnerabilityResults{}, errors.New("OSV logged scan errors; refusing incomplete results")
+	}
+	return result, err
 }
 
 // osvBaseURL is the canonical OSV.dev vulnerability page prefix.
@@ -30,18 +49,9 @@ func scanLockfiles(lockfiles []string) ([]Finding, error) {
 	if len(lockfiles) == 0 {
 		return nil, nil
 	}
-	res, err := osvscanner.DoScan(osvscanner.ScannerActions{
-		LockfilePaths: lockfiles,
-	})
+	res, err := scanOSV(osvscanner.ScannerActions{LockfilePaths: lockfiles}, osvscanner.DoScan)
 	if err != nil {
-		// ErrVulnerabilitiesFound is the normal "found something" path; results
-		// are still populated. ErrNoPackagesFound means nothing to scan.
-		if errors.Is(err, osvscanner.ErrNoPackagesFound) {
-			return nil, nil
-		}
-		if !errors.Is(err, osvscanner.ErrVulnerabilitiesFound) {
-			return nil, err
-		}
+		return nil, err
 	}
 	return findingsFromResults(res), nil
 }

@@ -1,7 +1,6 @@
 package audit
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -63,21 +62,14 @@ func RunImage(opts ImageOptions) (*Result, error) {
 // over ref and maps the results into Findings. ref may be a remote image, which
 // is pulled using the ambient Docker credentials.
 func scanImage(ref string) ([]Finding, error) {
-	res, err := osvscanner.DoContainerScan(osvscanner.ScannerActions{
+	res, err := scanOSV(osvscanner.ScannerActions{
 		Image: ref,
 		// Fetch the OSV databases so matching works on a fresh CI runner
 		// regardless of whether container scanning defaults to online or offline.
 		DownloadDatabases: true,
-	})
+	}, osvscanner.DoContainerScan)
 	if err != nil {
-		// ErrVulnerabilitiesFound is the normal "found something" path; results
-		// are still populated. ErrNoPackagesFound means nothing to scan.
-		if errors.Is(err, osvscanner.ErrNoPackagesFound) {
-			return nil, nil
-		}
-		if !errors.Is(err, osvscanner.ErrVulnerabilitiesFound) {
-			return nil, err
-		}
+		return nil, err
 	}
 	return imageFindingsFromResults(res, ref), nil
 }
