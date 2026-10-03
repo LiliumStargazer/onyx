@@ -206,7 +206,7 @@ func TestScanActions_skipsTagLookupsWithoutAdvisories(t *testing.T) {
 	}
 }
 
-func TestScanActions_toleratesPartialQueryFailures(t *testing.T) {
+func TestScanActions_rejectsPartialQueryFailures(t *testing.T) {
 	root := chdirNewRepo(t)
 	writeActionsRepo(t, root)
 	_, url := startFakeOSV(t, map[string][]osvVuln{
@@ -214,11 +214,8 @@ func TestScanActions_toleratesPartialQueryFailures(t *testing.T) {
 	}, "tj-actions/changed-files", "actions/checkout")
 
 	findings, err := scanActions(url)
-	if err != nil {
-		t.Fatalf("scanActions: %v", err)
-	}
-	if len(findings) != 1 || findings[0].ID != "GHSA-dock" {
-		t.Fatalf("expected only the GHSA-dock finding, got %+v", findings)
+	if err == nil || findings != nil {
+		t.Fatalf("expected an incomplete scan error without findings, got %+v, %v", findings, err)
 	}
 }
 
@@ -231,7 +228,7 @@ func TestScanActions_failsWhenEveryQueryFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected an error, got findings %+v", findings)
 	}
-	if want := "all 3 OSV.dev advisory queries failed"; err.Error() != want {
+	if want := "3 OSV.dev advisory queries failed"; err.Error() != want {
 		t.Fatalf("expected %q, got %q", want, err.Error())
 	}
 }

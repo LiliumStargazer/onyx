@@ -73,6 +73,13 @@ def test_audit_keeps_used_dependencies_and_rejects_invalid_reports() -> None:
     assert filtered.findings is not None
     assert filtered.findings[-1].severity == "moderate"
     assert filter_dependency_report(AuditReport(findings=None), {}).blocking == []
+    assert report.findings is not None
+    report.findings[4].title = "unverified pin — Actions version unavailable"
+    with pytest.raises(ValueError, match="Action pin could not be verified"):
+        filter_dependency_report(report, {"sentence-transformers": {"5.4.1"}})
+    report.ignored = report.findings
+    with pytest.raises(ValueError, match="without advisory suppressions"):
+        filter_dependency_report(report, {"sentence-transformers": {"5.4.1"}})
     with pytest.raises(ValidationError):
         AuditReport.model_validate({"findings": [{"id": "malformed"}]})
     with pytest.raises(ValidationError):

@@ -15,8 +15,8 @@ on:
       - ".github/dependabot.yml"
       - ".github/workflows/**"
       - ".github/actions/**"
-      - "tools/wiki_copilot_security.py"
-      - "tools/test_wiki_copilot_security.py"
+      - "tools/*.py"
+      - "tools/ods/**"
   schedule:
     - cron: "0 9 * * *"
     - cron: "0 10 * * 0"
@@ -40,6 +40,13 @@ jobs:
           enable-cache: false
       - name: Install locked audit tools
         run: uv sync --frozen --no-install-project --only-group ods
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: tools/ods/go.mod
+          cache-dependency-path: tools/ods/go.sum
+      - name: Build the repository audit scanner
+        working-directory: tools/ods
+        run: go build -mod=readonly -o "$RUNNER_TEMP/ods-audit" ./odsaudit
       - name: Scan dependencies and Actions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,8 +54,12 @@ jobs:
         run: |
           dependencies_status=0
           actions_status=0
-          uv run --no-sync ods audit --python --web --ignore-url '' --format=json > dependencies.raw.json 2> dependencies.raw.log || dependencies_status=$?
-          uv run --no-sync ods audit --actions --ignore-url '' --format=json > actions.raw.json 2> actions.raw.log || actions_status=$?
+          "$RUNNER_TEMP/ods-audit" --python --web --lockfile tools/ods/go.mod --ignore-url '' --format=json > dependencies.raw.json 2> dependencies.raw.log || dependencies_status=$?
+          "$RUNNER_TEMP/ods-audit" --actions \
+            --workflow .github/workflows/audit.yml \
+            --workflow .github/workflows/pr-quality-checks.yml \
+            --workflow .github/workflows/publish-wikijs-images.yml \
+            --ignore-url '' --format=json > actions.raw.json 2> actions.raw.log || actions_status=$?
           if (( dependencies_status > 1 || actions_status > 1 )); then
             exit 1
           fi

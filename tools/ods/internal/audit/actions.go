@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -65,12 +66,12 @@ type actionRef struct {
 // composite actions and matches them against the advisories served at queryURL
 // (OSV.dev in production). Returns nil when nothing is referenced or no
 // advisories affect any used action.
-func scanActions(queryURL string) ([]Finding, error) {
+func scanActions(queryURL string, workflows ...string) ([]Finding, error) {
 	root, err := paths.GitRoot()
 	if err != nil {
 		return nil, err
 	}
-	refs, err := extractActions(root)
+	refs, err := extractActions(root, workflows...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,8 +89,6 @@ func scanActions(queryURL string) ([]Finding, error) {
 	for _, name := range names {
 		vulns, err := queryActionAdvisories(client, queryURL, name)
 		if err != nil {
-			// A single flaky query shouldn't sink the whole audit; the lockfile
-			// scan is the primary gate. Warn and treat the action as clean.
 			log.Warnf("OSV query failed for action %s: %v", name, err)
 			failed++
 			continue
@@ -98,10 +97,9 @@ func scanActions(queryURL string) ([]Finding, error) {
 			advisories[name] = vulns
 		}
 	}
-	// If every query failed, OSV.dev is effectively unavailable; surface that as a
-	// scan error rather than reporting a clean, no-findings result.
-	if failed > 0 && failed == len(names) {
-		return nil, fmt.Errorf("all %d OSV.dev advisory queries failed", failed)
+	// Incomplete advisory coverage must not report a clean scan.
+	if failed > 0 {
+		return nil, fmt.Errorf("%d OSV.dev advisory queries failed", failed)
 	}
 	if len(advisories) == 0 {
 		return nil, nil
@@ -133,15 +131,18 @@ func scanActions(queryURL string) ([]Finding, error) {
 // extractActions discovers the actions referenced across the repo's reusable
 // workflows (.github/workflows) and composite actions (.github/actions). Returns
 // nil when neither exists.
-func extractActions(root string) ([]actionRef, error) {
+func extractActions(root string, workflows ...string) ([]actionRef, error) {
 	ext, err := githubactions.New(&cpb.PluginConfig{})
 	if err != nil {
 		return nil, err
 	}
 
-	workflowRefs, err := extractWorkflowActions(ext, root)
+	workflowRefs, err := extractWorkflowActions(ext, root, workflows...)
 	if err != nil {
 		return nil, err
+	}
+	if len(workflows) > 0 {
+		return workflowRefs, nil
 	}
 	compositeRefs, err := extractCompositeActions(ext, root)
 	if err != nil {
@@ -152,7 +153,16 @@ func extractActions(root string) ([]actionRef, error) {
 
 // extractWorkflowActions runs the github/actions extractor over each
 // .github/workflows/*.{yml,yaml} file.
-func extractWorkflowActions(ext filesystem.Extractor, root string) ([]actionRef, error) {
+func extractWorkflowActions(ext filesystem.Extractor, root string, workflows ...string) ([]actionRef, error) {
+	for _, workflow := range workflows {
+		extension := filepath.Ext(workflow)
+		if filepath.ToSlash(filepath.Dir(workflow)) != ".github/workflows" || (extension != ".yml" && extension != ".yaml") {
+			return nil, fmt.Errorf("expected a workflow file under .github/workflows: %s", workflow)
+		}
+		if !fileExists(filepath.Join(root, workflow)) {
+			return nil, fmt.Errorf("selected workflow does not exist: %s", workflow)
+		}
+	}
 	dir := filepath.Join(root, ".github", "workflows")
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
@@ -170,17 +180,19 @@ func extractWorkflowActions(ext filesystem.Extractor, root string) ([]actionRef,
 		if suffix := filepath.Ext(e.Name()); suffix != ".yml" && suffix != ".yaml" {
 			continue
 		}
+		manifest := filepath.ToSlash(filepath.Join(".github", "workflows", e.Name()))
+		if len(workflows) > 0 && !slices.Contains(workflows, manifest) {
+			continue
+		}
 		path := filepath.Join(dir, e.Name())
 		f, err := os.Open(path)
 		if err != nil {
 			return nil, err
 		}
-		manifest := filepath.ToSlash(filepath.Join(".github", "workflows", e.Name()))
 		rs, err := usesFromReader(ext, path, f, manifest)
 		_ = f.Close()
 		if err != nil {
-			log.Warnf("Skipping workflow %s: %v", e.Name(), err)
-			continue
+			return nil, fmt.Errorf("cannot scan workflow %s: %w", manifest, err)
 		}
 		refs = append(refs, rs...)
 	}

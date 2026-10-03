@@ -159,8 +159,5 @@ jobs:
           retention-days: 14
       - name: Publish audited images
         env:
-          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
-        run: |
-          while IFS= read -r image; do
-            docker push "$image"
-          done <<< "$IMAGE_TAGS"
+          IMAGE_NAME: ghcr.io/liliumstargazer/${{ matrix.image }}
+        run: docker push --all-tags "$IMAGE_NAME"

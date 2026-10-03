@@ -19,7 +19,7 @@ Aggiorna il perimetro prima di aggiungere servizi, manifesti o workflow attivi.
 ## Controlli gratuiti
 
 - Dependency graph e Dependabot rilevano le dipendenze e propongono aggiornamenti.
-- L'audit OSV controlla i pacchetti Python, JavaScript e le Actions.
+- L'audit OSV controlla i pacchetti Python, JavaScript, Go e le Actions.
 - La CI usa Ruff, zizmor e ripsecrets per controllare codice, workflow e segreti.
 - Questi strumenti non offrono tutta l'analisi dei percorsi dei dati di CodeQL.
 - ripsecrets controlla i file del progetto; non sostituisce la scansione nativa della cronologia GitHub.
@@ -38,6 +38,9 @@ L'audit delle dipendenze esegue una scansione giornaliera.
 La CI salva un riepilogo e report JSON per 14 giorni.
 Le segnalazioni critiche nel perimetro bloccano la pubblicazione.
 Errori dello scanner e report invalidi non diventano risultati positivi.
+La CI compila `ods-audit` dal repository, con le dipendenze bloccate.
+Lo scanner seleziona i tre workflow attivi prima di eliminare i duplicati.
+Errori OSV parziali e riferimenti Action non verificati impediscono la pubblicazione.
 
 La pubblicazione controlla anche l'immagine appena costruita, prima del push su GHCR.
 L'audit settimanale controlla le immagini dei servizi Compose senza profili facoltativi.

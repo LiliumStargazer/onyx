@@ -3,12 +3,10 @@
 import os
 import re
 import subprocess
-import sys
 import time
 from pathlib import Path
-from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from models import AuditReport, DependabotAlert, Finding
 
 REPOSITORY = "LiliumStargazer/wiki-copilot"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -22,37 +20,6 @@ ACTIVE_WORKFLOWS = {
     ".github/workflows/publish-wikijs-images.yml",
 }
 EXCLUSION_COMMENT = "Outside Wiki Copilot deployment and CI scope; managed by tools/wiki_copilot_security.py."
-
-
-class Finding(BaseModel):
-    model_config = ConfigDict(extra="allow", strict=True)
-
-    id: str = Field(min_length=1)
-    ecosystem: str = Field(min_length=1)
-    package: str = Field(min_length=1)
-    severity: Literal["critical", "high", "moderate", "low", "unknown"]
-    manifest: str = Field(min_length=1)
-    version: str = ""
-
-    @field_validator("severity", mode="before")
-    @classmethod
-    def normalize_severity(cls, severity: object) -> object:
-        return "moderate" if severity == "medium" else severity
-
-
-class AuditReport(BaseModel):
-    model_config = ConfigDict(strict=True)
-
-    findings: list[Finding] | None
-    ignored: list[Finding] | None = None
-    blocking: list[Finding] | None = None
-    excluded: list[Finding] = Field(default_factory=list)
-
-
-class DependabotAlert(Finding):
-    number: int
-    state: Literal["open", "dismissed", "fixed", "auto_dismissed"]
-    dismissed_comment: str | None = None
 
 
 def normalize_python_package(package: str) -> str:
@@ -103,6 +70,8 @@ def filter_dependency_report(
         (used if is_used_dependency(finding, python_packages) else excluded).append(
             finding
         )
+    if any(finding.title.startswith("unverified pin") for finding in used):
+        raise ValueError("An active Action pin could not be verified")
     return AuditReport(
         findings=used,
         ignored=[],
@@ -157,37 +126,40 @@ def sync_dependabot_alerts(python_packages: dict[str, set[str]]) -> None:
             time.sleep(1)
 
 
-def main() -> int:
-    python_packages = load_python_packages()
-    if sys.argv[1:] == ["sync-dependabot"]:
-        sync_dependabot_alerts(python_packages)
-        return 0
-    if len(sys.argv) < 4 or sys.argv[1] != "filter":
-        raise SystemExit(
-            "Usage: wiki_copilot_security.py filter OUTPUT INPUT... | sync-dependabot"
-        )
-    reports = [
-        AuditReport.model_validate_json(Path(filename).read_text())
-        for filename in sys.argv[3:]
-    ]
-    report = AuditReport(
-        findings=[finding for source in reports for finding in source.findings or []],
-        ignored=[finding for source in reports for finding in source.ignored or []],
-    )
-    filtered = filter_dependency_report(report, python_packages)
-    Path(sys.argv[2]).write_text(filtered.model_dump_json(indent=2) + "\n")
-    print("## Wiki Copilot dependency audit\n")
-    print(
-        f"{len(filtered.findings or [])} findings; {len(filtered.excluded)} outside scope.\n"
-    )
-    for finding in filtered.findings or []:
-        print(
-            f"- **{finding.severity}** {finding.package}@{finding.version}: {finding.id} ({finding.manifest})"
-        )
-    blocking = len(filtered.blocking or [])
-    print(f"\n{blocking} critical finding(s) block publication.")
-    return int(blocking > 0)
-
-
 if __name__ == "__main__":
+    import sys
+
+    def main() -> int:
+        python_packages = load_python_packages()
+        if sys.argv[1:] == ["sync-dependabot"]:
+            sync_dependabot_alerts(python_packages)
+            return 0
+        if len(sys.argv) < 4 or sys.argv[1] != "filter":
+            raise SystemExit(
+                "Usage: wiki_copilot_security.py filter OUTPUT INPUT... | sync-dependabot"
+            )
+        reports = [
+            AuditReport.model_validate_json(Path(filename).read_text())
+            for filename in sys.argv[3:]
+        ]
+        report = AuditReport(
+            findings=[
+                finding for source in reports for finding in source.findings or []
+            ],
+            ignored=[finding for source in reports for finding in source.ignored or []],
+        )
+        filtered = filter_dependency_report(report, python_packages)
+        Path(sys.argv[2]).write_text(filtered.model_dump_json(indent=2) + "\n")
+        print("## Wiki Copilot dependency audit\n")
+        print(
+            f"{len(filtered.findings or [])} findings; {len(filtered.excluded)} outside scope.\n"
+        )
+        for finding in filtered.findings or []:
+            print(
+                f"- **{finding.severity}** {finding.package}@{finding.version}: {finding.id} ({finding.manifest})"
+            )
+        blocking = len(filtered.blocking or [])
+        print(f"\n{blocking} critical finding(s) block publication.")
+        return int(blocking > 0)
+
     sys.exit(main())

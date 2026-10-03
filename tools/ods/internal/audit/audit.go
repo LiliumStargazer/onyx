@@ -114,6 +114,8 @@ type Options struct {
 	Python     bool
 	Dependabot bool
 	Actions    bool
+	Lockfiles  []string
+	Workflows  []string
 	Format     string // comma-separated list of text|json|sarif
 	FailOn     Severity
 	IgnoreURL  string
@@ -135,22 +137,22 @@ type Result struct {
 // report to opts.Stdout/opts.Stderr, and returns the result. With no selector
 // flags set, all backends are run.
 func Run(opts Options) (*Result, error) {
-	runAll := !opts.Web && !opts.Python && !opts.Dependabot && !opts.Actions
+	runAll := !opts.Web && !opts.Python && !opts.Dependabot && !opts.Actions && len(opts.Lockfiles) == 0 && len(opts.Workflows) == 0
 	scanWeb := runAll || opts.Web
 	scanPython := runAll || opts.Python
 	scanDependabot := runAll || opts.Dependabot
-	scanActionsSrc := runAll || opts.Actions
+	scanActionsSrc := runAll || opts.Actions || len(opts.Workflows) > 0
 
 	// A lockfile scan (web/python) is the primary deploy gate. While one is
 	// running, a flaky Dependabot/Actions backend is downgraded to a warning;
 	// otherwise a failure of an explicitly requested backend is fatal, so the
 	// audit can't report success without having actually checked anything.
-	lockfileGate := scanWeb || scanPython
+	lockfileGate := scanWeb || scanPython || len(opts.Lockfiles) > 0
 
 	var findings []Finding
 
-	if scanWeb || scanPython {
-		lockfiles, err := lockfilePaths(scanWeb, scanPython)
+	if lockfileGate {
+		lockfiles, err := lockfilePaths(scanWeb, scanPython, opts.Lockfiles...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to locate lockfiles: %w", err)
 		}
@@ -174,7 +176,7 @@ func Run(opts Options) (*Result, error) {
 	}
 
 	if scanActionsSrc {
-		fs, err := scanActions(osvQueryURL)
+		fs, err := scanActions(osvQueryURL, opts.Workflows...)
 		if err != nil {
 			if !lockfileGate {
 				return nil, fmt.Errorf("github actions audit failed: %w", err)
@@ -220,7 +222,7 @@ func Run(opts Options) (*Result, error) {
 
 // lockfilePaths returns the lockfiles to scan based on the selectors, skipping
 // any that don't exist.
-func lockfilePaths(web, python bool) ([]string, error) {
+func lockfilePaths(web, python bool, explicit ...string) ([]string, error) {
 	root, err := paths.GitRoot()
 	if err != nil {
 		return nil, err
@@ -234,6 +236,15 @@ func lockfilePaths(web, python bool) ([]string, error) {
 	}
 	if python {
 		candidates = append(candidates, filepath.Join(root, "uv.lock"))
+	}
+	for _, lockfile := range explicit {
+		if !filepath.IsAbs(lockfile) {
+			lockfile = filepath.Join(root, lockfile)
+		}
+		if !fileExists(lockfile) {
+			return nil, fmt.Errorf("explicit manifest does not exist: %s", lockfile)
+		}
+		candidates = append(candidates, lockfile)
 	}
 	var existing []string
 	for _, c := range candidates {
