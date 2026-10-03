@@ -154,7 +154,7 @@ jobs:
           "$RUNNER_TEMP/ods-audit" image "$first_tag" --ignore-url '' --format=json,text > image-audit.json
       - name: Save image audit
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-image-audit-${{ matrix.image }}
           path: image-audit.json
